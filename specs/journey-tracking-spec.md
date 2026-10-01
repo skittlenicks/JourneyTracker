@@ -1,0 +1,175 @@
+# Journey Tracker: Stats to Track (1-60)
+
+Items marked **[probe]** depend on data that may be secret or restricted in combat under the Forever/Midnight API. Confirm with the probe addon before building them. Event/API hints are starting points, not guarantees.
+
+## Status tracking (read this first, every session)
+Every item has a status tag. This file is the source of truth for what's done.
+
+| Tag | Meaning |
+| --- | --- |
+| `TODO` | Not started |
+| `BUILT` | Code written, not yet tested in game |
+| `VERIFIED` | Tested in game and confirmed saving correct data |
+| `BLOCKED` | Data is secret/restricted on Forever. Add a short note why |
+| `SKIP` | Decided not to track |
+
+Rules for Claude:
+1. Before writing any code, read this file and the existing addon code. Do NOT rewrite, refactor, or "improve" anything tagged `VERIFIED` unless I explicitly ask. If a change truly requires touching verified code, stop and tell me first.
+2. Only work on `TODO` items, plus `BUILT` items I report as broken.
+3. Before adding tracking for an item, search the code for an existing handler for that event or field so you don't duplicate it. Several items share one event (e.g. PLAYER_MONEY), so extend the existing handler instead of registering a new one.
+4. After writing code for an item, change its tag to `BUILT`. Never mark anything `VERIFIED` yourself. Only I do that after testing in game.
+5. When I report test results, update tags to `VERIFIED` or `BLOCKED` with a short note, e.g. `BLOCKED` (mob name is SECRET in combat, build 69913).
+6. Keep a short "Changelog" section at the bottom of this file: date, items touched, one line each.
+7. Add a comment in the Lua next to each tracker with its item number (e.g. `-- #44 total deaths`) so items can be traced between this file and the code.
+
+## Implementation notes
+- Snapshot key stats at every ding so the website can chart per-level.
+- Never index, compare, or store a value without checking issecretvalue() first.
+- Queue in-combat data and process it on PLAYER_REGEN_ENABLED.
+- Don't store other players' names. Counts only.
+- Sample player position on a timer (every ~5s, out of combat only) instead of every frame.
+- Version the saved data schema so old exports still parse.
+
+## Time and pace
+1. `BUILT` Total /played from 1 to 60 (TIME_PLAYED_MSG)
+2. `BUILT` /played at each level ding (RequestTimePlayed on PLAYER_LEVEL_UP)
+3. `BUILT` /played spent on each individual level
+4. `BUILT` Real-world calendar time from first login to 60
+5. `BUILT` Real-world timestamp of every ding
+6. `BUILT` Number of play sessions (PLAYER_LOGIN / PLAYER_LOGOUT)
+7. `BUILT` Average session length
+8. `BUILT` Longest single session
+9. `BUILT` Most levels gained in one session
+10. `BUILT` Time spent AFK (UnitIsAFK)
+11. `BUILT` Time resting in inns/cities (IsResting)
+12. `BUILT` Time spent dead (death to resurrect)
+13. `BUILT` Time on flight paths (UnitOnTaxi)
+14. `BUILT` Time mounted (IsMounted)
+15. `BUILT` XP per hour, overall and per level
+16. `BUILT` Fastest and slowest level
+17. `BUILT` Distinct calendar days played
+18. `BUILT` Playtime by hour of day (for a heatmap)
+
+## Leveling
+19. `BUILT` Zone at each ding
+20. `BUILT` Map coordinates at each ding (C_Map.GetPlayerMapPosition)
+21. `BUILT` What caused each ding: quest, kill, exploration, other
+22. `BUILT` Total rested XP used (GetXPExhaustion)
+23. `BUILT` XP split: quests vs kills vs exploration vs other
+24. `BUILT` Total XP earned
+25. `BUILT` XP earned solo vs grouped
+
+## Combat and kills
+26. `BUILT` Total XP-granting kills (CHAT_MSG_COMBAT_XP_GAIN)
+27. `BUILT` Kills per level
+28. `BUILT` Kill counts by mob name [probe] (name parsed from the XP kill message; probe build 70124: mob names, classification, type and level readable in combat)
+29. `BUILT` Most killed mob [probe]
+30. `BUILT` Elite kills (UnitClassification) [probe]
+31. `BUILT` Rare and rare-elite kills [probe]
+32. `BUILT` Kills by creature type: beast, humanoid, undead, etc. (UnitCreatureType) [probe]
+33. `BUILT` Highest level mob killed relative to your level [probe]
+34. `BUILT` Total combats entered (PLAYER_REGEN_DISABLED)
+35. `BUILT` Longest single fight
+36. `BUILT` Average fight duration
+37. `BUILT` Total time in combat
+38. `BUILT` Fights that ended in your death
+39. `BUILT` Mobs that aggroed before you targeted them [probe] (threat on nameplates; needs enemy nameplates on)
+40. `BUILT` Multi-mob pulls, using nameplates in combat [probe] (2+ mobs with threat at once; needs enemy nameplates on)
+41. `BUILT` Dungeon boss kills (ENCOUNTER_END success)
+42. `BUILT` Dungeon boss wipes and attempts per boss
+43. `BUILT` PvP honorable kills (PLAYER_PVP_KILLS_CHANGED)
+
+## Deaths
+44. `BUILT` Total deaths (PLAYER_DEAD)
+45. `BUILT` Deaths per level
+46. `BUILT` Zone and coordinates of every death
+47. `BUILT` What killed you: last cached target or mob in that fight [probe]
+48. `BUILT` Deaths solo vs grouped vs in dungeons
+49. `BUILT` Resurrection type: corpse run, spirit healer, player res (AcceptXPLoss missing on Forever; spirit healer detected from its dialog)
+50. `BUILT` Time spent on corpse runs
+51. `BUILT` Deadliest zone
+52. `BUILT` Longest streak of levels with no deaths
+
+## Quests
+53. `BUILT` Quests completed (QUEST_TURNED_IN)
+54. `BUILT` Quests completed per level
+55. `BUILT` Quests completed per zone
+56. `BUILT` XP earned from quests
+57. `BUILT` Gold earned from quests
+58. `BUILT` Quests accepted (QUEST_ACCEPTED)
+59. `BUILT` Quests abandoned (hook AbandonQuest)
+60. `BUILT` Longest-held quest, accept to turn-in
+61. `BUILT` Group/elite quests completed [probe]
+62. `BUILT` Dungeon quests completed
+
+## Exploration and travel
+63. `BUILT` Zones visited, with first-visit timestamp (ZONE_CHANGED_NEW_AREA)
+64. `BUILT` Subzones discovered
+65. `BUILT` XP earned from exploration
+66. `BUILT` Time spent in each zone
+67. `BUILT` Zone order: your path through the world
+68. `BUILT` Hearthstone uses (UNIT_SPELLCAST_SUCCEEDED)
+69. `BUILT` Flight paths discovered
+70. `BUILT` Flights taken
+71. `BUILT` Approximate distance traveled (sampled positions via C_Map.GetWorldPosFromMapPos) (uses UnitPosition instead, confirmed readable outdoors by the probe; ground and taxi kept separate)
+72. `BUILT` Graveyards used
+101. `VERIFIED` Total distance fallen (no fall event or readable height: IsFalling() is timed each frame and the drop worked out from WoW's fall speed; a jump's own rise is subtracted; Slow Fall/Levitate ignored) (confirmed in game)
+102. `VERIFIED` Longest distance fallen and lived (alive 1.5s after landing; fatal falls counted separately and shown as "Falling" in the death log) (confirmed in game)
+
+## Dungeons
+73. `BUILT` Dungeons entered (GetInstanceInfo)
+74. `BUILT` Dungeon runs completed and time per run
+75. `BUILT` Deaths per dungeon
+
+## Economy
+76. `BUILT` Gold on hand at every ding
+77. `BUILT` Total gold earned and total gold spent (PLAYER_MONEY deltas)
+78. `BUILT` Gold from looting (CHAT_MSG_MONEY) (money delta while the loot window is open; probe showed PLAYER_MONEY arrives before CHAT_MSG_MONEY)
+79. `BUILT` Gold from vendor sales (money delta while merchant is open)
+80. `BUILT` Gold spent on class training
+81. `VERIFIED` Gold spent on repairs (Repair All, plus single items fixed with the repair cursor) (single-item repair confirmed in game)
+82. `BUILT` Gold spent on flights
+83. `VERIFIED` Auction house sales and purchases (sale income = money taken from mail with a "seller" invoice; sale count = "buyer found" messages; purchases = spending while the AH is open) (auction sale income confirmed in game)
+84. `BUILT` Level and /played when you bought your first mount (approximated as the first time you're mounted)
+85. `BUILT` Peak gold held at once
+
+## Loot and gear
+86. `BUILT` Total items looted (CHAT_MSG_LOOT)
+87. `BUILT` Items looted by quality: green, blue, purple
+88. `VERIFIED` Best item looted, plus where and at what level (confirmed in game, with the item tooltip on hover)
+89. `VERIFIED` Gear snapshot every 10 levels (GetInventoryItemLink) (confirmed in game via the level 20 snapshot taken after login)
+90. `BUILT` Level of your first blue and first epic
+
+## Professions and skills
+91. `BUILT` Professions learned and the level you learned them
+92. `BUILT` Profession skill progression over time
+93. `BUILT` Items crafted
+94. `BUILT` Fish caught
+95. `BUILT` Spells and abilities learned, with level learned
+96. `BUILT` Weapon skill-ups (CHAT_MSG_SKILL) (GetNumSkillLines is missing on Forever; the chat message is the only source)
+103. `VERIFIED` Nodes gathered: herbs picked, ore nodes mined, corpses skinned, and the items each gave (gathering casts via UNIT_SPELLCAST_SUCCEEDED; repeat swings at one vein count once) (confirmed in game)
+
+## Social and fun
+97. `BUILT` Time spent grouped vs solo
+98. `BUILT` Number of unique players grouped with (count only, no names)
+99. `BUILT` Level you joined a guild
+100. `BUILT` Times jumped (hooksecurefunc on JumpOrAscendStart)
+
+## Changelog
+- 2026-10-01: Spec created, all items `TODO`.
+- 2026-10-01: #1-100 `BUILT` in new addon JourneyTracker (Interface/AddOns/JourneyTracker, per-character SavedVariables JourneyTrackerDB, schema 1).
+- 2026-10-01: #7-9, #15-16, #29, #36, #51-52 are stored as raw data (sessions, per-level stats, kill/death lists) and derived at export; `/jt` prints several of them for testing.
+- 2026-10-01: Added in-game window (JourneyTrackerUI.lua, `/jt`): Classic quest-log layout showing every item, plus a Levels tab. `/jt summary` prints to chat.
+- 2026-10-01: #101-103 added and `BUILT` (falls, longest fall survived, gathering). #81 now includes single-item repairs; #83 now records auction sale income separately from other mail. #47 reports "Falling" for fatal falls.
+- 2026-10-01: UI shows #101-103 (new Falls and Gathering pages), money with coin icons, and every stored field (session start levels, ding totals, death details, boss pulls, dungeon run levels, skill rank by level).
+- 2026-10-01: #89 a missing snapshot for your current milestone level is taken at login (marked late). #91 now also stores current and max skill, shown as bars. UI: #94 moved to Gathering, #100 to Falls; Social shows campfire time (wrapped W-009). Main file now shares its events and ding snapshots with the class and wrapped trackers.
+- 2026-10-01: #14 fixed: the game reports flight paths as mounted, so taxi time had counted as mounted and could set #84 first mount. Schema 2 migration takes taxi time back out and clears a first mount with no real mounted time. #89 fixed: snapshots taken before equipment loads are no longer saved empty; a missing or empty milestone snapshot is retaken a few seconds after login. Added a minimap button (gold "JT") that opens the window.
+- 2026-10-01: Sharing prep, part 1 (versioning and data safety): TOC "## Version: 0.1.0", read with C_AddOns.GetAddOnMetadata and shown by /journey version (/journey now works alongside /jt). Root fields schemaVersion and characterId (random UUID v4, never regenerated). Ordered MIGRATIONS run on a copy at ADDON_LOADED; a failure leaves the saved data untouched and turns tracking off for the session. Migration 1 stamps today's layout, folds in the old flight-path fix (keeping the uncorrected values under legacy), renames schema to legacySchema and assigns the characterId. JourneyTrackerBackup (per character): an automatic copy before any upgrade, and /journey backup.
+- 2026-10-01: Part 2 (export): /journey export (blocked in combat) builds an anonymous summary (no character name/realm, other players' names, chat text or hashed group IDs; skill history summarized to rank per level; name maps capped at 200), then JSON (hand-written encoder) > LibDeflate CompressDeflate > base64 > "JT1:" prefix, shown in a copy window with its length. Warns with the largest sections over 100k characters. Bundles Libs/LibDeflate (zlib license kept) and Libs/LibStub (public domain), which LibDeflate needs to be reachable in game.
+- 2026-10-01: Part 3 (packaging): build/build.ps1 makes dist/JourneyTracker-<version>.zip from the TOC version, with only the TOC, Lua, textures, Libs/ and README.txt. README.txt for friends. Note: data is saved per character, at WTF\Account\<account>\<realm>\<character>\SavedVariables\JourneyTracker.lua.
+- 2026-10-01: Part 4 (import): tools/import with decode.js (decode/validate/row mapping, reusable by the website), import.js (--dry-run, --print, duplicate skipping by character_id + exported_at), .env.example, .gitignore.
+- 2026-10-01: Part 5 (round trip): /journey testexport (dev only) and tools/import/test/roundtrip.test.js. The fixture was made by running the addon's own Lua encoder and LibDeflate in a Lua VM; Node decodes it to the expected JSON (5/5 tests pass). Also checked outside the game: migrations on real saved data, and a real export decoding and validating.
+- 2026-10-01: To check on Forever in game: C_AddOns.GetAddOnMetadata (falls back to GetAddOnMetadata); math.randomseed (may be missing or ignored, guarded); debugprofilestop; the export window (BackdropTemplate, UIPanelScrollFrameTemplate, multi-line EditBox, ScrollingEdit_OnCursorChanged / ScrollingEdit_OnUpdate, ChatFontNormal, UIPanelButtonTemplate, UIPanelCloseButton); BreakUpLargeNumbers; UnitFactionGroup; and that SavedVariablesPerCharacter accepts the second table (JourneyTrackerBackup).
+- 2026-10-01: Checked in game: /journey version, stable characterId across logins, /journey backup, export window and combat block, /journey testexport, and the data upgrade on a second character. No Lua errors on login.
+- 2026-10-01: VERIFIED in game: #81, #83, #88, #89, #101, #102, #103. Also confirmed: minimap button, item tooltips on the Gear and Loot pages, Class Stats page opens without errors.
+- 2026-10-01: Round trip confirmed: the in-game /journey testexport string is identical to the one made outside the game, and npm test passes 7/7 (Node 26).

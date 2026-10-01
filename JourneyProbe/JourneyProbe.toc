@@ -1,0 +1,7 @@
+## Interface: 16001
+## Title: JourneyProbe
+## Notes: Throwaway probe that logs what selected events return (readable vs. SECRET).
+## Version: 0.2
+## SavedVariables: JourneyProbeDB
+
+JourneyProbe.lua

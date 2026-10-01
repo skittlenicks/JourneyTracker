@@ -1,0 +1,44 @@
+{
+  "format": 1,
+  "characterId": "1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b",
+  "addonVersion": "test",
+  "schemaVersion": 1,
+  "exportedAt": 1790000000,
+  "character": {
+    "class": "DRUID",
+    "race": "NightElf",
+    "faction": "Alliance",
+    "level": 20,
+    "played": 217453,
+    "ruleset": "PvP"
+  },
+  "levels": {
+    "snapshots": { "10": { "t": 1789000000, "zone": "Elwynn Forest", "gold": 1234, "grouped": false } },
+    "stats": { "10": { "xp": 4380, "kills": 52, "played": 3600.5 } }
+  },
+  "stats": {
+    "text": "Quote \" backslash \\ slash / newline \n tab \t carriage \r done",
+    "unicode": "Café, naïve, Æthelred, 日本",
+    "control": "bell\u0007end",
+    "itemLink": "|cff0070dd|Hitem:2672::::::::20:::::::::|h[Stringy Wolf Meat]|h|r",
+    "integer": 42,
+    "zero": 0,
+    "big": 1790000000,
+    "half": 47.5,
+    "tenth": 0.1,
+    "yes": true,
+    "no": false,
+    "empty": [],
+    "list": [1, 2, 3],
+    "listOfObjects": [
+      { "name": "Timber Wolf", "count": 12 },
+      { "name": "Kobold Vermin", "count": 3 }
+    ],
+    "sparse": { "5": "five", "20": "twenty" },
+    "nested": { "a": { "b": { "c": "deep" } } },
+    "mixedKeys": { "1": "slot one", "late": true },
+    "kills": { "maxLevelDiff": { "diff": -3, "name": "Young Wolf", "mobLevel": 2, "level": 5 } }
+  },
+  "class": { "DRUID": { "casts": { "Healing Touch": 12, "Wrath": 30 } } },
+  "wrapped": { "W-009": { "Camp": 120 } }
+}

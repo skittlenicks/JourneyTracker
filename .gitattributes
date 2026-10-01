@@ -1,0 +1,6 @@
+# Store text with LF line endings; Git converts them on checkout as needed.
+* text=auto
+
+# Game textures: never convert.
+*.tga binary
+*.blp binary

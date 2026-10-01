@@ -1,0 +1,12 @@
+# Secrets (Supabase keys)
+.env
+tools/import/.env
+
+# Node
+node_modules/
+
+# Build output
+dist/
+
+# Claude Code personal settings
+.claude/settings.local.json
