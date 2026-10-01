@@ -1,0 +1,887 @@
+[
+    {
+        "uiMapID":  1411,
+        "name":  "Durotar",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  14,
+        "world":  {
+                      "minX":  -1716.67,
+                      "minY":  -7250,
+                      "maxX":  1808.33,
+                      "maxY":  -1962.5
+                  },
+        "image":  "zones/1411.jpg"
+    },
+    {
+        "uiMapID":  1412,
+        "name":  "Mulgore",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  215,
+        "world":  {
+                      "minX":  -3835.42,
+                      "minY":  -3675,
+                      "maxX":  266.67,
+                      "maxY":  2479.17
+                  },
+        "image":  "zones/1412.jpg"
+    },
+    {
+        "uiMapID":  1413,
+        "name":  "The Barrens",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  17,
+        "world":  {
+                      "minX":  -5143.75,
+                      "minY":  -7510.42,
+                      "maxX":  1612.5,
+                      "maxY":  2622.92
+                  },
+        "image":  "zones/1413.jpg"
+    },
+    {
+        "uiMapID":  1414,
+        "name":  "Kalimdor",
+        "parent":  947,
+        "type":  2,
+        "mapID":  1,
+        "areaID":  0,
+        "world":  {
+                      "minX":  -11733.3,
+                      "minY":  -19733.21,
+                      "maxX":  12799.9,
+                      "maxY":  17066.6
+                  },
+        "image":  null
+    },
+    {
+        "uiMapID":  1415,
+        "name":  "Eastern Kingdoms",
+        "parent":  947,
+        "type":  2,
+        "mapID":  0,
+        "areaID":  0,
+        "world":  {
+                      "minX":  -16000,
+                      "minY":  -19199.9,
+                      "maxX":  7466.6,
+                      "maxY":  16000
+                  },
+        "image":  null
+    },
+    {
+        "uiMapID":  1416,
+        "name":  "Alterac Mountains",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  36,
+        "world":  {
+                      "minX":  -366.67,
+                      "minY":  -2016.67,
+                      "maxX":  1500,
+                      "maxY":  783.33
+                  },
+        "image":  "zones/1416.jpg"
+    },
+    {
+        "uiMapID":  1417,
+        "name":  "Arathi Highlands",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  45,
+        "world":  {
+                      "minX":  -2533.33,
+                      "minY":  -4466.67,
+                      "maxX":  -133.33,
+                      "maxY":  -866.67
+                  },
+        "image":  "zones/1417.jpg"
+    },
+    {
+        "uiMapID":  1418,
+        "name":  "Badlands",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  3,
+        "world":  {
+                      "minX":  -7547.92,
+                      "minY":  -4566.67,
+                      "maxX":  -5889.58,
+                      "maxY":  -2079.17
+                  },
+        "image":  "zones/1418.jpg"
+    },
+    {
+        "uiMapID":  1419,
+        "name":  "Blasted Lands",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  4,
+        "world":  {
+                      "minX":  -12800,
+                      "minY":  -4591.67,
+                      "maxX":  -10566.67,
+                      "maxY":  -1241.67
+                  },
+        "image":  "zones/1419.jpg"
+    },
+    {
+        "uiMapID":  1420,
+        "name":  "Tirisfal Glades",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  85,
+        "world":  {
+                      "minX":  825,
+                      "minY":  -1485.42,
+                      "maxX":  3837.5,
+                      "maxY":  3033.33
+                  },
+        "image":  "zones/1420.jpg"
+    },
+    {
+        "uiMapID":  1421,
+        "name":  "Silverpine Forest",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  130,
+        "world":  {
+                      "minX":  -1133.33,
+                      "minY":  -750,
+                      "maxX":  1666.67,
+                      "maxY":  3450
+                  },
+        "image":  "zones/1421.jpg"
+    },
+    {
+        "uiMapID":  1422,
+        "name":  "Western Plaguelands",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  28,
+        "world":  {
+                      "minX":  500,
+                      "minY":  -3883.33,
+                      "maxX":  3366.67,
+                      "maxY":  416.67
+                  },
+        "image":  "zones/1422.jpg"
+    },
+    {
+        "uiMapID":  1423,
+        "name":  "Eastern Plaguelands",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  139,
+        "world":  {
+                      "minX":  825,
+                      "minY":  -6558.33,
+                      "maxX":  3691.67,
+                      "maxY":  -2256.25
+                  },
+        "image":  "zones/1423.jpg"
+    },
+    {
+        "uiMapID":  1424,
+        "name":  "Hillsbrad Foothills",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  267,
+        "world":  {
+                      "minX":  -1733.33,
+                      "minY":  -2133.33,
+                      "maxX":  400,
+                      "maxY":  1066.67
+                  },
+        "image":  "zones/1424.jpg"
+    },
+    {
+        "uiMapID":  1425,
+        "name":  "The Hinterlands",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  47,
+        "world":  {
+                      "minX":  -1100,
+                      "minY":  -5425,
+                      "maxX":  1466.67,
+                      "maxY":  -1575
+                  },
+        "image":  "zones/1425.jpg"
+    },
+    {
+        "uiMapID":  1426,
+        "name":  "Dun Morogh",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  1,
+        "world":  {
+                      "minX":  -7160.42,
+                      "minY":  -3122.92,
+                      "maxX":  -3877.08,
+                      "maxY":  1802.08
+                  },
+        "image":  "zones/1426.jpg"
+    },
+    {
+        "uiMapID":  1427,
+        "name":  "Searing Gorge",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  51,
+        "world":  {
+                      "minX":  -7587.5,
+                      "minY":  -2554.17,
+                      "maxX":  -6100,
+                      "maxY":  -322.92
+                  },
+        "image":  "zones/1427.jpg"
+    },
+    {
+        "uiMapID":  1428,
+        "name":  "Burning Steppes",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  46,
+        "world":  {
+                      "minX":  -8983.33,
+                      "minY":  -3195.83,
+                      "maxX":  -7031.25,
+                      "maxY":  -266.67
+                  },
+        "image":  "zones/1428.jpg"
+    },
+    {
+        "uiMapID":  1429,
+        "name":  "Elwynn Forest",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  12,
+        "world":  {
+                      "minX":  -10254.17,
+                      "minY":  -1935.42,
+                      "maxX":  -7939.58,
+                      "maxY":  1535.42
+                  },
+        "image":  "zones/1429.jpg"
+    },
+    {
+        "uiMapID":  1430,
+        "name":  "Deadwind Pass",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  41,
+        "world":  {
+                      "minX":  -11533.33,
+                      "minY":  -3333.33,
+                      "maxX":  -9866.67,
+                      "maxY":  -833.33
+                  },
+        "image":  "zones/1430.jpg"
+    },
+    {
+        "uiMapID":  1431,
+        "name":  "Duskwood",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  10,
+        "world":  {
+                      "minX":  -11516.67,
+                      "minY":  -1866.67,
+                      "maxX":  -9716.67,
+                      "maxY":  833.33
+                  },
+        "image":  "zones/1431.jpg"
+    },
+    {
+        "uiMapID":  1432,
+        "name":  "Loch Modan",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  38,
+        "world":  {
+                      "minX":  -6327.08,
+                      "minY":  -4752.08,
+                      "maxX":  -4487.5,
+                      "maxY":  -1993.75
+                  },
+        "image":  "zones/1432.jpg"
+    },
+    {
+        "uiMapID":  1433,
+        "name":  "Redridge Mountains",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  44,
+        "world":  {
+                      "minX":  -10022.92,
+                      "minY":  -3852.08,
+                      "maxX":  -8575,
+                      "maxY":  -1681.25
+                  },
+        "image":  "zones/1433.jpg"
+    },
+    {
+        "uiMapID":  1434,
+        "name":  "Stranglethorn Vale",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  33,
+        "world":  {
+                      "minX":  -15422.92,
+                      "minY":  -4160.42,
+                      "maxX":  -11168.75,
+                      "maxY":  2220.83
+                  },
+        "image":  "zones/1434.jpg"
+    },
+    {
+        "uiMapID":  1435,
+        "name":  "Swamp of Sorrows",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  8,
+        "world":  {
+                      "minX":  -11150,
+                      "minY":  -4516.67,
+                      "maxX":  -9620.83,
+                      "maxY":  -2222.92
+                  },
+        "image":  "zones/1435.jpg"
+    },
+    {
+        "uiMapID":  1436,
+        "name":  "Westfall",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  40,
+        "world":  {
+                      "minX":  -11733.33,
+                      "minY":  -483.33,
+                      "maxX":  -9400,
+                      "maxY":  3016.67
+                  },
+        "image":  "zones/1436.jpg"
+    },
+    {
+        "uiMapID":  1437,
+        "name":  "Wetlands",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  11,
+        "world":  {
+                      "minX":  -4904.17,
+                      "minY":  -4525,
+                      "maxX":  -2147.92,
+                      "maxY":  -389.58
+                  },
+        "image":  "zones/1437.jpg"
+    },
+    {
+        "uiMapID":  1438,
+        "name":  "Teldrassil",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  141,
+        "world":  {
+                      "minX":  8437.5,
+                      "minY":  -1277.08,
+                      "maxX":  11831.25,
+                      "maxY":  3814.58
+                  },
+        "image":  "zones/1438.jpg"
+    },
+    {
+        "uiMapID":  1439,
+        "name":  "Darkshore",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  148,
+        "world":  {
+                      "minX":  3966.67,
+                      "minY":  -3608.33,
+                      "maxX":  8333.33,
+                      "maxY":  2941.67
+                  },
+        "image":  "zones/1439.jpg"
+    },
+    {
+        "uiMapID":  1440,
+        "name":  "Ashenvale",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  331,
+        "world":  {
+                      "minX":  829.17,
+                      "minY":  -4066.67,
+                      "maxX":  4672.92,
+                      "maxY":  1700
+                  },
+        "image":  "zones/1440.jpg"
+    },
+    {
+        "uiMapID":  1441,
+        "name":  "Thousand Needles",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  400,
+        "world":  {
+                      "minX":  -6900,
+                      "minY":  -4833.33,
+                      "maxX":  -3966.67,
+                      "maxY":  -433.33
+                  },
+        "image":  "zones/1441.jpg"
+    },
+    {
+        "uiMapID":  1442,
+        "name":  "Stonetalon Mountains",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  406,
+        "world":  {
+                      "minX":  -339.58,
+                      "minY":  -1637.5,
+                      "maxX":  2916.67,
+                      "maxY":  3245.83
+                  },
+        "image":  "zones/1442.jpg"
+    },
+    {
+        "uiMapID":  1443,
+        "name":  "Desolace",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  405,
+        "world":  {
+                      "minX":  -2545.83,
+                      "minY":  -262.5,
+                      "maxX":  452.08,
+                      "maxY":  4233.33
+                  },
+        "image":  "zones/1443.jpg"
+    },
+    {
+        "uiMapID":  1444,
+        "name":  "Feralas",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  357,
+        "world":  {
+                      "minX":  -7000,
+                      "minY":  -1508.33,
+                      "maxX":  -2366.67,
+                      "maxY":  5441.67
+                  },
+        "image":  "zones/1444.jpg"
+    },
+    {
+        "uiMapID":  1445,
+        "name":  "Dustwallow Marsh",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  15,
+        "world":  {
+                      "minX":  -5533.33,
+                      "minY":  -6225,
+                      "maxX":  -2033.33,
+                      "maxY":  -975
+                  },
+        "image":  "zones/1445.jpg"
+    },
+    {
+        "uiMapID":  1446,
+        "name":  "Tanaris",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  440,
+        "world":  {
+                      "minX":  -10475,
+                      "minY":  -7118.75,
+                      "maxX":  -5875,
+                      "maxY":  -218.75
+                  },
+        "image":  "zones/1446.jpg"
+    },
+    {
+        "uiMapID":  1447,
+        "name":  "Azshara",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  16,
+        "world":  {
+                      "minX":  1960.42,
+                      "minY":  -8347.92,
+                      "maxX":  5341.67,
+                      "maxY":  -3277.08
+                  },
+        "image":  "zones/1447.jpg"
+    },
+    {
+        "uiMapID":  1448,
+        "name":  "Felwood",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  361,
+        "world":  {
+                      "minX":  3300,
+                      "minY":  -4108.33,
+                      "maxX":  7133.33,
+                      "maxY":  1641.67
+                  },
+        "image":  "zones/1448.jpg"
+    },
+    {
+        "uiMapID":  1449,
+        "name":  "Un\u0027Goro Crater",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  490,
+        "world":  {
+                      "minX":  -8433.33,
+                      "minY":  -3166.67,
+                      "maxX":  -5966.67,
+                      "maxY":  533.33
+                  },
+        "image":  "zones/1449.jpg"
+    },
+    {
+        "uiMapID":  1450,
+        "name":  "Moonglade",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  493,
+        "world":  {
+                      "minX":  6952.08,
+                      "minY":  -3689.58,
+                      "maxX":  8491.67,
+                      "maxY":  -1381.25
+                  },
+        "image":  "zones/1450.jpg"
+    },
+    {
+        "uiMapID":  1451,
+        "name":  "Silithus",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  1377,
+        "world":  {
+                      "minX":  -8281.25,
+                      "minY":  -945.83,
+                      "maxX":  -5958.33,
+                      "maxY":  2537.5
+                  },
+        "image":  "zones/1451.jpg"
+    },
+    {
+        "uiMapID":  1452,
+        "name":  "Winterspring",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  618,
+        "world":  {
+                      "minX":  3800,
+                      "minY":  -7416.67,
+                      "maxX":  8533.33,
+                      "maxY":  -316.67
+                  },
+        "image":  "zones/1452.jpg"
+    },
+    {
+        "uiMapID":  1453,
+        "name":  "Stormwind City",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  1519,
+        "world":  {
+                      "minX":  -9154.17,
+                      "minY":  -14.58,
+                      "maxX":  -7995.83,
+                      "maxY":  1722.92
+                  },
+        "image":  "zones/1453.jpg"
+    },
+    {
+        "uiMapID":  1454,
+        "name":  "Orgrimmar",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  1637,
+        "world":  {
+                      "minX":  1338.46,
+                      "minY":  -5083.21,
+                      "maxX":  2273.88,
+                      "maxY":  -3680.6
+                  },
+        "image":  "zones/1454.jpg"
+    },
+    {
+        "uiMapID":  1455,
+        "name":  "Ironforge",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  1537,
+        "world":  {
+                      "minX":  -5096.85,
+                      "minY":  -1504.22,
+                      "maxX":  -4569.24,
+                      "maxY":  -713.59
+                  },
+        "image":  "zones/1455.jpg"
+    },
+    {
+        "uiMapID":  1456,
+        "name":  "Thunder Bluff",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  1638,
+        "world":  {
+                      "minX":  -1545.83,
+                      "minY":  -527.08,
+                      "maxX":  -850,
+                      "maxY":  516.67
+                  },
+        "image":  "zones/1456.jpg"
+    },
+    {
+        "uiMapID":  1457,
+        "name":  "Darnassus",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  1657,
+        "world":  {
+                      "minX":  9532.59,
+                      "minY":  1880.03,
+                      "maxX":  10238.32,
+                      "maxY":  2938.36
+                  },
+        "image":  "zones/1457.jpg"
+    },
+    {
+        "uiMapID":  1458,
+        "name":  "Undercity",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  1497,
+        "world":  {
+                      "minX":  1237.84,
+                      "minY":  -86.18,
+                      "maxX":  1877.95,
+                      "maxY":  873.19
+                  },
+        "image":  "zones/1458.jpg"
+    },
+    {
+        "uiMapID":  1459,
+        "name":  "Alterac Valley",
+        "parent":  1424,
+        "type":  6,
+        "mapID":  30,
+        "areaID":  2597,
+        "world":  {
+                      "minX":  -1739.58,
+                      "minY":  -2456.25,
+                      "maxX":  1085.42,
+                      "maxY":  1781.25
+                  },
+        "image":  "zones/1459.jpg"
+    },
+    {
+        "uiMapID":  1460,
+        "name":  "Warsong Gulch",
+        "parent":  1413,
+        "type":  6,
+        "mapID":  489,
+        "areaID":  3277,
+        "world":  {
+                      "minX":  862.5,
+                      "minY":  895.83,
+                      "maxX":  1627.08,
+                      "maxY":  2041.67
+                  },
+        "image":  "zones/1460.jpg"
+    },
+    {
+        "uiMapID":  1461,
+        "name":  "Arathi Basin",
+        "parent":  1417,
+        "type":  6,
+        "mapID":  529,
+        "areaID":  3358,
+        "world":  {
+                      "minX":  337.5,
+                      "minY":  102.08,
+                      "maxX":  1508.33,
+                      "maxY":  1858.33
+                  },
+        "image":  "zones/1461.jpg"
+    },
+    {
+        "uiMapID":  1463,
+        "name":  "Eastern Kingdoms",
+        "parent":  0,
+        "type":  2,
+        "mapID":  0,
+        "areaID":  0,
+        "world":  {
+                      "minX":  -15980,
+                      "minY":  -11880,
+                      "maxX":  5817,
+                      "maxY":  9917
+                  },
+        "image":  null
+    },
+    {
+        "uiMapID":  1464,
+        "name":  "Kalimdor",
+        "parent":  0,
+        "type":  2,
+        "mapID":  1,
+        "areaID":  0,
+        "world":  {
+                      "minX":  -11870,
+                      "minY":  -13370,
+                      "maxX":  12470,
+                      "maxY":  10970
+                  },
+        "image":  null
+    },
+    {
+        "uiMapID":  2482,
+        "name":  "Mount Hyjal",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  616,
+        "world":  {
+                      "minX":  3989.58,
+                      "minY":  -4395.83,
+                      "maxX":  6304.17,
+                      "maxY":  -922.92
+                  },
+        "image":  "zones/2482.jpg"
+    },
+    {
+        "uiMapID":  2521,
+        "name":  "Zephras Isle",
+        "parent":  947,
+        "type":  3,
+        "mapID":  2991,
+        "areaID":  16593,
+        "world":  {
+                      "minX":  1247.92,
+                      "minY":  -1331.25,
+                      "maxX":  4956.25,
+                      "maxY":  4231.25
+                  },
+        "image":  "zones/2521.jpg"
+    },
+    {
+        "uiMapID":  2524,
+        "name":  "Darkspear Islands",
+        "parent":  1414,
+        "type":  6,
+        "mapID":  2997,
+        "areaID":  16606,
+        "world":  {
+                      "minX":  -835.42,
+                      "minY":  993.75,
+                      "maxX":  447.92,
+                      "maxY":  2918.75
+                  },
+        "image":  "zones/2524.jpg"
+    },
+    {
+        "uiMapID":  2548,
+        "name":  "Riverglades",
+        "parent":  1415,
+        "type":  3,
+        "mapID":  0,
+        "areaID":  16591,
+        "world":  {
+                      "minX":  -9700,
+                      "minY":  -6741.67,
+                      "maxX":  -6466.67,
+                      "maxY":  -1891.67
+                  },
+        "image":  "zones/2548.jpg"
+    },
+    {
+        "uiMapID":  2652,
+        "name":  "Shen\u0027dralas",
+        "parent":  1414,
+        "type":  3,
+        "mapID":  1,
+        "areaID":  16651,
+        "world":  {
+                      "minX":  -3266.67,
+                      "minY":  -25,
+                      "maxX":  -1900,
+                      "maxY":  2025
+                  },
+        "image":  "zones/2652.jpg"
+    },
+    {
+        "uiMapID":  2665,
+        "name":  "Zephras Isle",
+        "parent":  0,
+        "type":  3,
+        "mapID":  2991,
+        "areaID":  0,
+        "world":  {
+                      "minX":  1247.92,
+                      "minY":  -1331.25,
+                      "maxX":  4956.25,
+                      "maxY":  4231.25
+                  },
+        "image":  null
+    }
+]

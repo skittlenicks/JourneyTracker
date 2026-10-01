@@ -10,3 +10,6 @@ dist/
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Map art exported from the game with wow.export (large, and Blizzard's art)
+art/export/

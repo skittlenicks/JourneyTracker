@@ -13,6 +13,8 @@ stats and more) for a "Wrapped"-style recap. Players export their data with
 | `JourneyProbe/` | Dev-only test addon that logs what the game API exposes. Not for players. |
 | `specs/` | What to track, with each item's status (`TODO`, `BUILT`, `VERIFIED`, `BLOCKED`, `SKIP`). Read the status rules in `specs/journey-tracking-spec.md` before changing code. |
 | `build/` | `build.ps1` packages the addon into `dist/JourneyTracker-<version>.zip` for friends. |
+| `art/` | The JT logo and zone maps. `make-logo.ps1` draws both the in-game icon (`JourneyTracker/JT.tga`) and the CurseForge logo (`curseforge-logo.png`). `build-maps.ps1` turns a wow.export export of the Forever client (kept in the git-ignored `art/export/`) into web zone maps and `maps.json`, every map's ID, continent and world rectangle. |
+| `curseforge/` | The CurseForge page text: `summary.txt` and `description.md` (paste with the description editor set to Markdown). |
 | `tools/import/` | Node tool that decodes exports and inserts them into Supabase. |
 
 ## Common tasks
