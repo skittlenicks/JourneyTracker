@@ -326,7 +326,12 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .heat-map { margin: 0; }
 .heat-map figcaption { margin-top: 8px; font-size: var(--step--1); color: var(--ink-soft); }
 .world-map { height: clamp(380px, 70vh, 660px); border: 1px solid var(--rule); border-radius: 6px; }
-.world-map.leaflet-container { background: var(--sea); font-family: var(--font-body); font-size: var(--step--1); }
+/* The terrain is dimmed so the heat stands out; the sea around it is dimmed to match. */
+.world-map.leaflet-container {
+  background: color-mix(in srgb, var(--sea) 66%, #000);
+  font-family: var(--font-body);
+  font-size: var(--step--1);
+}
 .world-map .terrain-layer { filter: brightness(0.66); }
 .world-map .leaflet-bar { border: 1px solid var(--rule); box-shadow: none; }
 .world-map .leaflet-bar a {
@@ -806,9 +811,9 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   // Time at each level 1-59 in seconds, shaped like a Classic climb:
   // minutes early on, hours near 60.
   var perLevel = [];
-  for (var L = 1; L <= 59; L++) {
-    var base = 10 + 0.125 * L * L;
-    var wobble = 1 + 0.16 * Math.sin(L * 1.9) + 0.06 * Math.cos(L * 0.7);
+  for (var lv = 1; lv <= 59; lv++) { // not "L": that's Leaflet's global
+    var base = 10 + 0.125 * lv * lv;
+    var wobble = 1 + 0.16 * Math.sin(lv * 1.9) + 0.06 * Math.cos(lv * 0.7);
     perLevel.push(Math.round(base * wobble * 60));
   }
 
@@ -1222,8 +1227,10 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   }
 
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Leaflet won't zoom below 0 unless told to; fitting all of Azeroth needs about -1.
   var map = L.map("world-map", {
-    crs: L.CRS.Simple, zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 120, attributionControl: true
+    crs: L.CRS.Simple, minZoom: -4, maxZoom: 6, zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 120,
+    attributionControl: true
   });
   map.attributionControl.setPrefix(false);
   map.attributionControl.addAttribution("Map art: World of Warcraft &copy; Blizzard Entertainment");
@@ -1258,10 +1265,14 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     outline.addTo(map);
   });
 
-  // Your route as a dotted line, numbered in order; the boat trips between
-  // continents cross the sea.
-  L.polyline(route.map(function (r) { return centerOf(r.map); }), {
-    color: token("--gold-pale"), weight: 2, opacity: 0.85, dashArray: "3 7", interactive: false }).addTo(map);
+  // Your route as a dotted line on each continent; the numbers keep the order
+  // across trips between continents.
+  [0, 1].forEach(function (mapID) {
+    var stops = route.filter(function (r) { return r.map.mapID === mapID; });
+    if (stops.length < 2) return;
+    L.polyline(stops.map(function (r) { return centerOf(r.map); }), {
+      color: token("--gold-pale"), weight: 2, opacity: 0.85, dashArray: "3 7", interactive: false }).addTo(map);
+  });
   route.forEach(function (r) {
     L.marker(centerOf(r.map), { icon: pin(r.n, "stop"), title: r.n + ". " + r.name })
       .on("click", function () { focusZone(r); }).addTo(map);
