@@ -1,0 +1,1244 @@
+<title>Road to 60</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Marcellus&display=swap">
+<style>
+/* Layout: one long recap scroll in a 66rem frame. Site bar and import
+   strip, a hero showing the shape of the whole 1-60 climb, then one chapter
+   per part of the journey (statement on the left, data on the right),
+   ending in a share card. Dark only, by choice: Journey Tracker's look is
+   the logo's gold on WoW's dark frames. */
+:root {
+  color-scheme: dark;
+  --ground: #120e09;     /* frame black-brown */
+  --panel: #1b150e;      /* inset surface */
+  --rule: #3b2d1b;       /* bronze hairline */
+  --ink: #ece3cf;        /* parchment text */
+  --ink-soft: #b3a386;   /* faded ink */
+  --gold: #f2b234;       /* logo gold */
+  --gold-pale: #ffe9a3;  /* logo highlight */
+  --gold-deep: #c4660a;  /* logo base orange */
+  /* WoW's item-quality and coin colors, only where they mean that (rare
+     blue lifted a little so it reads on the dark panel) */
+  --q-poor: #9d9d9d;
+  --q-common: #ffffff;
+  --q-uncommon: #1eff00;
+  --q-rare: #2f8ef0;
+  --q-epic: #a335ee;
+  --coin-gold: #ffd100;
+  --coin-silver: #c7c7cf;
+  --coin-copper: #c8793c;
+  --font-display: "Marcellus", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, "Liberation Mono", monospace;
+  --step--1: 0.8125rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.25rem;
+  --step-2: 1.75rem;
+  --step-3: 2.75rem;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  padding-inline: 20px;
+  padding-block: 0 64px;
+}
+.frame { max-width: 66rem; margin-inline: auto; }
+h1, h2 { font-family: var(--font-display); font-weight: 400; margin: 0; text-wrap: balance; }
+code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale); }
+:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; }
+
+.eyebrow, .label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.label { margin-bottom: 10px; }
+
+/* Site bar */
+.site {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 18px;
+  border-bottom: 1px solid var(--rule);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--gold-pale);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+}
+.brand img { width: 36px; height: 36px; border-radius: 50%; }
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ground);
+  background: var(--gold);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* Import strip */
+.import {
+  display: grid;
+  gap: 10px;
+  padding-block: 24px;
+  border-bottom: 1px solid var(--rule);
+}
+.import label { font-family: var(--font-display); font-size: var(--step-1); color: var(--gold); }
+.import-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.import input {
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.import button {
+  padding: 10px 18px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ground);
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.import button:hover { background: var(--gold-pale); border-color: var(--gold-pale); }
+.import-help { margin: 0; font-size: var(--step--1); color: var(--ink-soft); }
+.import-help strong { color: var(--ink); }
+
+/* Hero */
+.hero { display: grid; gap: 12px; padding-block: 48px 40px; }
+.hero h1 { font-size: var(--step-3); line-height: 1.1; color: var(--gold-pale); }
+.hero-total { margin: 4px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.hero-total .big {
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 8vw, 4.75rem);
+  line-height: 1;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.hero-total .unit { font-size: var(--step-1); color: var(--ink-soft); }
+.hero-sub { margin: 0; max-width: 42rem; color: var(--ink-soft); }
+.road { margin: 20px 0 0; }
+.road svg { display: block; width: 100%; height: auto; overflow: visible; }
+.road figcaption { margin-top: 8px; font-size: var(--step--1); color: var(--ink-soft); }
+.road .grid { stroke: var(--rule); stroke-width: 1; }
+.road .axis { fill: var(--ink-soft); font-family: var(--font-mono); font-size: 11px; }
+.road .note { fill: var(--gold-pale); font-family: var(--font-body); font-size: 13px; }
+.road .bar:hover { opacity: 0.75; }
+.road .bar.mark { stroke: var(--gold-pale); stroke-width: 1.5; }
+.stop-top { stop-color: var(--gold-pale); }
+.stop-bottom { stop-color: var(--gold-deep); }
+.milestones { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.milestones li {
+  font-size: var(--step--1);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 4px 11px;
+}
+.milestones b { font-family: var(--font-mono); font-weight: 500; color: var(--gold); margin-right: 6px; }
+
+/* Chapters */
+.chapter {
+  display: grid;
+  grid-template-columns: minmax(0, 21rem) minmax(0, 1fr);
+  gap: 28px 56px;
+  padding-block: 48px;
+  border-top: 1px solid var(--rule);
+}
+.chapter-head { display: grid; gap: 10px; align-content: start; }
+.chapter h2 { font-size: var(--step-2); line-height: 1.22; color: var(--gold-pale); }
+.chapter-head p:not(.eyebrow) { margin: 0; color: var(--ink-soft); }
+.chapter-body { display: grid; gap: 30px; align-content: start; min-width: 0; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px; }
+
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 22px;
+}
+.stats.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stats.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stat { display: flex; flex-direction: column-reverse; gap: 2px; }
+.stat dt { font-size: var(--step--1); color: var(--ink-soft); }
+.stat dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 1.15;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.stat dd small { font-family: var(--font-body); font-size: 0.9rem; color: var(--ink-soft); }
+
+.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.bars .name { overflow-wrap: anywhere; }
+.bars .track { height: 10px; background: var(--panel); border-radius: 2px; overflow: hidden; }
+.bars .fill { display: block; height: 100%; background: linear-gradient(90deg, var(--gold-deep), var(--gold)); }
+.bars .val {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+/* Side-by-side lists are narrow: name and value on one line, bar below. */
+.pair .bars li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 5px; }
+.pair .bars .track { grid-column: 1 / -1; grid-row: 2; }
+
+.hours { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 3px; }
+.hours span { aspect-ratio: 1 / 1.7; border-radius: 2px; }
+.hours-axis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.split { display: flex; height: 18px; border-radius: 3px; overflow: hidden; background: var(--panel); }
+.split span { display: block; height: 100%; }
+.legend { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: var(--step--1); color: var(--ink-soft); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.legend b { color: var(--ink); font-weight: 500; }
+
+.path { list-style: none; margin: 0; padding: 0; }
+.path li {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding-block: 9px;
+  border-bottom: 1px dashed var(--rule);
+}
+.path li:last-child { border-bottom: 0; }
+.path .lv, .path .t { font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.path .lv { color: var(--gold); }
+.path .t { color: var(--ink-soft); white-space: nowrap; }
+
+.items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 30px; }
+.item { display: grid; gap: 3px; align-content: start; }
+.item-name { font-weight: 700; font-size: var(--step-1); line-height: 1.3; }
+.item-detail { font-size: var(--step--1); color: var(--ink-soft); }
+.q-poor { color: var(--q-poor); }
+.q-common { color: var(--q-common); }
+.q-uncommon { color: var(--q-uncommon); }
+.q-rare { color: var(--q-rare); }
+.q-epic { color: var(--q-epic); }
+.quest { color: var(--gold-pale); font-weight: 500; }
+.money { white-space: nowrap; }
+.money .cg { color: var(--coin-gold); }
+.money .cs { color: var(--coin-silver); }
+.money .cc { color: var(--coin-copper); }
+.callout { margin: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; }
+
+/* Share card */
+.share { display: grid; justify-items: center; gap: 14px; padding-block: 56px 24px; border-top: 1px solid var(--rule); text-align: center; }
+.share h2 { font-size: var(--step-2); color: var(--gold-pale); }
+.card {
+  width: min(100%, 25rem);
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 30px 26px 26px;
+  background: radial-gradient(circle at 50% 0%, #2b2014, var(--panel) 70%);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  box-shadow: 0 0 0 5px var(--ground), 0 0 0 6px var(--rule);
+}
+.card img { width: 92px; height: 92px; border-radius: 50%; }
+.card .who { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.card .lvl { font-family: var(--font-display); font-size: 2.6rem; line-height: 1; color: var(--gold); }
+.card .played { color: var(--ink-soft); }
+.card dl { margin: 6px 0 0; width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.card .stat dd { font-size: 1.35rem; }
+.card .lines { margin: 4px 0 0; padding: 12px 0 0; border-top: 1px solid var(--rule); width: 100%; display: grid; gap: 4px; font-size: var(--step--1); color: var(--ink-soft); }
+.share-note { margin: 0; font-size: var(--step--1); color: var(--ink-soft); }
+.foot { padding-top: 24px; border-top: 1px solid var(--rule); font-size: var(--step--1); color: var(--ink-soft); }
+
+.pill {
+  justify-self: start;
+  margin: 0;
+  padding: 3px 11px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--gold-pale);
+}
+
+/* Toggle buttons: zone tabs and the faction switch */
+.toggle { display: flex; flex-wrap: wrap; gap: 8px; }
+.toggle button {
+  padding: 6px 12px;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.toggle button:hover { color: var(--ink); border-color: var(--ink-soft); }
+.toggle button[aria-pressed="true"] { color: var(--ground); background: var(--gold); border-color: var(--gold); font-weight: 700; }
+.toggle button small { margin-left: 6px; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 400; }
+
+/* Wide chapters: heading on top, content across the whole frame */
+.chapter.wide { grid-template-columns: minmax(0, 1fr); }
+.chapter.wide .chapter-head { max-width: 46rem; }
+
+/* Heatmap */
+.heat { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.heat-map { position: relative; margin: 0; }
+.heat-map canvas { display: block; width: 100%; border: 1px solid var(--rule); border-radius: 6px; cursor: crosshair; }
+.heat-map figcaption { margin-top: 8px; font-size: var(--step--1); color: var(--ink-soft); }
+.heat-tip {
+  position: absolute;
+  pointer-events: none;
+  padding: 6px 10px;
+  background: var(--ground);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  font-size: var(--step--1);
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 14px));
+}
+.heat-tip b { color: var(--gold-pale); }
+.heat-tip span { margin-left: 8px; font-family: var(--font-mono); color: var(--ink-soft); }
+.heat-side { display: grid; gap: 20px; align-content: start; }
+.zone-total { margin: 0; color: var(--ink-soft); }
+.zone-total b { color: var(--ink); font-weight: 500; }
+.spots { list-style: none; margin: 0; padding: 0; }
+.spots li {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  gap: 1px 10px;
+  padding-block: 9px;
+  border-bottom: 1px dashed var(--rule);
+}
+.spots li:last-child { border-bottom: 0; }
+.spots .n {
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--gold-pale);
+  border-radius: 50%;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--gold-pale);
+}
+.spots .where { grid-column: 2; font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-soft); }
+.spots .t {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rankings */
+.ranks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ranks.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rank {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 18px 18px 16px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.rank .big { font-family: var(--font-display); font-size: 2.1rem; line-height: 1; color: var(--gold); }
+.rank p { margin: 0; }
+.rank .cohort {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.subhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.subhead .label { margin: 0; }
+.footnote { margin: 0; max-width: 46rem; font-size: var(--step--1); color: var(--ink-soft); }
+
+@media (max-width: 860px) {
+  .chapter { grid-template-columns: 1fr; gap: 22px; }
+  .heat { grid-template-columns: 1fr; }
+  .ranks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .pair, .items { grid-template-columns: 1fr; }
+  .stats, .stats.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bars li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 5px; }
+  .bars .track { grid-column: 1 / -1; grid-row: 2; }
+  .path li { grid-template-columns: 5.5rem minmax(0, 1fr); }
+  .path .t { grid-column: 2; }
+  .ranks, .ranks.cols-2 { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  .import button, .road .bar { transition: background-color 0.15s, opacity 0.15s; }
+}
+</style>
+
+<header class="site frame">
+  <a class="brand" href="#top"><img src="__LOGO__" alt="" width="36" height="36"><span>Journey Tracker</span></a>
+  <span class="chip">Sample journey</span>
+</header>
+
+<main class="frame" id="top">
+  <form class="import" id="import-form">
+    <label for="export-text">Paste your export</label>
+    <div class="import-row">
+      <input id="export-text" name="export" type="text" spellcheck="false" autocomplete="off" value="__SAMPLE_EXPORT__">
+      <button type="submit">Show my journey</button>
+    </div>
+    <p class="import-help">In game, type <code>/journey export</code>, copy the text and paste it here. <strong>Draft:</strong> importing isn't connected yet, so the button shows the sample journey below.</p>
+  </form>
+
+  <section class="hero" id="journey" aria-labelledby="hero-title">
+    <p class="eyebrow" id="hero-who"></p>
+    <h1 id="hero-title">Your road to 60</h1>
+    <p class="hero-total"><span class="big" id="total-played"></span><span class="unit">of /played</span></p>
+    <p class="pill" id="hero-rank"></p>
+    <p class="hero-sub" id="hero-sub"></p>
+    <figure class="road">
+      <svg id="road-chart" role="img" aria-label="Time spent at each level from 1 to 59"></svg>
+      <figcaption>Time spent at each level, 1 to 59. Hover a bar for the exact time.</figcaption>
+    </figure>
+    <ul class="milestones" id="milestones" aria-label="Milestones"></ul>
+  </section>
+
+  <section class="chapter" aria-labelledby="time-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Time</p>
+      <h2 id="time-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <dl class="stats cols-4" id="time-stats"></dl>
+      <div>
+        <p class="label">When you played</p>
+        <div class="hours" id="hours" role="img" aria-label="Playtime by hour of day"></div>
+        <div class="hours-axis"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span></div>
+      </div>
+      <div>
+        <p class="label">Where the time went</p>
+        <ul class="bars" id="time-bars"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="combat-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Combat</p>
+      <h2 id="combat-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <div>
+        <p class="label">Most killed</p>
+        <ul class="bars" id="mobs"></ul>
+      </div>
+      <dl class="stats" id="combat-stats"></dl>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="deaths-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Deaths</p>
+      <h2 id="deaths-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <div class="pair">
+        <div>
+          <p class="label">Where you died</p>
+          <ul class="bars" id="death-zones"></ul>
+        </div>
+        <div>
+          <p class="label">What killed you</p>
+          <ul class="bars" id="killers"></ul>
+        </div>
+      </div>
+      <dl class="stats" id="death-stats"></dl>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="quests-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Quests and XP</p>
+      <h2 id="quests-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <p class="callout" id="longest-quest"></p>
+      <dl class="stats cols-4" id="quest-stats"></dl>
+      <div>
+        <p class="label">Where your XP came from</p>
+        <div class="split" id="xp-split" role="img" aria-label="XP split by source"></div>
+        <ul class="legend" id="xp-legend"></ul>
+      </div>
+      <div>
+        <p class="label">Most quests turned in</p>
+        <ul class="bars" id="quest-zones"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="road-title">
+    <div class="chapter-head">
+      <p class="eyebrow">The road</p>
+      <h2 id="road-title"></h2>
+      <p>Zones in the order you reached them, with the levels you spent there.</p>
+    </div>
+    <div class="chapter-body">
+      <ol class="path" id="path"></ol>
+      <dl class="stats" id="travel-stats"></dl>
+    </div>
+  </section>
+
+  <section class="chapter wide" aria-labelledby="heat-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Where you spent your time</p>
+      <h2 id="heat-title"></h2>
+      <p>Brighter means longer. AFK time and flight paths are left out. Hover the map for coordinates and hotspots.</p>
+    </div>
+    <div class="heat">
+      <figure class="heat-map" id="heat-map">
+        <canvas id="heat-canvas" role="img" aria-label="Heatmap of where you spent your time in the zone"></canvas>
+        <div class="heat-tip" id="heat-tip" hidden></div>
+        <figcaption>Sample heat on the zone's own map from the WoW Forever client. Coordinates use WoW's 0 to 100 map grid.</figcaption>
+      </figure>
+      <div class="heat-side">
+        <div class="toggle" id="zone-tabs" role="group" aria-label="Zone"></div>
+        <p class="zone-total" id="zone-total"></p>
+        <div>
+          <p class="label" id="spots-label"></p>
+          <ol class="spots" id="spots"></ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="gold-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Gold</p>
+      <h2 id="gold-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <div class="pair">
+        <div>
+          <p class="label">Earned from</p>
+          <ul class="bars" id="earned"></ul>
+        </div>
+        <div>
+          <p class="label">Spent on</p>
+          <ul class="bars" id="spent"></ul>
+        </div>
+      </div>
+      <dl class="stats cols-2" id="gold-stats"></dl>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="gear-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Gear and loot</p>
+      <h2 id="gear-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <div class="items" id="gear-items"></div>
+      <div>
+        <p class="label">Items looted, by quality</p>
+        <ul class="bars" id="loot"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="skills-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Professions</p>
+      <h2 id="skills-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <ul class="bars" id="profs"></ul>
+      <dl class="stats cols-2" id="skill-stats"></dl>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="class-title">
+    <div class="chapter-head">
+      <p class="eyebrow" id="class-eyebrow"></p>
+      <h2 id="class-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <div>
+        <p class="label">Time in each form</p>
+        <ul class="bars" id="forms"></ul>
+      </div>
+      <dl class="stats cols-2" id="class-stats"></dl>
+    </div>
+  </section>
+
+  <section class="chapter" aria-labelledby="forever-title">
+    <div class="chapter-head">
+      <p class="eyebrow">WoW Forever and friends</p>
+      <h2 id="forever-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <dl class="stats" id="forever-stats"></dl>
+      <dl class="stats cols-2" id="social-stats"></dl>
+    </div>
+  </section>
+
+  <section class="chapter wide" aria-labelledby="ranks-title">
+    <div class="chapter-head">
+      <p class="eyebrow">How you compare</p>
+      <h2 id="ranks-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <div class="ranks" id="ranks"></div>
+      <div class="subhead">
+        <p class="label">Iconic moments</p>
+        <div class="toggle" id="faction" role="group" aria-label="Faction">
+          <button type="button" id="faction-alliance" aria-pressed="true">Alliance <small>this character</small></button>
+          <button type="button" id="faction-horde" aria-pressed="false">Horde <small>example</small></button>
+        </div>
+      </div>
+      <div class="ranks cols-2" id="iconic"></div>
+      <p class="footnote">Rankings compare you with everyone who has imported a journey: all players, your faction, your class or your race, as each card says. Until enough players have imported, the site shows your place instead, like "2nd of 9".</p>
+    </div>
+  </section>
+
+  <section class="share" aria-labelledby="share-title">
+    <p class="eyebrow">Share</p>
+    <h2 id="share-title">Your journey on one card</h2>
+    <div class="card" id="card">
+      <img src="__LOGO__" alt="Journey Tracker logo" width="92" height="92">
+      <span class="who" id="card-who"></span>
+      <span class="lvl">Level 60</span>
+      <span class="played" id="card-played"></span>
+      <dl id="card-stats"></dl>
+      <div class="lines" id="card-lines"></div>
+    </div>
+    <p class="share-note">The finished site will let you save this card as an image.</p>
+  </section>
+</main>
+
+<footer class="frame foot">Draft with a made-up sample journey. The real site will build this page from a <code>/journey export</code>.</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // A made-up level 60 Night Elf Druid. The real site computes all of this
+  // from a /journey export.
+  var S = {
+    who: "Night Elf Druid · Alliance · Normal realm",
+    firstLogin: "January 12", reached60: "February 27", calendarDays: 46, daysPlayed: 39,
+    sessions: 96, longestSession: 28320, bestSession: { levels: 4, from: 12, to: 16 },
+    hourWeights: [3, 2, 1.2, 0.6, 0.3, 0.3, 0.5, 1, 1.6, 2, 2.4, 3, 3.4, 3.2, 3.6, 4.2, 5, 6.2, 7.4, 8.6, 9.6, 10, 8.2, 5.2],
+    timeSpent: [["Mounted", 97500], ["In combat", 94680], ["Resting in inns and cities", 50520],
+                ["On flight paths", 34800], ["AFK", 33240], ["Dead", 15120]],
+    kills: 11842,
+    topMobs: [["Wastewander Bandit", 312], ["Frostsaber Stalker", 241], ["Deadwood Gardener", 219],
+              ["Gorishi Wasp", 207], ["Southsea Pirate", 188]],
+    elites: 640, rares: 9, bosses: 96, honorKills: 132, longestFight: 192, bestKill: { mob: 47, you: 41 },
+    deaths: 47,
+    deathZones: [["Stranglethorn Vale", 11], ["Tanaris", 6], ["Desolace", 5], ["Felwood", 4]],
+    killers: [["Players (PvP)", 9], ["Bloodsail Swashbuckler", 4], ["Falling", 3], ["Frostsaber Stalker", 2]],
+    rez: { corpse: 39, spirit: 5, player: 3 }, timeDead: 15120, streak: { levels: 14, from: 31, to: 44 },
+    dungeonDeaths: 7,
+    quests: { completed: 612, accepted: 655, abandoned: 34, group: 37, forever: 88, classic: 524 },
+    longestQuest: { title: "The Missing Diplomat", days: 23, from: 26, to: 38 },
+    xpSplit: [["Quests", 58, "var(--gold)"], ["Kills", 36, "var(--gold-deep)"],
+              ["Exploration", 4, "var(--gold-pale)"], ["Other", 2, "var(--ink-soft)"]],
+    restedShare: 10,
+    questZones: [["Tanaris", 64], ["Feralas", 58], ["Un'Goro Crater", 52], ["Ashenvale", 49], ["Darkshore", 47]],
+    path: [["Teldrassil", 1, 11], ["Darkshore", 11, 19], ["Ashenvale", 19, 25], ["Stonetalon Mountains", 25, 28],
+           ["Duskwood", 28, 31], ["Desolace", 31, 35], ["Stranglethorn Vale", 35, 41], ["Dustwallow Marsh", 41, 43],
+           ["Tanaris", 43, 47], ["Feralas", 47, 50], ["Un'Goro Crater", 50, 53], ["Felwood", 53, 55],
+           ["Winterspring", 55, 58], ["Western Plaguelands", 58, 60]],
+    travel: { groundYards: 1284600, airYards: 1112000, flights: 142, flightPaths: 27, hearths: 188,
+              longestFall: 61, fallen: 18420 },
+    earned: [["Quest rewards", 5120000], ["Selling to vendors", 3710000], ["Looting", 2863612],
+             ["Auction house sales", 1150000]],
+    spent: [["Vendor purchases", 3460000], ["Auction house", 3120000], ["Class training", 2380000],
+            ["Repairs", 1510000], ["Flights", 610000], ["Other", 390000]],
+    peakGold: { copper: 2141830, level: 58 }, firstMountLevel: 40,
+    wornLevels: { name: "Cape of the Brotherhood", q: "rare", slot: "Back", levels: 29.4, from: 21, to: 50 },
+    wornPlayed: { name: "Wolfshead Helm", q: "rare", slot: "Head", played: 266400, from: 45, to: 60 },
+    bestLoot: { name: "Robes of Arugal", q: "rare", level: 25, where: "Shadowfang Keep" },
+    firstBlue: { name: "Smite's Mighty Hammer", q: "rare", level: 19 },
+    loot: [["Poor", 1820, "var(--q-poor)"], ["Common", 1412, "var(--q-common)"],
+           ["Uncommon", 611, "var(--q-uncommon)"], ["Rare", 70, "var(--q-rare)"]],
+    professions: [["Skinning", 300], ["First Aid", 300], ["Leatherworking", 275], ["Cooking", 225], ["Fishing", 220]],
+    skinned: 1384, crafted: 412, fish: 263, skillUps: 1402,
+    className: "Druid",
+    forms: [["Cat Form", 151440], ["Bear Form", 80100], ["Travel Form", 52680], ["Aquatic Form", 7800]],
+    shifts: 9421, topShift: { from: "Caster", to: "Cat", n: 3912 }, healing: 1624400, prowl: 23460,
+    formsLearned: "Bear 10 · Aquatic 16 · Cat 20 · Travel 30",
+    camps: 23, campTime: 20400, campBuffs: 61, transmog: 12,
+    grouped: 100800, groupedWith: 214, guildLevel: 23, jumps: 52117,
+    milestones: [[10, "Bear Form"], [16, "Aquatic Form"], [19, "First blue"], [20, "Cat Form"],
+                 [21, "Killed VanCleef"], [23, "Joined a guild"], [30, "Travel Form"], [40, "First mount"],
+                 [60, "Level 60"]],
+    // Hotspots per zone: [subzone, x, y (WoW map coordinates), minutes, spread]
+    // The first spot is the zone's hub; faint trails lead out from it.
+    heat: [
+      { zone: "Tanaris", map: 1446, from: 43, to: 47, spots: [["Gadgetzan", 51, 28, 260, 2.2], ["Abyssal Sands", 46, 41, 175, 4.2],
+        ["Lost Rigger Cove", 73, 46, 130, 3.4], ["Sandsorrow Watch", 40, 28, 85, 3.6], ["Thistleshrub Valley", 31, 62, 65, 4.6]] },
+      { zone: "Stranglethorn Vale", map: 1434, from: 35, to: 41, spots: [["Booty Bay", 26, 76, 210, 2], ["Nesingwary's Expedition", 35, 11, 160, 3],
+        ["Lake Nazferiti", 42, 16, 110, 3.4], ["Kurzen's Compound", 44, 9, 90, 3.2], ["Gurubashi Arena", 31, 48, 75, 2.6],
+        ["Mosh'Ogg Ogre Mound", 50, 31, 55, 3.4]] },
+      { zone: "Winterspring", map: 1452, from: 55, to: 58, spots: [["Everlook", 60, 38, 230, 2.2], ["Frostsaber Rock", 50, 13, 190, 4.4],
+        ["Winterfall Village", 68, 36, 140, 3.2], ["Lake Kel'Theril", 53, 42, 100, 3.8], ["Darkwhisper Gorge", 56, 83, 65, 3.6]] },
+      { zone: "Un'Goro Crater", map: 1449, from: 50, to: 53, spots: [["Marshal's Refuge", 44, 9, 170, 2.2], ["The Slithering Scar", 50, 79, 160, 4.4],
+        ["Fire Plume Ridge", 51, 50, 110, 3.8], ["Lakkari Tar Pits", 50, 22, 85, 4], ["Golakka Hot Springs", 34, 54, 70, 3.6]] }
+    ],
+    // Iconic first kills and memes by faction: [headline, line, cohort]
+    iconic: {
+      alliance: [
+        ["Top 9%", "first to kill Edwin VanCleef, at level 21", "Alliance players"],
+        ["Never", "fought Hogger. 64% of Night Elves never do either.", "Night Elves"],
+        ["Top 4%", "boat riders: 14 trips between Auberdine and Menethil", "Alliance players"],
+        ["Top 25%", "first to kill King Bangalash, at level 41", "All players"]
+      ],
+      horde: [
+        ["Top 3%", "first to find Mankrik's wife, at level 15", "Horde players"],
+        ["Top 12%", "first to kill Echeyakee, at level 16", "Horde players"],
+        ["Top 4%", "killed Lakota'mani, the Barrens' rare kodo", "Horde players"],
+        ["Top 1%", "falls from the Undercity elevator: 3", "Horde players"]
+      ]
+    }
+  };
+
+  // Time at each level 1-59 in seconds, shaped like a Classic climb:
+  // minutes early on, hours near 60.
+  var perLevel = [];
+  for (var L = 1; L <= 59; L++) {
+    var base = 10 + 0.125 * L * L;
+    var wobble = 1 + 0.16 * Math.sin(L * 1.9) + 0.06 * Math.cos(L * 0.7);
+    perLevel.push(Math.round(base * wobble * 60));
+  }
+
+  function $(id) { return document.getElementById(id); }
+  function sum(list) { return list.reduce(function (t, v) { return t + v; }, 0); }
+  function num(n) { return Math.round(n).toLocaleString("en-US"); }
+  function esc(text) {
+    return String(text).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c];
+    });
+  }
+  // The addon's own duration format: 6d 12h 40m, 2h 51m, 9m 36s.
+  function dur(seconds) {
+    var s = Math.round(seconds);
+    var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    if (d) return d + "d " + h + "h " + m + "m";
+    if (h) return h + "h " + m + "m";
+    return m + "m " + (s % 60) + "s";
+  }
+  function money(copper) {
+    var g = Math.floor(copper / 10000), s = Math.floor(copper % 10000 / 100), c = copper % 100;
+    var parts = [];
+    if (g) parts.push(num(g) + '<span class="cg">g</span>');
+    if (g || s) parts.push(s + '<span class="cs">s</span>');
+    parts.push(c + '<span class="cc">c</span>');
+    return '<span class="money">' + parts.join(" ") + "</span>";
+  }
+  function gold(copper) { return num(Math.floor(copper / 10000)); }
+  function hourName(h) { return h === 0 ? "12 AM" : h < 12 ? h + " AM" : h === 12 ? "12 PM" : (h - 12) + " PM"; }
+  function item(it) { return '<span class="item-name q-' + it.q + '">[' + esc(it.name) + "]</span>"; }
+  function levels(from, to) { return from === to ? "level " + from : "levels " + from + " to " + to; }
+
+  // Rows of [label, value(html)].
+  function stats(id, rows) {
+    $(id).innerHTML = rows.map(function (r) {
+      return '<div class="stat"><dt>' + esc(r[0]) + "</dt><dd>" + r[1] + "</dd></div>";
+    }).join("");
+  }
+  // Rows of [name, value, optional color]; bars scale to max (or the biggest value).
+  function bars(id, rows, format, max) {
+    var top = max || Math.max.apply(null, rows.map(function (r) { return r[1]; })) || 1;
+    $(id).innerHTML = rows.map(function (r) {
+      var style = "width:" + Math.min(100, r[1] / top * 100).toFixed(1) + "%" + (r[2] ? ";background:" + r[2] : "");
+      return '<li><span class="name">' + esc(r[0]) + '</span><span class="track"><span class="fill" style="' +
+        style + '"></span></span><span class="val">' + format(r[1]) + "</span></li>";
+    }).join("");
+  }
+
+  var total = sum(perLevel);
+  var fastest = perLevel.indexOf(Math.min.apply(null, perLevel));
+  var slowest = perLevel.indexOf(Math.max.apply(null, perLevel));
+  var toLevel = function (level) { return sum(perLevel.slice(0, level - 1)); };
+
+  // Hero
+  $("hero-who").textContent = S.who;
+  $("total-played").textContent = dur(total);
+  $("hero-sub").textContent = "From your first login on " + S.firstLogin + " to level 60 on " + S.reached60 +
+    ", " + S.calendarDays + " days later. Fastest level: " + (fastest + 1) + " in " + dur(perLevel[fastest]) +
+    ". Slowest: " + (slowest + 1) + " in " + dur(perLevel[slowest]) + ".";
+  $("milestones").innerHTML = S.milestones.map(function (m) {
+    return "<li><b>" + m[0] + "</b>" + esc(m[1]) + "</li>";
+  }).join("");
+
+  function drawRoad() {
+    var svg = $("road-chart");
+    var W = Math.max(300, Math.round(svg.parentNode.clientWidth || 900));
+    var H = W < 560 ? 220 : 300;
+    var m = { l: 40, r: 6, t: 28, b: 26 };
+    var pw = W - m.l - m.r, ph = H - m.t - m.b;
+    var step = (W < 560 ? 4 : 2) * 3600;
+    var top = Math.ceil(Math.max.apply(null, perLevel) / step) * step;
+    var slot = pw / perLevel.length, bw = Math.max(2, slot * 0.66);
+    var y = function (v) { return m.t + ph - v / top * ph; };
+    var out = ['<defs><linearGradient id="bar-gold" x1="0" y1="0" x2="0" y2="1">' +
+      '<stop offset="0" class="stop-top"></stop><stop offset="1" class="stop-bottom"></stop></linearGradient></defs>'];
+    for (var v = 0; v <= top; v += step) {
+      out.push('<line class="grid" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y(v) + '" y2="' + y(v) + '"></line>');
+      out.push('<text class="axis" x="' + (m.l - 8) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + v / 3600 + "h</text>");
+    }
+    perLevel.forEach(function (sec, i) {
+      var x = m.l + i * slot + (slot - bw) / 2;
+      var mark = i === fastest || i === slowest ? " mark" : "";
+      out.push('<rect class="bar' + mark + '" x="' + x.toFixed(1) + '" y="' + y(sec).toFixed(1) + '" width="' +
+        bw.toFixed(1) + '" height="' + (ph - (y(sec) - m.t)).toFixed(1) + '" fill="url(#bar-gold)">' +
+        "<title>Level " + (i + 1) + ": " + dur(sec) + "</title></rect>");
+    });
+    [1, 10, 20, 30, 40, 50, 59].forEach(function (level) {
+      var x = m.l + (level - 1) * slot + slot / 2;
+      out.push('<text class="axis" x="' + x.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + level + "</text>");
+    });
+    var sx = m.l + slowest * slot + slot / 2;
+    out.push('<text class="note" x="' + sx.toFixed(1) + '" y="' + (y(perLevel[slowest]) - 9).toFixed(1) +
+      '" text-anchor="end">Slowest: level ' + (slowest + 1) + ", " + dur(perLevel[slowest]) + "</text>");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+    svg.innerHTML = out.join("");
+  }
+  drawRoad();
+  $("hero-rank").textContent = "Faster to 60 than 92% of players";
+
+  // Time
+  var hourTotal = sum(S.hourWeights);
+  var peak = S.hourWeights.indexOf(Math.max.apply(null, S.hourWeights));
+  $("time-title").textContent = "You played on " + S.daysPlayed + " of those " + S.calendarDays +
+    " days, most often around " + hourName(peak) + ".";
+  stats("time-stats", [
+    ["Play sessions", num(S.sessions)],
+    ["Average session", dur(total / S.sessions)],
+    ["Longest session", dur(S.longestSession)],
+    ["Most levels in one session", S.bestSession.levels + " <small>(" + S.bestSession.from + " to " + S.bestSession.to + ")</small>"]
+  ]);
+  $("hours").innerHTML = S.hourWeights.map(function (w, h) {
+    var share = Math.round(w / Math.max.apply(null, S.hourWeights) * 88) + 8;
+    return '<span style="background:color-mix(in srgb, var(--gold) ' + share + '%, var(--panel))" title="' +
+      hourName(h) + ": " + dur(total * w / hourTotal) + '"></span>';
+  }).join("");
+  bars("time-bars", S.timeSpent, dur);
+
+  // Combat
+  $("combat-title").textContent = num(S.kills) + " kills. " + S.topMobs[0][1] + " of them were " + S.topMobs[0][0] + "s.";
+  bars("mobs", S.topMobs, num);
+  stats("combat-stats", [
+    ["Elites", num(S.elites)],
+    ["Rares", num(S.rares)],
+    ["Dungeon bosses", num(S.bosses)],
+    ["Honorable kills", num(S.honorKills)],
+    ["Longest fight", dur(S.longestFight)],
+    ["Biggest level gap won", "+" + (S.bestKill.mob - S.bestKill.you) + " <small>(" + S.bestKill.mob + " at " + S.bestKill.you + ")</small>"]
+  ]);
+
+  // Deaths
+  $("deaths-title").textContent = "You died " + S.deaths + " times. " + S.deathZones[0][0] + " took " +
+    S.deathZones[0][1] + " of them.";
+  bars("death-zones", S.deathZones, num);
+  bars("killers", S.killers, num);
+  stats("death-stats", [
+    ["Corpse runs", num(S.rez.corpse)],
+    ["Spirit healer", num(S.rez.spirit)],
+    ["Rezzed by a player", num(S.rez.player)],
+    ["Deaths in dungeons", num(S.dungeonDeaths)],
+    ["Time spent dead", dur(S.timeDead)],
+    ["Longest run without dying", S.streak.levels + " levels <small>(" + S.streak.from + " to " + S.streak.to + ")</small>"]
+  ]);
+
+  // Quests and XP
+  $("quests-title").textContent = num(S.quests.completed) + " quests done. One stayed in your log for " +
+    S.longestQuest.days + " days.";
+  $("longest-quest").innerHTML = '<span class="quest">' + esc(S.longestQuest.title) + "</span> sat in your quest log for " +
+    S.longestQuest.days + " days, from level " + S.longestQuest.from + " to " + S.longestQuest.to + ".";
+  stats("quest-stats", [
+    ["Quests accepted", num(S.quests.accepted)],
+    ["Abandoned", num(S.quests.abandoned)],
+    ["Group and elite", num(S.quests.group)],
+    ["XP from rested", S.restedShare + "%"]
+  ]);
+  $("xp-split").innerHTML = S.xpSplit.map(function (p) {
+    return '<span style="width:' + p[1] + "%;background:" + p[2] + '"></span>';
+  }).join("");
+  $("xp-legend").innerHTML = S.xpSplit.map(function (p) {
+    return '<li><i style="background:' + p[2] + '"></i>' + esc(p[0]) + " <b>" + p[1] + "%</b></li>";
+  }).join("");
+  bars("quest-zones", S.questZones, num);
+
+  // The road
+  var miles = function (yards) { return num(yards / 1760); };
+  $("road-title").textContent = S.path.length + " zones, " + miles(S.travel.groundYards) + " miles on foot and " +
+    S.travel.flights + " flights.";
+  $("path").innerHTML = S.path.map(function (z) {
+    var seconds = 0.82 * sum(perLevel.slice(z[1] - 1, z[2] - 1));
+    return '<li><span class="lv">' + z[1] + " to " + z[2] + '</span><span class="zone">' + esc(z[0]) +
+      '</span><span class="t">' + dur(seconds) + "</span></li>";
+  }).join("");
+  stats("travel-stats", [
+    ["On foot and mounted", miles(S.travel.groundYards) + " <small>mi</small>"],
+    ["By flight path", miles(S.travel.airYards) + " <small>mi</small>"],
+    ["Flight paths found", num(S.travel.flightPaths)],
+    ["Hearthstone uses", num(S.travel.hearths)],
+    ["Longest fall survived", S.travel.longestFall + " <small>yd</small>"],
+    ["Total distance fallen", num(S.travel.fallen) + " <small>yd</small>"]
+  ]);
+
+  // Gold
+  var earned = sum(S.earned.map(function (r) { return r[1]; }));
+  var spent = sum(S.spent.map(function (r) { return r[1]; }));
+  $("gold-title").textContent = "You earned " + gold(earned) + " gold and kept " + gold(earned - spent) + " of it.";
+  bars("earned", S.earned, money);
+  bars("spent", S.spent, money);
+  stats("gold-stats", [
+    ["Earned", money(earned)],
+    ["Spent", money(spent)],
+    ["Most gold at once", money(S.peakGold.copper) + " <small>(level " + S.peakGold.level + ")</small>"],
+    ["First mount", "Level " + S.firstMountLevel + " <small>(" + dur(toLevel(S.firstMountLevel)) + " /played)</small>"]
+  ]);
+
+  // Gear and loot
+  $("gear-title").textContent = "[" + S.wornLevels.name + "] stayed on for " + Math.round(S.wornLevels.levels) + " levels.";
+  var gear = [
+    ["Worn for the most levels", S.wornLevels, S.wornLevels.slot + ", " + S.wornLevels.levels.toFixed(1) +
+      " levels (" + levels(S.wornLevels.from, S.wornLevels.to) + ")"],
+    ["Worn for the most /played", S.wornPlayed, S.wornPlayed.slot + ", " + dur(S.wornPlayed.played) +
+      " (" + levels(S.wornPlayed.from, S.wornPlayed.to) + ")"],
+    ["Best item looted", S.bestLoot, "Level " + S.bestLoot.level + ", " + S.bestLoot.where],
+    ["First blue", S.firstBlue, "Level " + S.firstBlue.level + ". First epic: not yet."]
+  ];
+  $("gear-items").innerHTML = gear.map(function (g) {
+    return '<div class="item"><p class="label">' + esc(g[0]) + "</p>" + item(g[1]) +
+      '<span class="item-detail">' + esc(g[2]) + "</span></div>";
+  }).join("");
+  bars("loot", S.loot, num);
+
+  // Professions
+  $("skills-title").textContent = num(S.skinned) + " creatures skinned and " + num(S.fish) + " fish caught.";
+  bars("profs", S.professions, function (v) { return v + " / 300"; }, 300);
+  stats("skill-stats", [
+    ["Items crafted", num(S.crafted)],
+    ["Weapon skill-ups", num(S.skillUps)]
+  ]);
+
+  // Class
+  var formTime = sum(S.forms.map(function (f) { return f[1]; }));
+  $("class-eyebrow").textContent = S.className;
+  $("class-title").textContent = dur(S.forms[0][1]) + " in " + S.forms[0][0] + ", and " + num(S.shifts) + " shapeshifts.";
+  bars("forms", [["Caster form", total - formTime]].concat(S.forms), dur);
+  stats("class-stats", [
+    ["Most common shift", esc(S.topShift.from) + " to " + esc(S.topShift.to) + " <small>(" + num(S.topShift.n) + ")</small>"],
+    ["Healing done (estimated)", num(S.healing)],
+    ["Time in Prowl", dur(S.prowl)],
+    ["Forms learned at", '<small>' + esc(S.formsLearned) + "</small>"]
+  ]);
+
+  // WoW Forever and friends
+  $("forever-title").textContent = S.quests.forever + " new Forever quests, " + S.camps + " campfires and " +
+    num(S.jumps) + " jumps.";
+  stats("forever-stats", [
+    ["New Forever quests", num(S.quests.forever)],
+    ["Classic quests", num(S.quests.classic)],
+    ["Camps set up", num(S.camps)],
+    ["Time at campfires", dur(S.campTime)],
+    ["Camp buffs", num(S.campBuffs)],
+    ["Transmog changes", num(S.transmog)]
+  ]);
+  stats("social-stats", [
+    ["Time grouped", dur(S.grouped) + " <small>(" + Math.round(S.grouped / total * 100) + "%)</small>"],
+    ["Players grouped with", num(S.groupedWith)],
+    ["Joined a guild", "Level " + S.guildLevel],
+    ["Jumps", num(S.jumps) + " <small>(one every " + Math.round(total / S.jumps) + "s)</small>"]
+  ]);
+
+  // Where you spent your time: a heatmap per zone, drawn from hotspots.
+  // Real data will be a grid of seconds per map cell from the addon.
+  var heatCanvas = $("heat-canvas"), heatTip = $("heat-tip");
+  var zoneIndex = 0, heatCache = {};
+  var favorite = null;
+  S.heat.forEach(function (z) {
+    z.spots.forEach(function (s) {
+      if (!favorite || s[3] > favorite.spot[3]) favorite = { zone: z.zone, spot: s };
+    });
+  });
+  $("heat-title").textContent = "Your favorite spot in Azeroth: " + favorite.spot[0] + ", " + favorite.zone + ".";
+  function zoneSeconds(z) { return 0.82 * sum(perLevel.slice(z.from - 1, z.to - 1)); }
+
+  // The game's own zone maps (exported from the Forever client), by map ID.
+  var MAP_ART = { 1446: "__MAP_1446__", 1434: "__MAP_1434__", 1452: "__MAP_1452__", 1449: "__MAP_1449__" };
+  var mapImages = {};
+  Object.keys(MAP_ART).forEach(function (id) {
+    var img = new Image();
+    img.onload = function () { if (S.heat[zoneIndex].map === Number(id)) drawHeat(); };
+    img.src = MAP_ART[id];
+    mapImages[id] = img;
+  });
+
+  // Each hotspot as a lumpy cluster, like real time-at-place data, plus
+  // faint trails out from the zone's hub.
+  function heatPoints(z) {
+    var rnd = seeded(hashText(z.zone)), points = [];
+    z.spots.forEach(function (s) {
+      var r = s[4] * 0.8;
+      points.push({ x: s[1], y: s[2], m: s[3] * 0.4, r: r });
+      for (var k = 0; k < 9; k++) {
+        var angle = rnd() * Math.PI * 2, dist = rnd() * s[4] * 1.6;
+        points.push({ x: s[1] + Math.cos(angle) * dist, y: s[2] + Math.sin(angle) * dist * 1.5,
+                      m: s[3] * 0.6 / 9 * (0.5 + rnd()), r: r * (0.5 + rnd() * 0.6) });
+      }
+    });
+    var hub = z.spots[0];
+    z.spots.slice(1).forEach(function (s) {
+      for (var k = 2; k < 30; k++) {
+        var t = k / 30;
+        points.push({ x: hub[1] + (s[1] - hub[1]) * t + (rnd() - 0.5) * 0.8,
+                      y: hub[2] + (s[2] - hub[2]) * t + (rnd() - 0.5) * 0.8, m: 3.5, r: 0.9 });
+      }
+    });
+    return points;
+  }
+
+  // Ember red (a little time) through orange and gold to white-hot (the most),
+  // so it reads on the gold parchment maps.
+  var RAMP = [[0, [190, 45, 20]], [0.45, [236, 112, 28]], [0.75, [255, 196, 70]], [1, [255, 248, 220]]];
+  function ramp(t) {
+    for (var i = 1; i < RAMP.length; i++) {
+      if (t <= RAMP[i][0]) {
+        var a = RAMP[i - 1], b = RAMP[i], f = (t - a[0]) / (b[0] - a[0]);
+        return [0, 1, 2].map(function (k) { return Math.round(a[1][k] + (b[1][k] - a[1][k]) * f); });
+      }
+    }
+    return RAMP[RAMP.length - 1][1];
+  }
+
+  // A small colored layer (180 x 120, the map's 3:2 shape) scaled up smoothly.
+  var FW = 180, FH = 120;
+  function heatLayer(points) {
+    var field = new Float32Array(FW * FH), max = 0;
+    for (var j = 0; j < FH; j++) {
+      for (var i = 0; i < FW; i++) {
+        var px = (i + 0.5) / FW * 100, py = (j + 0.5) / FH * 100, v = 0;
+        for (var k = 0; k < points.length; k++) {
+          var p = points[k], dx = px - p.x, dy = (py - p.y) / 1.5; // y units are 1.5x shorter on a 3:2 map
+          v += p.m * Math.exp(-(dx * dx + dy * dy) / (2 * p.r * p.r));
+        }
+        field[j * FW + i] = v;
+        if (v > max) max = v;
+      }
+    }
+    var layer = document.createElement("canvas");
+    layer.width = FW;
+    layer.height = FH;
+    var lctx = layer.getContext("2d");
+    var img = lctx.createImageData(FW, FH);
+    for (var n = 0; n < field.length; n++) {
+      var t = Math.pow(field[n] / max, 0.5);
+      var e = Math.min(1, Math.max(0, (t - 0.05) / 0.62));
+      var alpha = e * e * (3 - 2 * e) * 0.72; // smooth fade in, so the map shows through
+      var c = ramp(t);
+      img.data[n * 4] = c[0];
+      img.data[n * 4 + 1] = c[1];
+      img.data[n * 4 + 2] = c[2];
+      img.data[n * 4 + 3] = Math.round(alpha * 255);
+    }
+    lctx.putImageData(img, 0, 0);
+    return layer;
+  }
+
+  function seeded(seed) {
+    return function () { seed = seed * 16807 % 2147483647; return (seed - 1) / 2147483646; };
+  }
+  function hashText(text) {
+    var h = 7;
+    for (var i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) % 2147483647;
+    return h || 1;
+  }
+
+  function drawHeat() {
+    var z = S.heat[zoneIndex];
+    var W = Math.max(280, Math.round(heatCanvas.parentNode.clientWidth));
+    var H = Math.round(W * 2 / 3), dpr = window.devicePixelRatio || 1;
+    heatCanvas.width = Math.round(W * dpr);
+    heatCanvas.height = Math.round(H * dpr);
+    heatCanvas.style.height = H + "px";
+    var ctx = heatCanvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var tok = getComputedStyle(document.documentElement);
+    function t(name) { return tok.getPropertyValue(name).trim(); }
+
+    // The zone's own map, dimmed a little so the heat stands out.
+    ctx.fillStyle = t("--panel");
+    ctx.fillRect(0, 0, W, H);
+    var art = mapImages[z.map];
+    if (art && art.complete && art.naturalWidth) ctx.drawImage(art, 0, 0, W, H);
+    ctx.fillStyle = "rgba(18, 14, 9, 0.41)";
+    ctx.fillRect(0, 0, W, H);
+
+    if (!heatCache[zoneIndex]) heatCache[zoneIndex] = heatLayer(heatPoints(z));
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(heatCache[zoneIndex], 0, 0, W, H);
+
+    // Numbered markers: 1 is where you spent the most time (matches the list).
+    var ranked = z.spots.slice().sort(function (a, b) { return b[3] - a[3]; });
+    var size = W < 560 ? 8 : 10;
+    ctx.font = "700 " + (size + 2) + "px " + t("--font-body");
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ranked.forEach(function (s, i) {
+      var sx = s[1] / 100 * W, sy = s[2] / 100 * H;
+      ctx.beginPath();
+      ctx.arc(sx, sy, size, 0, Math.PI * 2);
+      ctx.fillStyle = t("--ground");
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = t("--gold-pale");
+      ctx.stroke();
+      ctx.fillStyle = t("--gold-pale");
+      ctx.fillText(String(i + 1), sx, sy + 0.5);
+    });
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function showZone(i) {
+    zoneIndex = i;
+    var z = S.heat[i], seconds = zoneSeconds(z);
+    Array.prototype.forEach.call($("zone-tabs").querySelectorAll("button"), function (button) {
+      button.setAttribute("aria-pressed", String(Number(button.getAttribute("data-zone")) === i));
+    });
+    $("zone-total").innerHTML = "<b>" + dur(seconds) + "</b> in " + esc(z.zone) + ", levels " + z.from + " to " +
+      z.to + " (" + Math.round(seconds / total * 100) + "% of your /played).";
+    $("spots-label").textContent = "Hotspots in " + z.zone;
+    $("spots").innerHTML = z.spots.slice().sort(function (a, b) { return b[3] - a[3]; }).map(function (s, i) {
+      return '<li><span class="n">' + (i + 1) + "</span><span>" + esc(s[0]) + '</span><span class="t">' + dur(s[3] * 60) +
+        '</span><span class="where">' + s[1] + ", " + s[2] + "</span></li>";
+    }).join("");
+    heatTip.hidden = true;
+    drawHeat();
+  }
+
+  $("zone-tabs").innerHTML = S.heat.map(function (z, i) {
+    return '<button type="button" data-zone="' + i + '" aria-pressed="' + (i === 0) + '">' + esc(z.zone) + "</button>";
+  }).join("");
+  $("zone-tabs").addEventListener("click", function (event) {
+    var button = event.target.closest("button");
+    if (button) showZone(Number(button.getAttribute("data-zone")));
+  });
+  heatCanvas.addEventListener("mousemove", function (event) {
+    var rect = heatCanvas.getBoundingClientRect();
+    var mx = event.clientX - rect.left, my = event.clientY - rect.top;
+    var x = mx / rect.width * 100, y = my / rect.height * 100;
+    var near = null, best = Infinity;
+    S.heat[zoneIndex].spots.forEach(function (s) {
+      var dx = x - s[1], dy = (y - s[2]) / 1.5, d = Math.sqrt(dx * dx + dy * dy) / s[4];
+      if (d < best) { best = d; near = s; }
+    });
+    var coords = Math.round(x) + ", " + Math.round(y);
+    heatTip.innerHTML = best < 1.8 ? "<b>" + esc(near[0]) + "</b> " + dur(near[3] * 60) + "<span>" + coords + "</span>" : coords;
+    heatTip.style.left = Math.min(Math.max(mx, 90), rect.width - 90) + "px";
+    heatTip.style.top = my + "px";
+    heatTip.hidden = false;
+  });
+  heatCanvas.addEventListener("mouseleave", function () { heatTip.hidden = true; });
+  showZone(0);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawHeat);
+
+  var resizeTimer;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { drawRoad(); drawHeat(); }, 150);
+  });
+
+  // How you compare: [headline, line, cohort]
+  function rankCards(list) {
+    return list.map(function (r) {
+      return '<div class="rank"><span class="big">' + esc(r[0]) + "</span><p>" + esc(r[1]) +
+        '</p><span class="cohort">' + esc(r[2]) + "</span></div>";
+    }).join("");
+  }
+  $("ranks-title").textContent = "You're in the top 1% of " + S.topMobs[0][0] + " hunters.";
+  $("ranks").innerHTML = rankCards([
+    ["Top 8%", "fastest to 60, at " + dur(total) + " /played", "All players"],
+    ["Top 1%", S.topMobs[0][0] + " hunters: " + S.topMobs[0][1] + " slain", "All players"],
+    ["Top 3%", "jumpers: " + num(S.jumps) + " jumps", "All players"],
+    ["Top 2%", "longest fall survived: " + S.travel.longestFall + " yards", "All players"],
+    ["Top 5%", "time at campfires: " + dur(S.campTime), "All players"],
+    ["Top 8%", "time in Cat Form: " + dur(S.forms[0][1]), "Druids"]
+  ]);
+  function showFaction(name) {
+    $("iconic").innerHTML = rankCards(S.iconic[name]);
+    $("faction-alliance").setAttribute("aria-pressed", String(name === "alliance"));
+    $("faction-horde").setAttribute("aria-pressed", String(name === "horde"));
+  }
+  $("faction-alliance").addEventListener("click", function () { showFaction("alliance"); });
+  $("faction-horde").addEventListener("click", function () { showFaction("horde"); });
+  showFaction("alliance");
+
+  // Share card
+  $("card-who").textContent = S.who.split(" · ")[0];
+  $("card-played").textContent = dur(total) + " /played";
+  stats("card-stats", [
+    ["Kills", num(S.kills)],
+    ["Deaths", num(S.deaths)],
+    ["Quests", num(S.quests.completed)],
+    ["Gold earned", gold(earned)]
+  ]);
+  $("card-lines").innerHTML = "<span>Most killed: " + esc(S.topMobs[0][0]) + "</span><span>Worn the longest: " +
+    item(S.wornPlayed) + "</span>";
+
+  // Import (draft): jump to the sample journey.
+  $("import-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    $("journey").scrollIntoView();
+  });
+})();
+</script>
