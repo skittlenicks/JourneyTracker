@@ -17,6 +17,7 @@ Built for WoW Forever: all Classic dungeons plus the 9 new ones, Forever's battl
 - **Privacy.** Never store other players' names or message text. Store counts, classes, and levels only.
 - **Combat safety.** Anything that reads chat, unit names, or enemy players must check `issecretvalue` and queue work until `PLAYER_REGEN_ENABLED`.
 - **Context snapshot.** Many items need "what was happening right before" (deaths, dings). Keep a small rolling context: last target, last 10 seconds of state (falling, swimming, mounted, AFK, health %, group), and attach it to death and ding records.
+- **Blizzard statistics.** Where Blizzard's Statistics pane already tracks something (W-501 onward), use its number for lifetime totals, and keep our own tracking for per-level detail and for anything it doesn't cover. Don't remove any existing items because of the overlap.
 
 ## WoW Forever exclusives
 _Content that only exists in Forever. Zone names via GetZoneText/GetSubZoneText. Verify system APIs (camping, Legacy, transmog) in the probe addon, since they're new._
@@ -484,7 +485,7 @@ _Snapshot out of combat at each ding: UnitStat, UnitArmor, UnitAttackPower, GetC
 393. `TODO` `W-393` Your most common gear suffix
 394. `TODO` `W-394` Items equipped total
 395. `TODO` `W-395` Gear swaps per level
-396. `TODO` `W-396` Longest worn item (by /played) and its slot
+396. `SKIP` `W-396` Longest worn item (by /played) and its slot (covered by #104 in journey-tracking-spec.md, which also tracks levels gained while worn)
 397. `TODO` `W-397` First two-handed weapon equipped
 398. `TODO` `W-398` Times an item broke (durability 0)
 399. `TODO` `W-399` Times your gear went yellow or red (low durability)
@@ -610,8 +611,22 @@ _From login/logout timestamps and per-session counters._
 499. `TODO` `W-499` Percentage of time spent in town
 500. `TODO` `W-500` Playtime per real-world week
 
+## Blizzard Statistics pane
+_WoW Forever's Statistics pane on the character page (combat, PvP, creatures, gold, consumables, factions, items, professions, dungeons/raids, emotes), read with the retail statistics API: GetStatisticsCategoryList, GetCategoryInfo, GetCategoryNumAchievements, GetAchievementInfo, GetStatistic. Never read in combat; secret values are skipped; values are stored raw and parsed on the website._
+
+501. `BUILT` `W-501` Statistics API availability on Forever (probe result) (`/journey statprobe`, dev only; full results in JourneyTrackerDB.dev.statProbe)
+502. `TODO` `W-502` Full statistics baseline at first load, with level and /played
+503. `TODO` `W-503` Statistics snapshot at every ding (diff only)
+504. `TODO` `W-504` Statistics snapshot at every export
+505. `TODO` `W-505` Statistics included in the export string
+506. `TODO` `W-506` Lifetime totals backfill for players who installed mid-leveling
+507. `TODO` `W-507` Cross-check: our kill, death, and quest counts vs Blizzard's for the same period
+508. `TODO` `W-508` Combat stats our tracking can't see: total damage dealt and received, largest hit, largest heal, total healing
+
 ## Changelog
 - 2026-10-01: Wrapped spec created, all items `TODO`. Revised for Forever content: new dungeons, raids, battlegrounds, and Forever exclusives.
 - 2026-10-01: Section 1 (WoW Forever exclusives) done in JourneyTrackerWrapped.lua with the Track registry (count/time/max/first, maps capped at 200) and a [probe] feature flag. W-001..003, 006..012, 016, 017, 019..021 `BUILT`; W-004, 005, 018 `SKIP`; W-013..015 left `TODO` until the Legacy API is found.
 - 2026-10-01: Camping (W-008..012) now shown on the Social page, since camping is a social mechanic; the WoW Forever page keeps the rest of section 1.
 - 2026-10-01: VERIFIED in game: W-003, W-009, W-011, W-020.
+- 2026-10-01: W-396 `SKIP`: built as journey #104 (gear worn the longest, by /played and by levels gained).
+- 2026-10-01: Added the "Blizzard Statistics pane" section (W-501..W-508) and an architecture note on using Blizzard's statistics for lifetime totals. W-501 `BUILT`: `/journey statprobe` (dev only) in JourneyTrackerStats.lua. W-502..W-508 wait for the probe result.

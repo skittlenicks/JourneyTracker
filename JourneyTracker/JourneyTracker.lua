@@ -187,6 +187,7 @@ local DEFAULTS = {
               mail = 0, auctionIncome = 0, auctionsSold = 0, peak = 0 },
     loot = { items = 0, byQuality = {} },
     gear = {},              -- #89 [level] = { [slot] = itemLink }
+    worn = {},              -- #104 [item] = { link, slot, played, levels, first, last }
     skills = {},            -- #92/#96 [skill] = { rank, firstLevel, firstTime, history }
     skillUps = 0,
     professions = {},       -- #91 [name] = { level, time }
@@ -840,7 +841,7 @@ local function OnTakeMail(index)
 end
 
 ---------------------------------------------------------------------------
--- Loot and gear (#86-90, #93-94), gathering (#103)
+-- Loot and gear (#86-90, #93-94, #104), gathering (#103)
 ---------------------------------------------------------------------------
 
 local fishingUntil = 0
@@ -970,6 +971,121 @@ local function LateGearSnapshot(attempt)
         db.gear[level].late = true
     elseif attempt < 6 and C_Timer and C_Timer.After then
         C_Timer.After(5, function() LateGearSnapshot(attempt + 1) end)
+    end
+end
+
+-- #104 gear worn the longest (wrapped W-396 is the /played half): the
+-- /played and the levels gained while each item was equipped. Items are
+-- keyed by item ID and random suffix, so moving a ring to the other finger
+-- or enchanting it keeps its history. Shirts and tabards are left out:
+-- they're cosmetic and would always win.
+local WORN_SLOTS = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 }
+local WORN_CAP = 200          -- items kept; past this the least worn are dropped
+local wornNow = {}            -- [item] = true for each item equipped right now
+local wornSeen = false        -- a scan this session has found gear
+local wornTick, wornProgress  -- GetTime() and LevelProgress() at the last update
+
+-- "12345", or "12345:678" for an item with a random suffix ("of the Bear").
+local function ItemKey(link)
+    local fields = link:match("|Hitem:([^|]+)")
+    if not fields then return nil end
+    local id, suffix, i = nil, nil, 0
+    for field in (fields .. ":"):gmatch("([^:]*):") do
+        i = i + 1
+        if i == 1 then
+            id = tonumber(field)
+        elseif i == 7 then -- after the enchant and the four gem fields
+            suffix = tonumber(field)
+            break
+        end
+    end
+    if not id then return nil end
+    if suffix and suffix ~= 0 then return id .. ":" .. suffix end
+    return tostring(id)
+end
+
+-- How far through leveling you are, in levels: 12.5 is halfway through
+-- level 12. Nil if XP can't be read right now.
+local function LevelProgress()
+    local level = Level()
+    if level <= 0 then return nil end
+    if level >= MAX_LEVEL then return MAX_LEVEL end
+    local xp, xpMax = ReadXP()
+    if not xp or not xpMax or xpMax <= 0 then return nil end
+    return level + math.min(xp / xpMax, 1)
+end
+
+-- Credit everything worn right now with the time and levels since the last
+-- update. Runs on every gear change, every tick and at logout.
+local function UpdateWorn()
+    local now, progress = GetTime(), LevelProgress()
+    local dt = wornTick and (now - wornTick) or 0
+    if dt < 0 or dt > 60 then dt = 0 end -- odd gaps (loading screens), as in Tick()
+    wornTick = now
+    -- Progress only moves forward: at a ding the level and the XP bar can
+    -- update a moment apart.
+    local gained = 0
+    if progress and (not wornProgress or progress > wornProgress) then
+        if wornProgress then gained = progress - wornProgress end
+        wornProgress = progress
+    end
+    local level = Level()
+    for key in pairs(wornNow) do
+        local w = db.worn[key]
+        if w then
+            w.played = w.played + dt                          -- W-396 /played while worn
+            w.levels = w.levels + gained                      -- #104 levels gained while worn
+            if level > (w.last or 0) then w.last = level end
+        end
+    end
+end
+
+-- Keep the WORN_CAP most-worn items (by /played), never dropping what's on.
+local function CapWorn()
+    local spare, count = {}, 0
+    for key, w in pairs(db.worn) do
+        count = count + 1
+        if not wornNow[key] then spare[#spare + 1] = { key = key, played = w.played or 0 } end
+    end
+    if count <= WORN_CAP then return end
+    table.sort(spare, function(a, b) return a.played < b.played end)
+    for i = 1, math.min(count - WORN_CAP, #spare) do db.worn[spare[i].key] = nil end
+end
+
+-- Look at what's equipped now. Returns false (changing nothing) if no gear
+-- has been readable yet this session, as happens right at login.
+local function ScanWorn()
+    local found = {}
+    for _, slot in ipairs(WORN_SLOTS) do
+        local link = Str(Call("GetInventoryItemLink", "player", slot))
+        local key = link and ItemKey(link)
+        if key and not found[key] then found[key] = { link = link, slot = slot } end
+    end
+    if not wornSeen and next(found) == nil then return false end
+    UpdateWorn() -- credit the gear that was on until now
+    wornSeen = true
+    local level, added = Level(), false
+    wornNow = {}
+    for key, item in pairs(found) do
+        local w = db.worn[key]
+        if not w then
+            w = { played = 0, levels = 0, first = level, last = level } -- #104 level first worn
+            db.worn[key] = w
+            added = true
+        end
+        w.link, w.slot = item.link, item.slot -- newest link (shows enchants) and its slot
+        if level > (w.last or 0) then w.last = level end
+        wornNow[key] = true
+    end
+    if added then CapWorn() end
+    return true
+end
+
+-- #104 first look at your gear this session, once the game has loaded it.
+local function FirstWornScan(attempt)
+    if wornSeen or ScanWorn() then return end
+    if attempt < 10 and C_Timer and C_Timer.After then
+        C_Timer.After(3, function() FirstWornScan(attempt + 1) end)
     end
 end
 
@@ -1125,6 +1241,8 @@ local function Tick()
         end
         lastPos = x and { x = x, y = y, inst = inst } or nil
     end
+
+    UpdateWorn()                                                           -- #104 gear worn
 end
 
 ---------------------------------------------------------------------------
@@ -1389,6 +1507,7 @@ handlers.LOOT_CLOSED = function()
     gatherUntil = math.min(gatherUntil, GetTime() + 1) -- so the next mob's loot isn't counted as a node's
 end
 handlers.CHAT_MSG_LOOT = function(msg) OnLootMessage(msg) end
+handlers.PLAYER_EQUIPMENT_CHANGED = function() ScanWorn() end -- #104 gear worn
 
 -- Skills and spells
 handlers.CHAT_MSG_SKILL = function(msg) OnSkillMessage(msg) end
@@ -1406,6 +1525,7 @@ handlers.PLAYER_LOGOUT = function()
     EndFight()
     local sess = db.sessions.current
     if sess then sess.last = time() end -- closed on next login
+    UpdateWorn()                        -- #104 credit the gear worn until now
 end
 
 ---------------------------------------------------------------------------
@@ -1583,6 +1703,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if C_Timer and C_Timer.After then
                 C_Timer.After(5, function() LateGearSnapshot(1) end)
             end
+            FirstWornScan(1)                                  -- #104 what you're wearing now
         end
         OnZoneChange()
         OnSubZoneChange()
@@ -1687,7 +1808,7 @@ ns.PrintSummary = Summary
 -- /journey (or /jt) opens the window. Subcommands: version, backup, export,
 -- summary (print to chat), status (events/functions this client lacks),
 -- class (which of your class's tracked spells the game knows), and the
--- dev-only testexport.
+-- dev-only testexport and statprobe.
 SLASH_JOURNEYTRACKER1 = "/journey"
 SLASH_JOURNEYTRACKER2 = "/jt"
 SlashCmdList.JOURNEYTRACKER = function(msg)
@@ -1707,6 +1828,8 @@ SlashCmdList.JOURNEYTRACKER = function(msg)
         ns.Export()
     elseif cmd == "testexport" and ns.TestExport then
         ns.TestExport()
+    elseif cmd == "statprobe" and ns.StatProbe then
+        ns.StatProbe()                                        -- W-501 statistics API probe
     elseif cmd == "status" then
         Status()
     elseif cmd == "class" and ns.ClassStatus then

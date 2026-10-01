@@ -26,9 +26,9 @@ local function BuildSummary(db)
         stats[key] = nil
     end
     -- Never exported: the character's name and realm (exports are anonymous),
-    -- window settings, internal bookkeeping, and the hashed IDs used to count
-    -- players you grouped with (only the count goes out).
-    for _, key in ipairs({ "char", "ui", "legacy", "legacySchema" }) do stats[key] = nil end
+    -- window settings, dev probe dumps, internal bookkeeping, and the hashed
+    -- IDs used to count players you grouped with (only the count goes out).
+    for _, key in ipairs({ "char", "ui", "dev", "legacy", "legacySchema" }) do stats[key] = nil end
     if stats.money then stats.money.last = nil end
     if stats.quests then stats.quests.open = nil end
     if stats.social then stats.social.seen = nil end

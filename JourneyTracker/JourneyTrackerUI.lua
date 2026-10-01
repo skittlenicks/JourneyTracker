@@ -834,8 +834,44 @@ local function PageLoot(B, db)
     if L.firstEpic then B:ItemLine(L.firstEpic.link) end
 end
 
+-- #104 the gear worn the longest: the most levels gained while equipped,
+-- and the most /played while equipped (wrapped W-396).
+local function WornLongest(B, db)
+    B:Heading("Worn the Longest")
+    local byLevels, byPlayed
+    for _, w in pairs(db.worn or {}) do
+        if w.link then
+            if (w.levels or 0) >= 0.1 and (not byLevels or w.levels > byLevels.levels) then byLevels = w end
+            if (w.played or 0) >= 1 and (not byPlayed or w.played > byPlayed.played) then byPlayed = w end
+        end
+    end
+    -- "at level 20" or "levels 12 to 24"
+    local function Range(w)
+        local from, to = w.first or 0, w.last or w.first or 0
+        if from == to then return "at level " .. from end
+        return "levels " .. from .. " to " .. to
+    end
+    if byLevels then
+        B:ItemRow("Most levels", byLevels.link)
+        B:Note(string.format("%s, worn for %.1f levels (%s).", SLOT_NAMES[byLevels.slot] or "?",
+            byLevels.levels, Range(byLevels)))
+    else
+        B:Row("Most levels", "-")
+        B:Note("Counts the levels you gain while wearing each item.")
+    end
+    if byPlayed then
+        B:ItemRow("Most /played", byPlayed.link)
+        B:Note(string.format("%s, worn for %s of /played (%s).", SLOT_NAMES[byPlayed.slot] or "?",
+            Dur(byPlayed.played), Range(byPlayed)))
+    else
+        B:Row("Most /played", "-")
+        B:Note("Counts your /played while wearing each item.")
+    end
+end
+
 local function PageGear(B, db)
     B:Title("Gear Snapshots")                                                -- #89
+    WornLongest(B, db)                                                       -- #104
     local levels = {}
     for level in pairs(db.gear) do levels[#levels + 1] = level end
     table.sort(levels)

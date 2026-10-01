@@ -139,6 +139,7 @@ Rules for Claude:
 88. `VERIFIED` Best item looted, plus where and at what level (confirmed in game, with the item tooltip on hover)
 89. `VERIFIED` Gear snapshot every 10 levels (GetInventoryItemLink) (confirmed in game via the level 20 snapshot taken after login)
 90. `BUILT` Level of your first blue and first epic
+104. `BUILT` Gear worn the longest: the item with the most levels gained while equipped, and the item with the most /played while equipped, each with its slot and the levels it was worn (shirts and tabards left out; also covers wrapped W-396)
 
 ## Professions and skills
 91. `BUILT` Professions learned and the level you learned them
@@ -173,3 +174,5 @@ Rules for Claude:
 - 2026-10-01: Checked in game: /journey version, stable characterId across logins, /journey backup, export window and combat block, /journey testexport, and the data upgrade on a second character. No Lua errors on login.
 - 2026-10-01: VERIFIED in game: #81, #83, #88, #89, #101, #102, #103. Also confirmed: minimap button, item tooltips on the Gear and Loot pages, Class Stats page opens without errors.
 - 2026-10-01: Round trip confirmed: the in-game /journey testexport string is identical to the one made outside the game, and npm test passes 7/7 (Node 26).
+- 2026-10-01: #104 added and `BUILT`: gear worn the longest, by levels gained and by /played while equipped (db.worn: one record per item ID and random suffix, kept to the 200 most worn; updated on gear changes, every tick and at logout). Shown at the top of the Gear Snapshots page. Wrapped W-396 marked `SKIP` (covered by #104).
+- 2026-10-01: Statistics pane, phase 1 (wrapped W-501): `/journey statprobe` (dev only, new JourneyTrackerStats.lua) checks the statistics API, walks every category and statistic, prints a summary (counts, secrets, errors, per-character hints) and saves everything to JourneyTrackerDB.dev.statProbe. `dev` is never exported. Not confirmed on Forever: GetStatisticsCategoryList, GetCategoryInfo, GetCategoryNumAchievements (and its includeAll argument), GetAchievementInfo (retail return order, including isStatistic), GetStatistic (value format, "--" for none), the account-wide achievement flag (0x20000 in retail), bit.band and GetBuildInfo.
