@@ -12,7 +12,8 @@
                       "maxX":  1808.33,
                       "maxY":  -1962.5
                   },
-        "image":  "zones/1411.jpg"
+        "image":  "zones/1411.jpg",
+        "terrain":  "terrain/1411.jpg"
     },
     {
         "uiMapID":  1412,
@@ -27,7 +28,8 @@
                       "maxX":  266.67,
                       "maxY":  2479.17
                   },
-        "image":  "zones/1412.jpg"
+        "image":  "zones/1412.jpg",
+        "terrain":  "terrain/1412.jpg"
     },
     {
         "uiMapID":  1413,
@@ -42,7 +44,8 @@
                       "maxX":  1612.5,
                       "maxY":  2622.92
                   },
-        "image":  "zones/1413.jpg"
+        "image":  "zones/1413.jpg",
+        "terrain":  "terrain/1413.jpg"
     },
     {
         "uiMapID":  1414,
@@ -57,7 +60,20 @@
                       "maxX":  12799.9,
                       "maxY":  17066.6
                   },
-        "image":  null
+        "image":  null,
+        "terrain":  null,
+        "minimap":  {
+                        "dir":  "kalimdor",
+                        "tileYards":  533.3333,
+                        "tiles":  {
+                                      "minX":  20,
+                                      "maxX":  48,
+                                      "minY":  8,
+                                      "maxY":  52
+                                  },
+                        "pixelsPerTile":  40,
+                        "image":  "continents/1414.jpg"
+                    }
     },
     {
         "uiMapID":  1415,
@@ -72,7 +88,20 @@
                       "maxX":  7466.6,
                       "maxY":  16000
                   },
-        "image":  null
+        "image":  null,
+        "terrain":  null,
+        "minimap":  {
+                        "dir":  "azeroth",
+                        "tileYards":  533.3333,
+                        "tiles":  {
+                                      "minX":  24,
+                                      "maxX":  45,
+                                      "minY":  23,
+                                      "maxY":  61
+                                  },
+                        "pixelsPerTile":  40,
+                        "image":  "continents/1415.jpg"
+                    }
     },
     {
         "uiMapID":  1416,
@@ -87,7 +116,8 @@
                       "maxX":  1500,
                       "maxY":  783.33
                   },
-        "image":  "zones/1416.jpg"
+        "image":  "zones/1416.jpg",
+        "terrain":  "terrain/1416.jpg"
     },
     {
         "uiMapID":  1417,
@@ -102,7 +132,8 @@
                       "maxX":  -133.33,
                       "maxY":  -866.67
                   },
-        "image":  "zones/1417.jpg"
+        "image":  "zones/1417.jpg",
+        "terrain":  "terrain/1417.jpg"
     },
     {
         "uiMapID":  1418,
@@ -117,7 +148,8 @@
                       "maxX":  -5889.58,
                       "maxY":  -2079.17
                   },
-        "image":  "zones/1418.jpg"
+        "image":  "zones/1418.jpg",
+        "terrain":  "terrain/1418.jpg"
     },
     {
         "uiMapID":  1419,
@@ -132,7 +164,8 @@
                       "maxX":  -10566.67,
                       "maxY":  -1241.67
                   },
-        "image":  "zones/1419.jpg"
+        "image":  "zones/1419.jpg",
+        "terrain":  "terrain/1419.jpg"
     },
     {
         "uiMapID":  1420,
@@ -147,7 +180,8 @@
                       "maxX":  3837.5,
                       "maxY":  3033.33
                   },
-        "image":  "zones/1420.jpg"
+        "image":  "zones/1420.jpg",
+        "terrain":  "terrain/1420.jpg"
     },
     {
         "uiMapID":  1421,
@@ -162,7 +196,8 @@
                       "maxX":  1666.67,
                       "maxY":  3450
                   },
-        "image":  "zones/1421.jpg"
+        "image":  "zones/1421.jpg",
+        "terrain":  "terrain/1421.jpg"
     },
     {
         "uiMapID":  1422,
@@ -177,7 +212,8 @@
                       "maxX":  3366.67,
                       "maxY":  416.67
                   },
-        "image":  "zones/1422.jpg"
+        "image":  "zones/1422.jpg",
+        "terrain":  "terrain/1422.jpg"
     },
     {
         "uiMapID":  1423,
@@ -192,7 +228,8 @@
                       "maxX":  3691.67,
                       "maxY":  -2256.25
                   },
-        "image":  "zones/1423.jpg"
+        "image":  "zones/1423.jpg",
+        "terrain":  "terrain/1423.jpg"
     },
     {
         "uiMapID":  1424,
@@ -207,7 +244,8 @@
                       "maxX":  400,
                       "maxY":  1066.67
                   },
-        "image":  "zones/1424.jpg"
+        "image":  "zones/1424.jpg",
+        "terrain":  "terrain/1424.jpg"
     },
     {
         "uiMapID":  1425,
@@ -222,7 +260,8 @@
                       "maxX":  1466.67,
                       "maxY":  -1575
                   },
-        "image":  "zones/1425.jpg"
+        "image":  "zones/1425.jpg",
+        "terrain":  "terrain/1425.jpg"
     },
     {
         "uiMapID":  1426,
@@ -237,7 +276,8 @@
                       "maxX":  -3877.08,
                       "maxY":  1802.08
                   },
-        "image":  "zones/1426.jpg"
+        "image":  "zones/1426.jpg",
+        "terrain":  "terrain/1426.jpg"
     },
     {
         "uiMapID":  1427,
@@ -252,7 +292,8 @@
                       "maxX":  -6100,
                       "maxY":  -322.92
                   },
-        "image":  "zones/1427.jpg"
+        "image":  "zones/1427.jpg",
+        "terrain":  "terrain/1427.jpg"
     },
     {
         "uiMapID":  1428,
@@ -267,7 +308,8 @@
                       "maxX":  -7031.25,
                       "maxY":  -266.67
                   },
-        "image":  "zones/1428.jpg"
+        "image":  "zones/1428.jpg",
+        "terrain":  "terrain/1428.jpg"
     },
     {
         "uiMapID":  1429,
@@ -282,7 +324,8 @@
                       "maxX":  -7939.58,
                       "maxY":  1535.42
                   },
-        "image":  "zones/1429.jpg"
+        "image":  "zones/1429.jpg",
+        "terrain":  "terrain/1429.jpg"
     },
     {
         "uiMapID":  1430,
@@ -297,7 +340,8 @@
                       "maxX":  -9866.67,
                       "maxY":  -833.33
                   },
-        "image":  "zones/1430.jpg"
+        "image":  "zones/1430.jpg",
+        "terrain":  "terrain/1430.jpg"
     },
     {
         "uiMapID":  1431,
@@ -312,7 +356,8 @@
                       "maxX":  -9716.67,
                       "maxY":  833.33
                   },
-        "image":  "zones/1431.jpg"
+        "image":  "zones/1431.jpg",
+        "terrain":  "terrain/1431.jpg"
     },
     {
         "uiMapID":  1432,
@@ -327,7 +372,8 @@
                       "maxX":  -4487.5,
                       "maxY":  -1993.75
                   },
-        "image":  "zones/1432.jpg"
+        "image":  "zones/1432.jpg",
+        "terrain":  "terrain/1432.jpg"
     },
     {
         "uiMapID":  1433,
@@ -342,7 +388,8 @@
                       "maxX":  -8575,
                       "maxY":  -1681.25
                   },
-        "image":  "zones/1433.jpg"
+        "image":  "zones/1433.jpg",
+        "terrain":  "terrain/1433.jpg"
     },
     {
         "uiMapID":  1434,
@@ -357,7 +404,8 @@
                       "maxX":  -11168.75,
                       "maxY":  2220.83
                   },
-        "image":  "zones/1434.jpg"
+        "image":  "zones/1434.jpg",
+        "terrain":  "terrain/1434.jpg"
     },
     {
         "uiMapID":  1435,
@@ -372,7 +420,8 @@
                       "maxX":  -9620.83,
                       "maxY":  -2222.92
                   },
-        "image":  "zones/1435.jpg"
+        "image":  "zones/1435.jpg",
+        "terrain":  "terrain/1435.jpg"
     },
     {
         "uiMapID":  1436,
@@ -387,7 +436,8 @@
                       "maxX":  -9400,
                       "maxY":  3016.67
                   },
-        "image":  "zones/1436.jpg"
+        "image":  "zones/1436.jpg",
+        "terrain":  "terrain/1436.jpg"
     },
     {
         "uiMapID":  1437,
@@ -402,7 +452,8 @@
                       "maxX":  -2147.92,
                       "maxY":  -389.58
                   },
-        "image":  "zones/1437.jpg"
+        "image":  "zones/1437.jpg",
+        "terrain":  "terrain/1437.jpg"
     },
     {
         "uiMapID":  1438,
@@ -417,7 +468,8 @@
                       "maxX":  11831.25,
                       "maxY":  3814.58
                   },
-        "image":  "zones/1438.jpg"
+        "image":  "zones/1438.jpg",
+        "terrain":  "terrain/1438.jpg"
     },
     {
         "uiMapID":  1439,
@@ -432,7 +484,8 @@
                       "maxX":  8333.33,
                       "maxY":  2941.67
                   },
-        "image":  "zones/1439.jpg"
+        "image":  "zones/1439.jpg",
+        "terrain":  "terrain/1439.jpg"
     },
     {
         "uiMapID":  1440,
@@ -447,7 +500,8 @@
                       "maxX":  4672.92,
                       "maxY":  1700
                   },
-        "image":  "zones/1440.jpg"
+        "image":  "zones/1440.jpg",
+        "terrain":  "terrain/1440.jpg"
     },
     {
         "uiMapID":  1441,
@@ -462,7 +516,8 @@
                       "maxX":  -3966.67,
                       "maxY":  -433.33
                   },
-        "image":  "zones/1441.jpg"
+        "image":  "zones/1441.jpg",
+        "terrain":  "terrain/1441.jpg"
     },
     {
         "uiMapID":  1442,
@@ -477,7 +532,8 @@
                       "maxX":  2916.67,
                       "maxY":  3245.83
                   },
-        "image":  "zones/1442.jpg"
+        "image":  "zones/1442.jpg",
+        "terrain":  "terrain/1442.jpg"
     },
     {
         "uiMapID":  1443,
@@ -492,7 +548,8 @@
                       "maxX":  452.08,
                       "maxY":  4233.33
                   },
-        "image":  "zones/1443.jpg"
+        "image":  "zones/1443.jpg",
+        "terrain":  "terrain/1443.jpg"
     },
     {
         "uiMapID":  1444,
@@ -507,7 +564,8 @@
                       "maxX":  -2366.67,
                       "maxY":  5441.67
                   },
-        "image":  "zones/1444.jpg"
+        "image":  "zones/1444.jpg",
+        "terrain":  "terrain/1444.jpg"
     },
     {
         "uiMapID":  1445,
@@ -522,7 +580,8 @@
                       "maxX":  -2033.33,
                       "maxY":  -975
                   },
-        "image":  "zones/1445.jpg"
+        "image":  "zones/1445.jpg",
+        "terrain":  "terrain/1445.jpg"
     },
     {
         "uiMapID":  1446,
@@ -537,7 +596,8 @@
                       "maxX":  -5875,
                       "maxY":  -218.75
                   },
-        "image":  "zones/1446.jpg"
+        "image":  "zones/1446.jpg",
+        "terrain":  "terrain/1446.jpg"
     },
     {
         "uiMapID":  1447,
@@ -552,7 +612,8 @@
                       "maxX":  5341.67,
                       "maxY":  -3277.08
                   },
-        "image":  "zones/1447.jpg"
+        "image":  "zones/1447.jpg",
+        "terrain":  "terrain/1447.jpg"
     },
     {
         "uiMapID":  1448,
@@ -567,7 +628,8 @@
                       "maxX":  7133.33,
                       "maxY":  1641.67
                   },
-        "image":  "zones/1448.jpg"
+        "image":  "zones/1448.jpg",
+        "terrain":  "terrain/1448.jpg"
     },
     {
         "uiMapID":  1449,
@@ -582,7 +644,8 @@
                       "maxX":  -5966.67,
                       "maxY":  533.33
                   },
-        "image":  "zones/1449.jpg"
+        "image":  "zones/1449.jpg",
+        "terrain":  "terrain/1449.jpg"
     },
     {
         "uiMapID":  1450,
@@ -597,7 +660,8 @@
                       "maxX":  8491.67,
                       "maxY":  -1381.25
                   },
-        "image":  "zones/1450.jpg"
+        "image":  "zones/1450.jpg",
+        "terrain":  "terrain/1450.jpg"
     },
     {
         "uiMapID":  1451,
@@ -612,7 +676,8 @@
                       "maxX":  -5958.33,
                       "maxY":  2537.5
                   },
-        "image":  "zones/1451.jpg"
+        "image":  "zones/1451.jpg",
+        "terrain":  "terrain/1451.jpg"
     },
     {
         "uiMapID":  1452,
@@ -627,7 +692,8 @@
                       "maxX":  8533.33,
                       "maxY":  -316.67
                   },
-        "image":  "zones/1452.jpg"
+        "image":  "zones/1452.jpg",
+        "terrain":  "terrain/1452.jpg"
     },
     {
         "uiMapID":  1453,
@@ -642,7 +708,8 @@
                       "maxX":  -7995.83,
                       "maxY":  1722.92
                   },
-        "image":  "zones/1453.jpg"
+        "image":  "zones/1453.jpg",
+        "terrain":  "terrain/1453.jpg"
     },
     {
         "uiMapID":  1454,
@@ -657,7 +724,8 @@
                       "maxX":  2273.88,
                       "maxY":  -3680.6
                   },
-        "image":  "zones/1454.jpg"
+        "image":  "zones/1454.jpg",
+        "terrain":  "terrain/1454.jpg"
     },
     {
         "uiMapID":  1455,
@@ -672,7 +740,8 @@
                       "maxX":  -4569.24,
                       "maxY":  -713.59
                   },
-        "image":  "zones/1455.jpg"
+        "image":  "zones/1455.jpg",
+        "terrain":  "terrain/1455.jpg"
     },
     {
         "uiMapID":  1456,
@@ -687,7 +756,8 @@
                       "maxX":  -850,
                       "maxY":  516.67
                   },
-        "image":  "zones/1456.jpg"
+        "image":  "zones/1456.jpg",
+        "terrain":  "terrain/1456.jpg"
     },
     {
         "uiMapID":  1457,
@@ -702,7 +772,8 @@
                       "maxX":  10238.32,
                       "maxY":  2938.36
                   },
-        "image":  "zones/1457.jpg"
+        "image":  "zones/1457.jpg",
+        "terrain":  "terrain/1457.jpg"
     },
     {
         "uiMapID":  1458,
@@ -717,7 +788,8 @@
                       "maxX":  1877.95,
                       "maxY":  873.19
                   },
-        "image":  "zones/1458.jpg"
+        "image":  "zones/1458.jpg",
+        "terrain":  "terrain/1458.jpg"
     },
     {
         "uiMapID":  1459,
@@ -732,7 +804,8 @@
                       "maxX":  1085.42,
                       "maxY":  1781.25
                   },
-        "image":  "zones/1459.jpg"
+        "image":  "zones/1459.jpg",
+        "terrain":  null
     },
     {
         "uiMapID":  1460,
@@ -747,7 +820,8 @@
                       "maxX":  1627.08,
                       "maxY":  2041.67
                   },
-        "image":  "zones/1460.jpg"
+        "image":  "zones/1460.jpg",
+        "terrain":  null
     },
     {
         "uiMapID":  1461,
@@ -762,7 +836,8 @@
                       "maxX":  1508.33,
                       "maxY":  1858.33
                   },
-        "image":  "zones/1461.jpg"
+        "image":  "zones/1461.jpg",
+        "terrain":  null
     },
     {
         "uiMapID":  1463,
@@ -777,7 +852,8 @@
                       "maxX":  5817,
                       "maxY":  9917
                   },
-        "image":  null
+        "image":  null,
+        "terrain":  null
     },
     {
         "uiMapID":  1464,
@@ -792,7 +868,8 @@
                       "maxX":  12470,
                       "maxY":  10970
                   },
-        "image":  null
+        "image":  null,
+        "terrain":  null
     },
     {
         "uiMapID":  2482,
@@ -807,7 +884,8 @@
                       "maxX":  6304.17,
                       "maxY":  -922.92
                   },
-        "image":  "zones/2482.jpg"
+        "image":  "zones/2482.jpg",
+        "terrain":  "terrain/2482.jpg"
     },
     {
         "uiMapID":  2521,
@@ -822,7 +900,8 @@
                       "maxX":  4956.25,
                       "maxY":  4231.25
                   },
-        "image":  "zones/2521.jpg"
+        "image":  "zones/2521.jpg",
+        "terrain":  null
     },
     {
         "uiMapID":  2524,
@@ -837,7 +916,8 @@
                       "maxX":  447.92,
                       "maxY":  2918.75
                   },
-        "image":  "zones/2524.jpg"
+        "image":  "zones/2524.jpg",
+        "terrain":  null
     },
     {
         "uiMapID":  2548,
@@ -852,7 +932,8 @@
                       "maxX":  -6466.67,
                       "maxY":  -1891.67
                   },
-        "image":  "zones/2548.jpg"
+        "image":  "zones/2548.jpg",
+        "terrain":  "terrain/2548.jpg"
     },
     {
         "uiMapID":  2652,
@@ -867,7 +948,8 @@
                       "maxX":  -1900,
                       "maxY":  2025
                   },
-        "image":  "zones/2652.jpg"
+        "image":  "zones/2652.jpg",
+        "terrain":  "terrain/2652.jpg"
     },
     {
         "uiMapID":  2665,
@@ -882,6 +964,7 @@
                       "maxX":  4956.25,
                       "maxY":  4231.25
                   },
-        "image":  null
+        "image":  null,
+        "terrain":  null
     }
 ]

@@ -322,7 +322,14 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 /* Heatmap */
 .heat { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 28px; align-items: start; }
 .heat-map { position: relative; margin: 0; }
-.heat-map canvas { display: block; width: 100%; border: 1px solid var(--rule); border-radius: 6px; cursor: crosshair; }
+.heat-map canvas {
+  display: block;
+  max-width: 100%;
+  margin-inline: auto;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  cursor: crosshair;
+}
 .heat-map figcaption { margin-top: 8px; font-size: var(--step--1); color: var(--ink-soft); }
 .heat-tip {
   position: absolute;
@@ -534,16 +541,30 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     <div class="chapter-head">
       <p class="eyebrow">Where you spent your time</p>
       <h2 id="heat-title"></h2>
-      <p>Brighter means longer. AFK time and flight paths are left out. Hover the map for coordinates and hotspots.</p>
+      <p>Brighter means longer. AFK time and flight paths are left out. Pick a continent to see your whole route, or a zone for its hotspots.</p>
     </div>
     <div class="heat">
       <figure class="heat-map" id="heat-map">
-        <canvas id="heat-canvas" role="img" aria-label="Heatmap of where you spent your time in the zone"></canvas>
+        <canvas id="heat-canvas" role="img" aria-label="Heatmap of where you spent your time"></canvas>
         <div class="heat-tip" id="heat-tip" hidden></div>
-        <figcaption>Sample heat on the zone's own map from the WoW Forever client. Coordinates use WoW's 0 to 100 map grid.</figcaption>
+        <figcaption id="heat-caption"></figcaption>
       </figure>
       <div class="heat-side">
-        <div class="toggle" id="zone-tabs" role="group" aria-label="Zone"></div>
+        <div>
+          <p class="label">Continents</p>
+          <div class="toggle" id="continent-tabs" role="group" aria-label="Continent"></div>
+        </div>
+        <div>
+          <p class="label">Zones</p>
+          <div class="toggle" id="zone-tabs" role="group" aria-label="Zone"></div>
+        </div>
+        <div id="style-row">
+          <p class="label">Map style</p>
+          <div class="toggle" id="style-tabs" role="group" aria-label="Map style">
+            <button type="button" data-style="parchment" aria-pressed="true">Parchment</button>
+            <button type="button" data-style="terrain" aria-pressed="false">Terrain</button>
+          </div>
+        </div>
         <p class="zone-total" id="zone-total"></p>
         <div>
           <p class="label" id="spots-label"></p>
@@ -1000,10 +1021,18 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     ["Jumps", num(S.jumps) + " <small>(one every " + Math.round(total / S.jumps) + "s)</small>"]
   ]);
 
-  // Where you spent your time: a heatmap per zone, drawn from hotspots.
-  // Real data will be a grid of seconds per map cell from the addon.
+  // Where you spent your time: heat across a continent (your whole route) or
+  // in one zone (its hotspots). Real data will be seconds per map cell from
+  // the addon; maps.json places every zone in the world.
+  var MAPS = __MAPS_JSON__;
+  var MAP_BY_ID = {}, MAP_BY_NAME = {};
+  MAPS.forEach(function (m) {
+    MAP_BY_ID[m.uiMapID] = m;
+    if (m.type === 3 && !MAP_BY_NAME[m.name]) MAP_BY_NAME[m.name] = m;
+  });
+  var CONTINENTS = [{ id: 1414, name: "Kalimdor" }, { id: 1415, name: "Eastern Kingdoms" }];
   var heatCanvas = $("heat-canvas"), heatTip = $("heat-tip");
-  var zoneIndex = 0, heatCache = {};
+  var view = { kind: "continent", id: 1414 }, mapStyle = "parchment", heatCache = {}, hoverZone = null;
   var favorite = null;
   S.heat.forEach(function (z) {
     z.spots.forEach(function (s) {
@@ -1011,40 +1040,101 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     });
   });
   $("heat-title").textContent = "Your favorite spot in Azeroth: " + favorite.spot[0] + ", " + favorite.zone + ".";
-  function zoneSeconds(z) { return 0.82 * sum(perLevel.slice(z.from - 1, z.to - 1)); }
+  function zoneSeconds(from, to) { return 0.82 * sum(perLevel.slice(from - 1, to - 1)); }
 
-  // The game's own zone maps (exported from the Forever client), by map ID.
-  var MAP_ART = { 1446: "__MAP_1446__", 1434: "__MAP_1434__", 1452: "__MAP_1452__", 1449: "__MAP_1449__" };
-  var mapImages = {};
-  Object.keys(MAP_ART).forEach(function (id) {
-    var img = new Image();
-    img.onload = function () { if (S.heat[zoneIndex].map === Number(id)) drawHeat(); };
-    img.src = MAP_ART[id];
-    mapImages[id] = img;
+  // Your route: the zones of the journey in order, with their place in the world.
+  var route = S.path.map(function (p, i) {
+    return { n: i + 1, name: p[0], from: p[1], to: p[2], map: MAP_BY_NAME[p[0]], seconds: zoneSeconds(p[1], p[2]) };
+  }).filter(function (r) { return r.map; });
+  function routeOn(continentId) { return route.filter(function (r) { return r.map.parent === continentId; }); }
+  function detailFor(uiMapID) {
+    for (var i = 0; i < S.heat.length; i++) if (S.heat[i].map === uiMapID) return i;
+    return -1;
+  }
+
+  // Map art from the Forever client: parchment zone maps, the same zones cut
+  // from the minimap terrain, and both continents stitched from it.
+  var ART = {
+    parchment: { 1446: "__MAP_1446__", 1434: "__MAP_1434__", 1452: "__MAP_1452__", 1449: "__MAP_1449__" },
+    terrain: { 1446: "__TERRAIN_1446__", 1434: "__TERRAIN_1434__", 1452: "__TERRAIN_1452__", 1449: "__TERRAIN_1449__" },
+    continent: { 1414: "__CONTINENT_1414__", 1415: "__CONTINENT_1415__" }
+  };
+  var images = {};
+  Object.keys(ART).forEach(function (kind) {
+    images[kind] = {};
+    Object.keys(ART[kind]).forEach(function (id) {
+      var img = new Image();
+      img.onload = function () { drawHeat(); };
+      img.src = ART[kind][id];
+      images[kind][id] = img;
+    });
   });
 
-  // Each hotspot as a lumpy cluster, like real time-at-place data, plus
-  // faint trails out from the zone's hub.
-  function heatPoints(z) {
-    var rnd = seeded(hashText(z.zone)), points = [];
+  // A continent's minimap tile grid; each tile is tileYards across.
+  function continentGrid(id) {
+    var mm = MAP_BY_ID[id].minimap;
+    return { x0: mm.tiles.minX, y0: mm.tiles.minY, w: mm.tiles.maxX - mm.tiles.minX + 1,
+             h: mm.tiles.maxY - mm.tiles.minY + 1, T: mm.tileYards };
+  }
+  // Zone map coordinates (0 to 100) to world yards (X north, Y west).
+  function zoneToWorld(m, x, y) {
+    var w = m.world;
+    return { X: w.maxX - y / 100 * (w.maxX - w.minX), Y: w.maxY - x / 100 * (w.maxY - w.minY) };
+  }
+  // World yards to a fraction of a continent's image, and back.
+  function worldToContinent(g, X, Y) { return { fx: (32 - Y / g.T - g.x0) / g.w, fy: (32 - X / g.T - g.y0) / g.h }; }
+  function continentToWorld(g, fx, fy) { return { X: (32 - (g.y0 + fy * g.h)) * g.T, Y: (32 - (g.x0 + fx * g.w)) * g.T }; }
+
+  // Heat points use one unit system: x in % of the image width, y in the
+  // same physical units (so % of width too), spread r in % of width.
+  // A zone's hotspots become lumpy clusters, like real time-at-place data,
+  // with faint trails out from the zone's hub.
+  function zonePoints(z) {
+    var rnd = seeded(hashText(z.zone)), aspect = 2 / 3, points = [];
+    function add(x, y, m, r) { points.push({ x: x, y: y * aspect, m: m, r: r }); }
     z.spots.forEach(function (s) {
       var r = s[4] * 0.8;
-      points.push({ x: s[1], y: s[2], m: s[3] * 0.4, r: r });
+      add(s[1], s[2], s[3] * 0.4, r);
       for (var k = 0; k < 9; k++) {
         var angle = rnd() * Math.PI * 2, dist = rnd() * s[4] * 1.6;
-        points.push({ x: s[1] + Math.cos(angle) * dist, y: s[2] + Math.sin(angle) * dist * 1.5,
-                      m: s[3] * 0.6 / 9 * (0.5 + rnd()), r: r * (0.5 + rnd() * 0.6) });
+        add(s[1] + Math.cos(angle) * dist, s[2] + Math.sin(angle) * dist * 1.5,
+            s[3] * 0.6 / 9 * (0.5 + rnd()), r * (0.5 + rnd() * 0.6));
       }
     });
     var hub = z.spots[0];
     z.spots.slice(1).forEach(function (s) {
       for (var k = 2; k < 30; k++) {
         var t = k / 30;
-        points.push({ x: hub[1] + (s[1] - hub[1]) * t + (rnd() - 0.5) * 0.8,
-                      y: hub[2] + (s[2] - hub[2]) * t + (rnd() - 0.5) * 0.8, m: 3.5, r: 0.9 });
+        add(hub[1] + (s[1] - hub[1]) * t + (rnd() - 0.5) * 0.8, hub[2] + (s[2] - hub[2]) * t + (rnd() - 0.5) * 0.8, 3.5, 0.9);
       }
     });
     return points;
+  }
+
+  // On a continent: each zone's hotspots where we have them, otherwise a few
+  // blobs near the zone's middle sharing its time.
+  function continentPoints(id) {
+    var g = continentGrid(id), aspect = g.h / g.w, widthYards = g.w * g.T, points = [];
+    function add(X, Y, m, rYards) {
+      var f = worldToContinent(g, X, Y);
+      points.push({ x: f.fx * 100, y: f.fy * 100 * aspect, m: m, r: rYards / widthYards * 100 });
+    }
+    routeOn(id).forEach(function (r) {
+      var m = r.map, zoneYards = m.world.maxY - m.world.minY, d = detailFor(m.uiMapID), w;
+      if (d >= 0) {
+        S.heat[d].spots.forEach(function (s) {
+          w = zoneToWorld(m, s[1], s[2]);
+          add(w.X, w.Y, s[3], s[4] / 100 * zoneYards * 1.1);
+        });
+      } else {
+        var rnd = seeded(hashText(r.name));
+        for (var k = 0; k < 3; k++) {
+          w = zoneToWorld(m, 30 + rnd() * 40, 30 + rnd() * 40);
+          add(w.X, w.Y, r.seconds / 60 / 3, zoneYards * 0.07);
+        }
+      }
+    });
+    return { points: points, aspect: aspect };
   }
 
   // Ember red (a little time) through orange and gold to white-hot (the most),
@@ -1060,26 +1150,26 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     return RAMP[RAMP.length - 1][1];
   }
 
-  // A small colored layer (180 x 120, the map's 3:2 shape) scaled up smoothly.
-  var FW = 180, FH = 120;
-  function heatLayer(points) {
-    var field = new Float32Array(FW * FH), max = 0;
-    for (var j = 0; j < FH; j++) {
-      for (var i = 0; i < FW; i++) {
-        var px = (i + 0.5) / FW * 100, py = (j + 0.5) / FH * 100, v = 0;
+  // A small colored layer (fw x fh, the map's shape) that's scaled up smoothly.
+  // aspect is the map's height / width, for the point units above.
+  function heatLayer(points, fw, fh, aspect) {
+    var field = new Float32Array(fw * fh), max = 0;
+    for (var j = 0; j < fh; j++) {
+      for (var i = 0; i < fw; i++) {
+        var px = (i + 0.5) / fw * 100, py = (j + 0.5) / fh * 100 * aspect, v = 0;
         for (var k = 0; k < points.length; k++) {
-          var p = points[k], dx = px - p.x, dy = (py - p.y) / 1.5; // y units are 1.5x shorter on a 3:2 map
+          var p = points[k], dx = px - p.x, dy = py - p.y;
           v += p.m * Math.exp(-(dx * dx + dy * dy) / (2 * p.r * p.r));
         }
-        field[j * FW + i] = v;
+        field[j * fw + i] = v;
         if (v > max) max = v;
       }
     }
     var layer = document.createElement("canvas");
-    layer.width = FW;
-    layer.height = FH;
+    layer.width = fw;
+    layer.height = fh;
     var lctx = layer.getContext("2d");
-    var img = lctx.createImageData(FW, FH);
+    var img = lctx.createImageData(fw, fh);
     for (var n = 0; n < field.length; n++) {
       var t = Math.pow(field[n] / max, 0.5);
       var e = Math.min(1, Math.max(0, (t - 0.05) / 0.62));
@@ -1103,93 +1193,193 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     return h || 1;
   }
 
+  // A numbered marker: hotspot rank on a zone, route order on a continent.
+  function marker(ctx, t, x, y, size, label) {
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fillStyle = t("--ground");
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = t("--gold-pale");
+    ctx.stroke();
+    ctx.fillStyle = t("--gold-pale");
+    ctx.fillText(label, x, y + 0.5);
+  }
+
   function drawHeat() {
-    var z = S.heat[zoneIndex];
-    var W = Math.max(280, Math.round(heatCanvas.parentNode.clientWidth));
-    var H = Math.round(W * 2 / 3), dpr = window.devicePixelRatio || 1;
+    var tok = getComputedStyle(document.documentElement);
+    function t(name) { return tok.getPropertyValue(name).trim(); }
+    var box = Math.max(280, Math.round(heatCanvas.parentNode.clientWidth));
+    var W, H, art, key, g = null;
+    if (view.kind === "continent") {
+      g = continentGrid(view.id);
+      H = Math.min(Math.round(box * g.h / g.w), 760);
+      W = Math.round(H * g.w / g.h);
+      art = images.continent[view.id];
+      key = "c" + view.id;
+    } else {
+      W = box;
+      H = Math.round(W * 2 / 3);
+      art = images[mapStyle][S.heat[view.index].map];
+      key = "z" + view.index;
+    }
+    var dpr = window.devicePixelRatio || 1;
     heatCanvas.width = Math.round(W * dpr);
     heatCanvas.height = Math.round(H * dpr);
+    heatCanvas.style.width = W + "px";
     heatCanvas.style.height = H + "px";
     var ctx = heatCanvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    var tok = getComputedStyle(document.documentElement);
-    function t(name) { return tok.getPropertyValue(name).trim(); }
 
-    // The zone's own map, dimmed a little so the heat stands out.
+    // The map, dimmed a little so the heat stands out.
     ctx.fillStyle = t("--panel");
     ctx.fillRect(0, 0, W, H);
-    var art = mapImages[z.map];
     if (art && art.complete && art.naturalWidth) ctx.drawImage(art, 0, 0, W, H);
     ctx.fillStyle = "rgba(18, 14, 9, 0.41)";
     ctx.fillRect(0, 0, W, H);
 
-    if (!heatCache[zoneIndex]) heatCache[zoneIndex] = heatLayer(heatPoints(z));
+    if (!heatCache[key]) {
+      if (g) {
+        var c = continentPoints(view.id);
+        heatCache[key] = heatLayer(c.points, 120, Math.round(120 * c.aspect), c.aspect);
+      } else {
+        heatCache[key] = heatLayer(zonePoints(S.heat[view.index]), 180, 120, 2 / 3);
+      }
+    }
     ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(heatCache[zoneIndex], 0, 0, W, H);
+    ctx.drawImage(heatCache[key], 0, 0, W, H);
 
-    // Numbered markers: 1 is where you spent the most time (matches the list).
-    var ranked = z.spots.slice().sort(function (a, b) { return b[3] - a[3]; });
-    var size = W < 560 ? 8 : 10;
+    var size = W < 420 ? 8 : 10;
     ctx.font = "700 " + (size + 2) + "px " + t("--font-body");
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ranked.forEach(function (s, i) {
-      var sx = s[1] / 100 * W, sy = s[2] / 100 * H;
-      ctx.beginPath();
-      ctx.arc(sx, sy, size, 0, Math.PI * 2);
-      ctx.fillStyle = t("--ground");
-      ctx.fill();
-      ctx.lineWidth = 1.5;
+    if (g) {
+      // Your route through the continent's zones, in order.
+      var stops = routeOn(view.id).map(function (r) {
+        var w = r.map.world, f = worldToContinent(g, (w.minX + w.maxX) / 2, (w.minY + w.maxY) / 2);
+        return { n: r.n, x: f.fx * W, y: f.fy * H };
+      });
+      ctx.save();
+      ctx.setLineDash([3, 5]);
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.85;
       ctx.strokeStyle = t("--gold-pale");
+      ctx.beginPath();
+      stops.forEach(function (s, i) { if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y); });
       ctx.stroke();
-      ctx.fillStyle = t("--gold-pale");
-      ctx.fillText(String(i + 1), sx, sy + 0.5);
-    });
+      ctx.restore();
+      stops.forEach(function (s) { marker(ctx, t, s.x, s.y, size, String(s.n)); });
+    } else {
+      // 1 is where you spent the most time (matches the list).
+      S.heat[view.index].spots.slice().sort(function (a, b) { return b[3] - a[3]; }).forEach(function (s, i) {
+        marker(ctx, t, s[1] / 100 * W, s[2] / 100 * H, size, String(i + 1));
+      });
+    }
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }
 
-  function showZone(i) {
-    zoneIndex = i;
-    var z = S.heat[i], seconds = zoneSeconds(z);
-    Array.prototype.forEach.call($("zone-tabs").querySelectorAll("button"), function (button) {
-      button.setAttribute("aria-pressed", String(Number(button.getAttribute("data-zone")) === i));
+  function pressed(groupId, attribute, value) {
+    Array.prototype.forEach.call($(groupId).querySelectorAll("button"), function (button) {
+      button.setAttribute("aria-pressed", String(button.getAttribute(attribute) === value));
     });
-    $("zone-total").innerHTML = "<b>" + dur(seconds) + "</b> in " + esc(z.zone) + ", levels " + z.from + " to " +
-      z.to + " (" + Math.round(seconds / total * 100) + "% of your /played).";
-    $("spots-label").textContent = "Hotspots in " + z.zone;
-    $("spots").innerHTML = z.spots.slice().sort(function (a, b) { return b[3] - a[3]; }).map(function (s, i) {
-      return '<li><span class="n">' + (i + 1) + "</span><span>" + esc(s[0]) + '</span><span class="t">' + dur(s[3] * 60) +
-        '</span><span class="where">' + s[1] + ", " + s[2] + "</span></li>";
-    }).join("");
+  }
+
+  function listItem(n, name, time, where) {
+    return '<li><span class="n">' + n + "</span><span>" + esc(name) + '</span><span class="t">' + time +
+      '</span><span class="where">' + where + "</span></li>";
+  }
+
+  function showView(next) {
+    view = next;
     heatTip.hidden = true;
+    pressed("continent-tabs", "data-continent", view.kind === "continent" ? String(view.id) : "");
+    pressed("zone-tabs", "data-zone", view.kind === "zone" ? String(view.index) : "");
+    $("style-row").hidden = view.kind !== "zone";
+    if (view.kind === "continent") {
+      var name = CONTINENTS.filter(function (c) { return c.id === view.id; })[0].name, stops = routeOn(view.id);
+      var seconds = sum(stops.map(function (r) { return r.seconds; }));
+      $("zone-total").innerHTML = "<b>" + dur(seconds) + "</b> across " + stops.length + " zones of " + esc(name) +
+        " (" + Math.round(seconds / total * 100) + "% of your /played).";
+      $("spots-label").textContent = "Your route through " + name;
+      $("spots").innerHTML = stops.map(function (r) {
+        return listItem(r.n, r.name, dur(r.seconds), "levels " + r.from + " to " + r.to);
+      }).join("");
+      $("heat-caption").textContent = "Sample heat on " + name + ", stitched from the Forever client's minimap. " +
+        "Numbers follow your route. Click a zone with hotspots to zoom in.";
+    } else {
+      var z = S.heat[view.index], zs = zoneSeconds(z.from, z.to);
+      $("zone-total").innerHTML = "<b>" + dur(zs) + "</b> in " + esc(z.zone) + ", levels " + z.from + " to " +
+        z.to + " (" + Math.round(zs / total * 100) + "% of your /played).";
+      $("spots-label").textContent = "Hotspots in " + z.zone;
+      $("spots").innerHTML = z.spots.slice().sort(function (a, b) { return b[3] - a[3]; }).map(function (s, i) {
+        return listItem(i + 1, s[0], dur(s[3] * 60), s[1] + ", " + s[2]);
+      }).join("");
+      $("heat-caption").textContent = "Sample heat on " + (mapStyle === "terrain" ? "the zone's terrain" : "the zone's own map") +
+        " from the WoW Forever client. Coordinates use WoW's 0 to 100 map grid.";
+    }
     drawHeat();
   }
 
-  $("zone-tabs").innerHTML = S.heat.map(function (z, i) {
-    return '<button type="button" data-zone="' + i + '" aria-pressed="' + (i === 0) + '">' + esc(z.zone) + "</button>";
+  $("continent-tabs").innerHTML = CONTINENTS.map(function (c) {
+    return '<button type="button" data-continent="' + c.id + '" aria-pressed="false">' + esc(c.name) + "</button>";
   }).join("");
+  $("zone-tabs").innerHTML = S.heat.map(function (z, i) {
+    return '<button type="button" data-zone="' + i + '" aria-pressed="false">' + esc(z.zone) + "</button>";
+  }).join("");
+  $("continent-tabs").addEventListener("click", function (event) {
+    var button = event.target.closest("button");
+    if (button) showView({ kind: "continent", id: Number(button.getAttribute("data-continent")) });
+  });
   $("zone-tabs").addEventListener("click", function (event) {
     var button = event.target.closest("button");
-    if (button) showZone(Number(button.getAttribute("data-zone")));
+    if (button) showView({ kind: "zone", index: Number(button.getAttribute("data-zone")) });
   });
+  $("style-tabs").addEventListener("click", function (event) {
+    var button = event.target.closest("button");
+    if (!button) return;
+    mapStyle = button.getAttribute("data-style");
+    pressed("style-tabs", "data-style", mapStyle);
+    showView(view);
+  });
+
   heatCanvas.addEventListener("mousemove", function (event) {
-    var rect = heatCanvas.getBoundingClientRect();
-    var mx = event.clientX - rect.left, my = event.clientY - rect.top;
-    var x = mx / rect.width * 100, y = my / rect.height * 100;
-    var near = null, best = Infinity;
-    S.heat[zoneIndex].spots.forEach(function (s) {
-      var dx = x - s[1], dy = (y - s[2]) / 1.5, d = Math.sqrt(dx * dx + dy * dy) / s[4];
-      if (d < best) { best = d; near = s; }
-    });
-    var coords = Math.round(x) + ", " + Math.round(y);
-    heatTip.innerHTML = best < 1.8 ? "<b>" + esc(near[0]) + "</b> " + dur(near[3] * 60) + "<span>" + coords + "</span>" : coords;
-    heatTip.style.left = Math.min(Math.max(mx, 90), rect.width - 90) + "px";
-    heatTip.style.top = my + "px";
+    var rect = heatCanvas.getBoundingClientRect(), figure = heatCanvas.parentNode.getBoundingClientRect();
+    var mx = event.clientX - rect.left, my = event.clientY - rect.top, text = null;
+    hoverZone = null;
+    if (view.kind === "continent") {
+      // The smallest zone on your route that contains the pointer.
+      var w = continentToWorld(continentGrid(view.id), mx / rect.width, my / rect.height), best = Infinity;
+      routeOn(view.id).forEach(function (r) {
+        var b = r.map.world, area = (b.maxX - b.minX) * (b.maxY - b.minY);
+        if (w.X >= b.minX && w.X <= b.maxX && w.Y >= b.minY && w.Y <= b.maxY && area < best) { best = area; hoverZone = r; }
+      });
+      if (hoverZone) {
+        text = "<b>" + esc(hoverZone.name) + "</b> " + dur(hoverZone.seconds) + "<span>levels " + hoverZone.from + " to " +
+          hoverZone.to + (detailFor(hoverZone.map.uiMapID) >= 0 ? ", click to zoom in" : "") + "</span>";
+      }
+    } else {
+      var x = mx / rect.width * 100, y = my / rect.height * 100, near = null, nearest = Infinity;
+      S.heat[view.index].spots.forEach(function (s) {
+        var dx = x - s[1], dy = (y - s[2]) / 1.5, d = Math.sqrt(dx * dx + dy * dy) / s[4];
+        if (d < nearest) { nearest = d; near = s; }
+      });
+      var coords = Math.round(x) + ", " + Math.round(y);
+      text = nearest < 1.8 ? "<b>" + esc(near[0]) + "</b> " + dur(near[3] * 60) + "<span>" + coords + "</span>" : coords;
+    }
+    heatCanvas.style.cursor = hoverZone && detailFor(hoverZone.map.uiMapID) >= 0 ? "pointer" : "crosshair";
+    if (!text) { heatTip.hidden = true; return; }
+    heatTip.innerHTML = text;
+    heatTip.style.left = (rect.left - figure.left + Math.min(Math.max(mx, 110), rect.width - 110)) + "px";
+    heatTip.style.top = (rect.top - figure.top + my) + "px";
     heatTip.hidden = false;
   });
   heatCanvas.addEventListener("mouseleave", function () { heatTip.hidden = true; });
-  showZone(0);
+  heatCanvas.addEventListener("click", function () {
+    var d = hoverZone ? detailFor(hoverZone.map.uiMapID) : -1;
+    if (view.kind === "continent" && d >= 0) showView({ kind: "zone", index: d });
+  });
+  showView(view);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawHeat);
 
   var resizeTimer;

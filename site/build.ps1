@@ -3,8 +3,8 @@ param(
 )
 # Builds the recap website draft (sample data) into one self-contained page:
 #   dist\road-to-60.html
-# It fills recap.template.html with the logo, a sample export string and the
-# zone maps the sample uses. The maps come from art\export\web\zones (run
+# It fills recap.template.html with the logo, a sample export string, the map
+# art the sample uses and art\maps.json. The maps come from art\export\web (run
 # art\build-maps.ps1 first); they're Blizzard's art, so the built page goes to
 # the git-ignored dist\ folder, not the repo.
 #
@@ -33,11 +33,16 @@ $export = (Get-Content (Join-Path $root "tools\import\fixtures\testexport.txt") 
 $html = Get-Content (Join-Path $PSScriptRoot "recap.template.html") -Raw -Encoding UTF8
 $html = $html.Replace("__LOGO__", (DataUri "image/png" $ms.ToArray()))
 $html = $html.Replace("__SAMPLE_EXPORT__", [System.Net.WebUtility]::HtmlEncode($export))
-foreach ($match in [regex]::Matches($html, "__MAP_(\d+)__")) {
-    $file = Join-Path $root ("art\export\web\zones\{0}.jpg" -f $match.Groups[1].Value)
+# Map art: __MAP_<id>__ parchment zone maps, __TERRAIN_<id>__ terrain zone
+# maps, __CONTINENT_<id>__ continent overviews (all from art\build-maps.ps1).
+$folders = @{ MAP = "zones"; TERRAIN = "terrain"; CONTINENT = "continents" }
+foreach ($match in [regex]::Matches($html, "__(MAP|TERRAIN|CONTINENT)_(\d+)__")) {
+    $file = Join-Path $root ("art\export\web\{0}\{1}.jpg" -f $folders[$match.Groups[1].Value], $match.Groups[2].Value)
     if (-not (Test-Path $file)) { throw "Missing $file. Run art\build-maps.ps1 first." }
     $html = $html.Replace($match.Value, (DataUri "image/jpeg" ([System.IO.File]::ReadAllBytes($file))))
 }
+# Every map's world rectangle, so heat lands in the right place.
+$html = $html.Replace("__MAPS_JSON__", (Get-Content (Join-Path $root "art\maps.json") -Raw -Encoding UTF8).Trim())
 
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $out = Join-Path (Resolve-Path $OutDir) "road-to-60.html"
