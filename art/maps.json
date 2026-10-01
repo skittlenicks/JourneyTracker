@@ -1,5 +1,52 @@
 [
     {
+        "uiMapID":  947,
+        "name":  "Azeroth",
+        "parent":  0,
+        "type":  1,
+        "mapID":  null,
+        "areaID":  0,
+        "world":  null,
+        "image":  null,
+        "terrain":  null,
+        "parts":  [
+                      {
+                          "mapID":  0,
+                          "uiMin":  {
+                                        "x":  0.5505,
+                                        "y":  0.0994
+                                    },
+                          "uiMax":  {
+                                        "x":  0.8966,
+                                        "y":  0.8691
+                                    },
+                          "world":  {
+                                        "minX":  -16000,
+                                        "minY":  -7466.7,
+                                        "maxX":  6933.3,
+                                        "maxY":  8000
+                                    }
+                      },
+                      {
+                          "mapID":  1,
+                          "uiMin":  {
+                                        "x":  0.0399,
+                                        "y":  0.0855
+                                    },
+                          "uiMax":  {
+                                        "x":  0.4083,
+                                        "y":  0.9234
+                                    },
+                          "world":  {
+                                        "minX":  -12800,
+                                        "minY":  -9600,
+                                        "maxX":  12266.7,
+                                        "maxY":  6933.3
+                                    }
+                      }
+                  ]
+    },
+    {
         "uiMapID":  1411,
         "name":  "Durotar",
         "parent":  1414,
@@ -71,7 +118,7 @@
                                       "minY":  8,
                                       "maxY":  52
                                   },
-                        "pixelsPerTile":  40,
+                        "pixelsPerTile":  64,
                         "image":  "continents/1414.jpg"
                     }
     },
@@ -99,7 +146,7 @@
                                       "minY":  23,
                                       "maxY":  61
                                   },
-                        "pixelsPerTile":  40,
+                        "pixelsPerTile":  64,
                         "image":  "continents/1415.jpg"
                     }
     },

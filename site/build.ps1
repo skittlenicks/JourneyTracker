@@ -43,6 +43,9 @@ foreach ($match in [regex]::Matches($html, "__(MAP|TERRAIN|CONTINENT)_(\d+)__"))
 }
 # Every map's world rectangle, so heat lands in the right place.
 $html = $html.Replace("__MAPS_JSON__", (Get-Content (Join-Path $root "art\maps.json") -Raw -Encoding UTF8).Trim())
+# Leaflet's stylesheet has to be inside the page (its script loads from cdnjs).
+$leaflet = Get-Content (Join-Path $PSScriptRoot "vendor\leaflet-1.9.4.css") -Raw -Encoding UTF8
+$html = $html.Replace("/*__LEAFLET_CSS__*/", "/* Leaflet 1.9.4, https://leafletjs.com, (c) 2010-2023 Vladimir Agafonkin, (c) 2010-2011 CloudMade. BSD-2-Clause. */`n" + $leaflet.Trim())
 
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $out = Join-Path (Resolve-Path $OutDir) "road-to-60.html"

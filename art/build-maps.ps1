@@ -1,7 +1,7 @@
 param(
     [string]$ExportDir = (Join-Path $PSScriptRoot "export"),
     [int]$JpegQuality = 85,
-    [int]$OverviewTilePixels = 40   # continent overview: pixels per 512px minimap tile
+    [int]$OverviewTilePixels = 64   # continent overview: pixels per 512px minimap tile
 )
 # Turns wow.export output into what the website uses:
 #   art\export\web\zones\<UiMapID>.jpg      each zone's parchment map, named by the
@@ -34,6 +34,24 @@ $whole = @{}
 foreach ($a in $assignments) {
     if ($a.UiMin -eq "0,0" -and $a.UiMax -eq "1,1" -and -not $whole.ContainsKey($a.UiMapID)) {
         $whole[$a.UiMapID] = $a
+    }
+}
+
+# Partial assignments place one map inside another: the Azeroth world map
+# (947) shows Kalimdor and the Eastern Kingdoms side by side this way.
+$parts = @{}
+foreach ($a in $assignments) {
+    if ($a.UiMin -eq "0,0" -and $a.UiMax -eq "1,1") { continue }
+    $lo = $a.UiMin -split "," | ForEach-Object { [double]$_ }
+    $hi = $a.UiMax -split "," | ForEach-Object { [double]$_ }
+    $r = $a.Region -split "," | ForEach-Object { [double]$_ }
+    if (-not $parts[$a.UiMapID]) { $parts[$a.UiMapID] = @() }
+    $parts[$a.UiMapID] += [ordered]@{
+        mapID = [int]$a.MapID
+        uiMin = [ordered]@{ x = [math]::Round($lo[0], 5); y = [math]::Round($lo[1], 5) }
+        uiMax = [ordered]@{ x = [math]::Round($hi[0], 5); y = [math]::Round($hi[1], 5) }
+        world = [ordered]@{ minX = [math]::Round($r[0], 2); minY = [math]::Round($r[1], 2);
+                            maxX = [math]::Round($r[3], 2); maxY = [math]::Round($r[4], 2) }
     }
 }
 
@@ -153,22 +171,29 @@ foreach ($m in $uiMaps) {
 
 foreach ($m in $uiMaps) {
     $a = $whole[$m.ID]
-    if (-not $a) { continue }
-    $r = $a.Region -split "," | ForEach-Object { [double]$_ }
+    # A map needs a world rectangle, or parts (the Azeroth world map has only parts).
+    if (-not $a -and -not $parts[$m.ID]) { continue }
     $entry = [ordered]@{
         uiMapID   = [int]$m.ID
         name      = $m.Name_lang
         parent    = [int]$m.ParentUiMapID
         type      = [int]$m.Type        # 1 world, 2 continent, 3 zone or city, 6 battleground
-        mapID     = [int]$a.MapID       # the continent or instance the map sits on
-        areaID    = [int]$a.AreaID
-        world     = [ordered]@{ minX = [math]::Round($r[0], 2); minY = [math]::Round($r[1], 2);
-                                maxX = [math]::Round($r[3], 2); maxY = [math]::Round($r[4], 2) }
+        mapID     = $null               # the continent or instance the map sits on
+        areaID    = 0
+        world     = $null
         image     = $null
         terrain   = $null
     }
+    if ($a) {
+        $r = $a.Region -split "," | ForEach-Object { [double]$_ }
+        $entry.mapID = [int]$a.MapID
+        $entry.areaID = [int]$a.AreaID
+        $entry.world = [ordered]@{ minX = [math]::Round($r[0], 2); minY = [math]::Round($r[1], 2);
+                                   maxX = [math]::Round($r[3], 2); maxY = [math]::Round($r[4], 2) }
+    }
     $id = [int]$m.ID
-    $png = $images[$a.AreaID]
+    if ($parts[$m.ID]) { $entry.parts = @($parts[$m.ID] | ForEach-Object { New-Object PSObject -Property $_ }) }
+    $png = if ($a) { $images[$a.AreaID] } else { $null }
     if ($png) {
         $img = [System.Drawing.Image]::FromFile($png)
         try { $img.Save((Join-Path $webDir "$id.jpg"), $jpeg, $params) } finally { $img.Dispose() }
@@ -191,7 +216,7 @@ foreach ($m in $uiMaps) {
     }
 
     # Zones and cities on a continent: cut their rectangle from the terrain.
-    $continent = $mapIDOf[[int]$a.MapID]
+    $continent = if ($a) { $mapIDOf[[int]$a.MapID] } else { $null }
     if ([int]$m.Type -eq 3 -and $continent -and $tilesByContinent[$continent].Count -gt 0) {
         $left = 32 - $r[4] / $T; $right = 32 - $r[1] / $T     # world Y (west) -> tile column
         $top = 32 - $r[3] / $T; $bottom = 32 - $r[0] / $T     # world X (north) -> tile row

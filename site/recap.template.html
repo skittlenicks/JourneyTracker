@@ -3,6 +3,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=Marcellus&display=swap">
 <style>
+/*__LEAFLET_CSS__*/
 /* Layout: one long recap scroll in a 66rem frame. Site bar and import
    strip, a hero showing the shape of the whole 1-60 climb, then one chapter
    per part of the journey (statement on the left, data on the right),
@@ -28,6 +29,7 @@
   --coin-gold: #ffd100;
   --coin-silver: #c7c7cf;
   --coin-copper: #c8793c;
+  --sea: #043648;        /* the game's own deep-water color */
   --font-display: "Marcellus", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", Consolas, "Liberation Mono", monospace;
@@ -319,32 +321,68 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .chapter.wide { grid-template-columns: minmax(0, 1fr); }
 .chapter.wide .chapter-head { max-width: 46rem; }
 
-/* Heatmap */
+/* Map of Azeroth (Leaflet) */
 .heat { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 28px; align-items: start; }
-.heat-map { position: relative; margin: 0; }
-.heat-map canvas {
-  display: block;
-  max-width: 100%;
-  margin-inline: auto;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  cursor: crosshair;
-}
+.heat-map { margin: 0; }
 .heat-map figcaption { margin-top: 8px; font-size: var(--step--1); color: var(--ink-soft); }
-.heat-tip {
-  position: absolute;
-  pointer-events: none;
+.world-map { height: clamp(380px, 70vh, 660px); border: 1px solid var(--rule); border-radius: 6px; }
+.world-map.leaflet-container { background: var(--sea); font-family: var(--font-body); font-size: var(--step--1); }
+.world-map .terrain-layer { filter: brightness(0.66); }
+.world-map .leaflet-bar { border: 1px solid var(--rule); box-shadow: none; }
+.world-map .leaflet-bar a {
+  width: 32px;
+  height: 32px;
+  line-height: 30px;
+  color: var(--gold-pale);
+  background: var(--panel);
+  border-bottom-color: var(--rule);
+}
+.world-map .leaflet-bar a:hover,
+.world-map .leaflet-bar a:focus { color: var(--gold-pale); background: var(--ground); }
+.world-map .leaflet-bar a.leaflet-disabled { color: var(--rule); background: var(--panel); }
+.world-map .leaflet-control-attribution { color: var(--ink-soft); background: rgba(18, 14, 9, 0.8); font-size: 0.68rem; }
+.leaflet-tooltip.map-tip {
   padding: 6px 10px;
+  color: var(--ink);
   background: var(--ground);
   border: 1px solid var(--gold);
   border-radius: 4px;
+  box-shadow: none;
+  font-family: var(--font-body);
   font-size: var(--step--1);
   white-space: nowrap;
-  transform: translate(-50%, calc(-100% - 14px));
 }
-.heat-tip b { color: var(--gold-pale); }
-.heat-tip span { margin-left: 8px; font-family: var(--font-mono); color: var(--ink-soft); }
-.heat-side { display: grid; gap: 20px; align-content: start; }
+.leaflet-tooltip.map-tip b { color: var(--gold-pale); }
+.leaflet-tooltip.map-tip span { margin-left: 8px; font-family: var(--font-mono); color: var(--ink-soft); }
+.leaflet-tooltip-top.map-tip::before { border-top-color: var(--gold); }
+.map-pin {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--gold-pale);
+  border-radius: 50%;
+  background: var(--ground);
+  color: var(--gold-pale);
+  font: 700 12px/1 var(--font-body);
+  cursor: pointer;
+}
+.map-pin.hot { border-color: var(--gold); color: var(--gold); }
+.heat-side { display: grid; gap: 18px; align-content: start; }
+.map-button {
+  justify-self: start;
+  padding: 7px 12px;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.map-button:hover { border-color: var(--ink-soft); }
 .zone-total { margin: 0; color: var(--ink-soft); }
 .zone-total b { color: var(--ink); font-weight: 500; }
 .spots { list-style: none; margin: 0; padding: 0; }
@@ -378,6 +416,19 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   font-size: 0.84rem;
   font-variant-numeric: tabular-nums;
 }
+.zone-link {
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+}
+.zone-link:hover { color: var(--gold-pale); text-decoration-color: var(--gold-pale); }
 
 /* Rankings */
 .ranks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
@@ -541,30 +592,15 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     <div class="chapter-head">
       <p class="eyebrow">Where you spent your time</p>
       <h2 id="heat-title"></h2>
-      <p>Brighter means longer. AFK time and flight paths are left out. Pick a continent to see your whole route, or a zone for its hotspots.</p>
+      <p>Drag to move around, scroll or pinch to zoom, and click a zone to fly in. Brighter means longer. AFK time and flight paths are left out.</p>
     </div>
     <div class="heat">
-      <figure class="heat-map" id="heat-map">
-        <canvas id="heat-canvas" role="img" aria-label="Heatmap of where you spent your time"></canvas>
-        <div class="heat-tip" id="heat-tip" hidden></div>
-        <figcaption id="heat-caption"></figcaption>
+      <figure class="heat-map">
+        <div class="world-map" id="world-map" aria-label="Map of Azeroth with your heatmap and route"></div>
+        <figcaption>Sample heat on Azeroth, stitched from the WoW Forever client's minimap. The dotted line is your route, numbered in order; zoom in on a zone to see its hotspots.</figcaption>
       </figure>
       <div class="heat-side">
-        <div>
-          <p class="label">Continents</p>
-          <div class="toggle" id="continent-tabs" role="group" aria-label="Continent"></div>
-        </div>
-        <div>
-          <p class="label">Zones</p>
-          <div class="toggle" id="zone-tabs" role="group" aria-label="Zone"></div>
-        </div>
-        <div id="style-row">
-          <p class="label">Map style</p>
-          <div class="toggle" id="style-tabs" role="group" aria-label="Map style">
-            <button type="button" data-style="parchment" aria-pressed="true">Parchment</button>
-            <button type="button" data-style="terrain" aria-pressed="false">Terrain</button>
-          </div>
-        </div>
+        <button type="button" class="map-button" id="map-reset">Show all of Azeroth</button>
         <p class="zone-total" id="zone-total"></p>
         <div>
           <p class="label" id="spots-label"></p>
@@ -680,6 +716,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 
 <footer class="frame foot">Draft with a made-up sample journey. The real site will build this page from a <code>/journey export</code>.</footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 (function () {
   "use strict";
@@ -1021,18 +1058,19 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     ["Jumps", num(S.jumps) + " <small>(one every " + Math.round(total / S.jumps) + "s)</small>"]
   ]);
 
-  // Where you spent your time: heat across a continent (your whole route) or
-  // in one zone (its hotspots). Real data will be seconds per map cell from
-  // the addon; maps.json places every zone in the world.
+  // Where you spent your time: one interactive map of Azeroth (Leaflet), with
+  // both continents laid out as on the game's world map. Real data will be
+  // seconds per map cell from the addon; maps.json places every zone.
   var MAPS = __MAPS_JSON__;
   var MAP_BY_ID = {}, MAP_BY_NAME = {};
   MAPS.forEach(function (m) {
     MAP_BY_ID[m.uiMapID] = m;
     if (m.type === 3 && !MAP_BY_NAME[m.name]) MAP_BY_NAME[m.name] = m;
   });
-  var CONTINENTS = [{ id: 1414, name: "Kalimdor" }, { id: 1415, name: "Eastern Kingdoms" }];
-  var heatCanvas = $("heat-canvas"), heatTip = $("heat-tip");
-  var view = { kind: "continent", id: 1414 }, mapStyle = "parchment", heatCache = {}, hoverZone = null;
+  var CONTINENT_ART = { 1414: "__CONTINENT_1414__", 1415: "__CONTINENT_1415__" };
+  var tokens = getComputedStyle(document.documentElement);
+  function token(name) { return tokens.getPropertyValue(name).trim(); }
+
   var favorite = null;
   S.heat.forEach(function (z) {
     z.spots.forEach(function (s) {
@@ -1046,99 +1084,96 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   var route = S.path.map(function (p, i) {
     return { n: i + 1, name: p[0], from: p[1], to: p[2], map: MAP_BY_NAME[p[0]], seconds: zoneSeconds(p[1], p[2]) };
   }).filter(function (r) { return r.map; });
-  function routeOn(continentId) { return route.filter(function (r) { return r.map.parent === continentId; }); }
   function detailFor(uiMapID) {
     for (var i = 0; i < S.heat.length; i++) if (S.heat[i].map === uiMapID) return i;
     return -1;
   }
 
-  // Map art from the Forever client: parchment zone maps, the same zones cut
-  // from the minimap terrain, and both continents stitched from it.
-  var ART = {
-    parchment: { 1446: "__MAP_1446__", 1434: "__MAP_1434__", 1452: "__MAP_1452__", 1449: "__MAP_1449__" },
-    terrain: { 1446: "__TERRAIN_1446__", 1434: "__TERRAIN_1434__", 1452: "__TERRAIN_1452__", 1449: "__TERRAIN_1449__" },
-    continent: { 1414: "__CONTINENT_1414__", 1415: "__CONTINENT_1415__" }
-  };
-  var images = {};
-  Object.keys(ART).forEach(function (kind) {
-    images[kind] = {};
-    Object.keys(ART[kind]).forEach(function (id) {
-      var img = new Image();
-      img.onload = function () { drawHeat(); };
-      img.src = ART[kind][id];
-      images[kind][id] = img;
-    });
-  });
-
-  // A continent's minimap tile grid; each tile is tileYards across.
-  function continentGrid(id) {
-    var mm = MAP_BY_ID[id].minimap;
-    return { x0: mm.tiles.minX, y0: mm.tiles.minY, w: mm.tiles.maxX - mm.tiles.minX + 1,
-             h: mm.tiles.maxY - mm.tiles.minY + 1, T: mm.tileYards };
+  // Map space is the game's 3:2 Azeroth world map: u and v run 0 to 1 across
+  // it, and Leaflet's [lat, lng] is [-v * 1000, u * 1500]. Each continent's
+  // part of that map comes with the world rectangle it shows.
+  var PARTS = {};
+  MAP_BY_ID[947].parts.forEach(function (p) { PARTS[p.mapID] = p; });
+  function toMap(mapID, X, Y) {
+    var p = PARTS[mapID], R = p.world;
+    var u = p.uiMin.x + (R.maxY - Y) / (R.maxY - R.minY) * (p.uiMax.x - p.uiMin.x);
+    var v = p.uiMin.y + (R.maxX - X) / (R.maxX - R.minX) * (p.uiMax.y - p.uiMin.y);
+    return [-v * 1000, u * 1500];
   }
   // Zone map coordinates (0 to 100) to world yards (X north, Y west).
   function zoneToWorld(m, x, y) {
     var w = m.world;
     return { X: w.maxX - y / 100 * (w.maxX - w.minX), Y: w.maxY - x / 100 * (w.maxY - w.minY) };
   }
-  // World yards to a fraction of a continent's image, and back.
-  function worldToContinent(g, X, Y) { return { fx: (32 - Y / g.T - g.x0) / g.w, fy: (32 - X / g.T - g.y0) / g.h }; }
-  function continentToWorld(g, fx, fy) { return { X: (32 - (g.y0 + fy * g.h)) * g.T, Y: (32 - (g.x0 + fx * g.w)) * g.T }; }
+  function boundsOf(mapID, w) { return L.latLngBounds(toMap(mapID, w.maxX, w.maxY), toMap(mapID, w.minX, w.minY)); }
+  function centerOf(m) { var w = m.world; return toMap(m.mapID, (w.minX + w.maxX) / 2, (w.minY + w.maxY) / 2); }
+  // The world rectangle a continent image covers, from its minimap tile grid.
+  function continentWorld(id) {
+    var c = MAP_BY_ID[id], t = c.minimap.tiles, T = c.minimap.tileYards;
+    return { mapID: c.mapID, maxY: (32 - t.minX) * T, minY: (32 - (t.maxX + 1)) * T,
+             maxX: (32 - t.minY) * T, minX: (32 - (t.maxY + 1)) * T };
+  }
 
-  // Heat points use one unit system: x in % of the image width, y in the
-  // same physical units (so % of width too), spread r in % of width.
-  // A zone's hotspots become lumpy clusters, like real time-at-place data,
-  // with faint trails out from the zone's hub.
+  // Repeatable randomness for the sample, so the heat looks the same every time.
+  function seeded(seed) {
+    return function () { seed = seed * 16807 % 2147483647; return (seed - 1) / 2147483646; };
+  }
+  function hashText(text) {
+    var h = 7;
+    for (var i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) % 2147483647;
+    return h || 1;
+  }
+
+  // A zone's hotspots as lumpy clusters, like real time-at-place data, plus
+  // faint trails out from its hub. x, y are zone map coordinates; r is the
+  // spread in % of the zone's width.
   function zonePoints(z) {
-    var rnd = seeded(hashText(z.zone)), aspect = 2 / 3, points = [];
-    function add(x, y, m, r) { points.push({ x: x, y: y * aspect, m: m, r: r }); }
+    var rnd = seeded(hashText(z.zone)), points = [];
     z.spots.forEach(function (s) {
       var r = s[4] * 0.8;
-      add(s[1], s[2], s[3] * 0.4, r);
+      points.push({ x: s[1], y: s[2], m: s[3] * 0.4, r: r });
       for (var k = 0; k < 9; k++) {
         var angle = rnd() * Math.PI * 2, dist = rnd() * s[4] * 1.6;
-        add(s[1] + Math.cos(angle) * dist, s[2] + Math.sin(angle) * dist * 1.5,
-            s[3] * 0.6 / 9 * (0.5 + rnd()), r * (0.5 + rnd() * 0.6));
+        points.push({ x: s[1] + Math.cos(angle) * dist, y: s[2] + Math.sin(angle) * dist * 1.5,
+                      m: s[3] * 0.6 / 9 * (0.5 + rnd()), r: r * (0.5 + rnd() * 0.6) });
       }
     });
     var hub = z.spots[0];
     z.spots.slice(1).forEach(function (s) {
       for (var k = 2; k < 30; k++) {
         var t = k / 30;
-        add(hub[1] + (s[1] - hub[1]) * t + (rnd() - 0.5) * 0.8, hub[2] + (s[2] - hub[2]) * t + (rnd() - 0.5) * 0.8, 3.5, 0.9);
+        points.push({ x: hub[1] + (s[1] - hub[1]) * t + (rnd() - 0.5) * 0.8,
+                      y: hub[2] + (s[2] - hub[2]) * t + (rnd() - 0.5) * 0.8, m: 3.5, r: 0.9 });
       }
     });
     return points;
   }
 
-  // On a continent: each zone's hotspots where we have them, otherwise a few
-  // blobs near the zone's middle sharing its time.
-  function continentPoints(id) {
-    var g = continentGrid(id), aspect = g.h / g.w, widthYards = g.w * g.T, points = [];
-    function add(X, Y, m, rYards) {
-      var f = worldToContinent(g, X, Y);
-      points.push({ x: f.fx * 100, y: f.fy * 100 * aspect, m: m, r: rYards / widthYards * 100 });
-    }
-    routeOn(id).forEach(function (r) {
-      var m = r.map, zoneYards = m.world.maxY - m.world.minY, d = detailFor(m.uiMapID), w;
+  // Heat points for one continent, in world yards: each zone's hotspots where
+  // the sample has them, otherwise a few blobs sharing the zone's time.
+  function heatPoints(mapID) {
+    var points = [];
+    route.forEach(function (r) {
+      var m = r.map;
+      if (m.mapID !== mapID) return;
+      var zoneYards = m.world.maxY - m.world.minY, d = detailFor(m.uiMapID), w;
       if (d >= 0) {
-        S.heat[d].spots.forEach(function (s) {
-          w = zoneToWorld(m, s[1], s[2]);
-          add(w.X, w.Y, s[3], s[4] / 100 * zoneYards * 1.1);
+        zonePoints(S.heat[d]).forEach(function (p) {
+          w = zoneToWorld(m, p.x, p.y);
+          points.push({ X: w.X, Y: w.Y, m: p.m, r: p.r / 100 * zoneYards });
         });
       } else {
         var rnd = seeded(hashText(r.name));
         for (var k = 0; k < 3; k++) {
           w = zoneToWorld(m, 30 + rnd() * 40, 30 + rnd() * 40);
-          add(w.X, w.Y, r.seconds / 60 / 3, zoneYards * 0.07);
+          points.push({ X: w.X, Y: w.Y, m: r.seconds / 60 / 3, r: zoneYards * 0.07 });
         }
       }
     });
-    return { points: points, aspect: aspect };
+    return points;
   }
 
-  // Ember red (a little time) through orange and gold to white-hot (the most),
-  // so it reads on the gold parchment maps.
+  // Ember red (a little time) through orange and gold to white-hot (the most).
   var RAMP = [[0, [190, 45, 20]], [0.45, [236, 112, 28]], [0.75, [255, 196, 70]], [1, [255, 248, 220]]];
   function ramp(t) {
     for (var i = 1; i < RAMP.length; i++) {
@@ -1150,242 +1185,159 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     return RAMP[RAMP.length - 1][1];
   }
 
-  // A small colored layer (fw x fh, the map's shape) that's scaled up smoothly.
-  // aspect is the map's height / width, for the point units above.
-  function heatLayer(points, fw, fh, aspect) {
+  // One continent's heat as an image over its whole rectangle. Each point
+  // only touches the cells within three spreads of it, so this stays quick.
+  function heatImage(cw, points) {
+    var spanY = cw.maxY - cw.minY, spanX = cw.maxX - cw.minX;
+    var fw = 420, fh = Math.round(fw * spanX / spanY), cell = spanY / fw;
     var field = new Float32Array(fw * fh), max = 0;
-    for (var j = 0; j < fh; j++) {
-      for (var i = 0; i < fw; i++) {
-        var px = (i + 0.5) / fw * 100, py = (j + 0.5) / fh * 100 * aspect, v = 0;
-        for (var k = 0; k < points.length; k++) {
-          var p = points[k], dx = px - p.x, dy = py - p.y;
-          v += p.m * Math.exp(-(dx * dx + dy * dy) / (2 * p.r * p.r));
+    points.forEach(function (p) {
+      var cx = (cw.maxY - p.Y) / cell, cy = (cw.maxX - p.X) / cell, s = Math.max(0.6, p.r / cell);
+      var reach = Math.ceil(s * 3);
+      var x0 = Math.max(0, Math.floor(cx - reach)), x1 = Math.min(fw - 1, Math.ceil(cx + reach));
+      var y0 = Math.max(0, Math.floor(cy - reach)), y1 = Math.min(fh - 1, Math.ceil(cy + reach));
+      for (var j = y0; j <= y1; j++) {
+        for (var i = x0; i <= x1; i++) {
+          var dx = i + 0.5 - cx, dy = j + 0.5 - cy;
+          field[j * fw + i] += p.m * Math.exp(-(dx * dx + dy * dy) / (2 * s * s));
         }
-        field[j * fw + i] = v;
-        if (v > max) max = v;
       }
-    }
-    var layer = document.createElement("canvas");
-    layer.width = fw;
-    layer.height = fh;
-    var lctx = layer.getContext("2d");
-    var img = lctx.createImageData(fw, fh);
-    for (var n = 0; n < field.length; n++) {
-      var t = Math.pow(field[n] / max, 0.5);
+    });
+    for (var n = 0; n < field.length; n++) if (field[n] > max) max = field[n];
+    var canvas = document.createElement("canvas");
+    canvas.width = fw;
+    canvas.height = fh;
+    var ctx = canvas.getContext("2d"), img = ctx.createImageData(fw, fh);
+    for (n = 0; n < field.length; n++) {
+      var t = Math.pow(field[n] / (max || 1), 0.5);
       var e = Math.min(1, Math.max(0, (t - 0.05) / 0.62));
-      var alpha = e * e * (3 - 2 * e) * 0.72; // smooth fade in, so the map shows through
       var c = ramp(t);
       img.data[n * 4] = c[0];
       img.data[n * 4 + 1] = c[1];
       img.data[n * 4 + 2] = c[2];
-      img.data[n * 4 + 3] = Math.round(alpha * 255);
+      img.data[n * 4 + 3] = Math.round(e * e * (3 - 2 * e) * 0.72 * 255); // fade in so the map shows through
     }
-    lctx.putImageData(img, 0, 0);
-    return layer;
+    ctx.putImageData(img, 0, 0);
+    return canvas.toDataURL("image/png");
   }
 
-  function seeded(seed) {
-    return function () { seed = seed * 16807 % 2147483647; return (seed - 1) / 2147483646; };
-  }
-  function hashText(text) {
-    var h = 7;
-    for (var i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) % 2147483647;
-    return h || 1;
-  }
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var map = L.map("world-map", {
+    crs: L.CRS.Simple, zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 120, attributionControl: true
+  });
+  map.attributionControl.setPrefix(false);
+  map.attributionControl.addAttribution("Map art: World of Warcraft &copy; Blizzard Entertainment");
 
-  // A numbered marker: hotspot rank on a zone, route order on a continent.
-  function marker(ctx, t, x, y, size, label) {
-    ctx.beginPath();
-    ctx.arc(x, y, size, 0, Math.PI * 2);
-    ctx.fillStyle = t("--ground");
-    ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = t("--gold-pale");
-    ctx.stroke();
-    ctx.fillStyle = t("--gold-pale");
-    ctx.fillText(label, x, y + 0.5);
-  }
+  // Both continents and their heat.
+  var world = null;
+  [1414, 1415].forEach(function (id) {
+    var cw = continentWorld(id), bounds = boundsOf(cw.mapID, cw);
+    L.imageOverlay(CONTINENT_ART[id], bounds, { className: "terrain-layer" }).addTo(map);
+    L.imageOverlay(heatImage(cw, heatPoints(cw.mapID)), bounds, { className: "heat-layer" }).addTo(map);
+    world = world ? world.extend(bounds) : L.latLngBounds(bounds.getSouthWest(), bounds.getNorthEast());
+  });
 
-  function drawHeat() {
-    var tok = getComputedStyle(document.documentElement);
-    function t(name) { return tok.getPropertyValue(name).trim(); }
-    var box = Math.max(280, Math.round(heatCanvas.parentNode.clientWidth));
-    var W, H, art, key, g = null;
-    if (view.kind === "continent") {
-      g = continentGrid(view.id);
-      H = Math.min(Math.round(box * g.h / g.w), 760);
-      W = Math.round(H * g.w / g.h);
-      art = images.continent[view.id];
-      key = "c" + view.id;
-    } else {
-      W = box;
-      H = Math.round(W * 2 / 3);
-      art = images[mapStyle][S.heat[view.index].map];
-      key = "z" + view.index;
-    }
-    var dpr = window.devicePixelRatio || 1;
-    heatCanvas.width = Math.round(W * dpr);
-    heatCanvas.height = Math.round(H * dpr);
-    heatCanvas.style.width = W + "px";
-    heatCanvas.style.height = H + "px";
-    var ctx = heatCanvas.getContext("2d");
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // The map, dimmed a little so the heat stands out.
-    ctx.fillStyle = t("--panel");
-    ctx.fillRect(0, 0, W, H);
-    if (art && art.complete && art.naturalWidth) ctx.drawImage(art, 0, 0, W, H);
-    ctx.fillStyle = "rgba(18, 14, 9, 0.41)";
-    ctx.fillRect(0, 0, W, H);
-
-    if (!heatCache[key]) {
-      if (g) {
-        var c = continentPoints(view.id);
-        heatCache[key] = heatLayer(c.points, 120, Math.round(120 * c.aspect), c.aspect);
-      } else {
-        heatCache[key] = heatLayer(zonePoints(S.heat[view.index]), 180, 120, 2 / 3);
-      }
-    }
-    ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(heatCache[key], 0, 0, W, H);
-
-    var size = W < 420 ? 8 : 10;
-    ctx.font = "700 " + (size + 2) + "px " + t("--font-body");
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    if (g) {
-      // Your route through the continent's zones, in order.
-      var stops = routeOn(view.id).map(function (r) {
-        var w = r.map.world, f = worldToContinent(g, (w.minX + w.maxX) / 2, (w.minY + w.maxY) / 2);
-        return { n: r.n, x: f.fx * W, y: f.fy * H };
-      });
-      ctx.save();
-      ctx.setLineDash([3, 5]);
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.85;
-      ctx.strokeStyle = t("--gold-pale");
-      ctx.beginPath();
-      stops.forEach(function (s, i) { if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y); });
-      ctx.stroke();
-      ctx.restore();
-      stops.forEach(function (s) { marker(ctx, t, s.x, s.y, size, String(s.n)); });
-    } else {
-      // 1 is where you spent the most time (matches the list).
-      S.heat[view.index].spots.slice().sort(function (a, b) { return b[3] - a[3]; }).forEach(function (s, i) {
-        marker(ctx, t, s[1] / 100 * W, s[2] / 100 * H, size, String(i + 1));
-      });
-    }
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
+  function pin(label, kind) {
+    return L.divIcon({ className: "", html: '<span class="map-pin ' + kind + '">' + label + "</span>",
+                       iconSize: [22, 22], iconAnchor: [11, 11] });
   }
 
-  function pressed(groupId, attribute, value) {
-    Array.prototype.forEach.call($(groupId).querySelectorAll("button"), function (button) {
-      button.setAttribute("aria-pressed", String(button.getAttribute(attribute) === value));
+  // Zones on your route: an outline on hover, a fly-in on click. Bigger
+  // zones go first so smaller ones (cities) sit on top.
+  route.slice().sort(function (a, b) {
+    var wa = a.map.world, wb = b.map.world;
+    return (wb.maxX - wb.minX) * (wb.maxY - wb.minY) - (wa.maxX - wa.minX) * (wa.maxY - wa.minY);
+  }).forEach(function (r) {
+    var outline = L.rectangle(boundsOf(r.map.mapID, r.map.world), {
+      color: token("--gold-pale"), weight: 1.5, opacity: 0, fillOpacity: 0, dashArray: "4 4" });
+    outline.bindTooltip("<b>" + esc(r.name) + "</b> " + dur(r.seconds) + "<span>levels " + r.from + " to " + r.to + "</span>",
+      { className: "map-tip", sticky: true });
+    outline.on("mouseover", function () { outline.setStyle({ opacity: 0.9 }); });
+    outline.on("mouseout", function () { outline.setStyle({ opacity: 0 }); });
+    outline.on("click", function () { focusZone(r); });
+    outline.addTo(map);
+  });
+
+  // Your route as a dotted line, numbered in order; the boat trips between
+  // continents cross the sea.
+  L.polyline(route.map(function (r) { return centerOf(r.map); }), {
+    color: token("--gold-pale"), weight: 2, opacity: 0.85, dashArray: "3 7", interactive: false }).addTo(map);
+  route.forEach(function (r) {
+    L.marker(centerOf(r.map), { icon: pin(r.n, "stop"), title: r.n + ". " + r.name })
+      .on("click", function () { focusZone(r); }).addTo(map);
+  });
+
+  // Hotspots appear once you've zoomed in on a zone; 1 is where you spent the most time.
+  var hotspots = L.layerGroup();
+  S.heat.forEach(function (z) {
+    var m = MAP_BY_ID[z.map];
+    z.spots.slice().sort(function (a, b) { return b[3] - a[3]; }).forEach(function (s, i) {
+      var w = zoneToWorld(m, s[1], s[2]);
+      L.marker(toMap(m.mapID, w.X, w.Y), { icon: pin(i + 1, "hot"), title: s[0] })
+        .bindTooltip("<b>" + esc(s[0]) + "</b> " + dur(s[3] * 60) + "<span>" + s[1] + ", " + s[2] + "</span>",
+          { className: "map-tip", direction: "top", offset: [0, -10] })
+        .addTo(hotspots);
     });
-  }
+  });
 
-  function listItem(n, name, time, where) {
-    return '<li><span class="n">' + n + "</span><span>" + esc(name) + '</span><span class="t">' + time +
+  map.fitBounds(world, { padding: [8, 8] });
+  var baseZoom = map.getZoom();
+  map.setMinZoom(baseZoom - 0.5);
+  map.setMaxZoom(baseZoom + 4.5);
+  map.setMaxBounds(world.pad(0.2));
+  function updateHotspots() {
+    var show = map.getZoom() >= baseZoom + 1.75;
+    if (show && !map.hasLayer(hotspots)) hotspots.addTo(map);
+    if (!show && map.hasLayer(hotspots)) map.removeLayer(hotspots);
+  }
+  map.on("zoomend", updateHotspots);
+
+  // Side panel: your route, or the zone you flew into.
+  function listItem(n, name, time, where, zone) {
+    var label = zone ? '<button type="button" class="zone-link" data-zone="' + zone + '">' + esc(name) + "</button>" : esc(name);
+    return '<li><span class="n">' + n + "</span><span>" + label + '</span><span class="t">' + time +
       '</span><span class="where">' + where + "</span></li>";
   }
-
-  function showView(next) {
-    view = next;
-    heatTip.hidden = true;
-    pressed("continent-tabs", "data-continent", view.kind === "continent" ? String(view.id) : "");
-    pressed("zone-tabs", "data-zone", view.kind === "zone" ? String(view.index) : "");
-    $("style-row").hidden = view.kind !== "zone";
-    if (view.kind === "continent") {
-      var name = CONTINENTS.filter(function (c) { return c.id === view.id; })[0].name, stops = routeOn(view.id);
-      var seconds = sum(stops.map(function (r) { return r.seconds; }));
-      $("zone-total").innerHTML = "<b>" + dur(seconds) + "</b> across " + stops.length + " zones of " + esc(name) +
-        " (" + Math.round(seconds / total * 100) + "% of your /played).";
-      $("spots-label").textContent = "Your route through " + name;
-      $("spots").innerHTML = stops.map(function (r) {
-        return listItem(r.n, r.name, dur(r.seconds), "levels " + r.from + " to " + r.to);
-      }).join("");
-      $("heat-caption").textContent = "Sample heat on " + name + ", stitched from the Forever client's minimap. " +
-        "Numbers follow your route. Click a zone with hotspots to zoom in.";
-    } else {
-      var z = S.heat[view.index], zs = zoneSeconds(z.from, z.to);
-      $("zone-total").innerHTML = "<b>" + dur(zs) + "</b> in " + esc(z.zone) + ", levels " + z.from + " to " +
-        z.to + " (" + Math.round(zs / total * 100) + "% of your /played).";
-      $("spots-label").textContent = "Hotspots in " + z.zone;
-      $("spots").innerHTML = z.spots.slice().sort(function (a, b) { return b[3] - a[3]; }).map(function (s, i) {
+  function routeList() {
+    $("spots-label").textContent = "Your route";
+    $("spots").innerHTML = route.map(function (r) {
+      return listItem(r.n, r.name, dur(r.seconds), "levels " + r.from + " to " + r.to, r.n);
+    }).join("");
+  }
+  function showRoute() {
+    $("zone-total").innerHTML = "<b>" + dur(sum(route.map(function (r) { return r.seconds; }))) + "</b> across " +
+      route.length + " zones, in the order you reached them.";
+    routeList();
+  }
+  function focusZone(r) {
+    map.flyToBounds(boundsOf(r.map.mapID, r.map.world), { padding: [16, 16], animate: !reduceMotion, duration: 0.8 });
+    var d = detailFor(r.map.uiMapID);
+    $("zone-total").innerHTML = "<b>" + dur(r.seconds) + "</b> in " + esc(r.name) + ", levels " + r.from + " to " + r.to +
+      " (" + Math.round(r.seconds / total * 100) + "% of your /played).";
+    if (d >= 0) {
+      $("spots-label").textContent = "Hotspots in " + r.name;
+      $("spots").innerHTML = S.heat[d].spots.slice().sort(function (a, b) { return b[3] - a[3]; }).map(function (s, i) {
         return listItem(i + 1, s[0], dur(s[3] * 60), s[1] + ", " + s[2]);
       }).join("");
-      $("heat-caption").textContent = "Sample heat on " + (mapStyle === "terrain" ? "the zone's terrain" : "the zone's own map") +
-        " from the WoW Forever client. Coordinates use WoW's 0 to 100 map grid.";
-    }
-    drawHeat();
-  }
-
-  $("continent-tabs").innerHTML = CONTINENTS.map(function (c) {
-    return '<button type="button" data-continent="' + c.id + '" aria-pressed="false">' + esc(c.name) + "</button>";
-  }).join("");
-  $("zone-tabs").innerHTML = S.heat.map(function (z, i) {
-    return '<button type="button" data-zone="' + i + '" aria-pressed="false">' + esc(z.zone) + "</button>";
-  }).join("");
-  $("continent-tabs").addEventListener("click", function (event) {
-    var button = event.target.closest("button");
-    if (button) showView({ kind: "continent", id: Number(button.getAttribute("data-continent")) });
-  });
-  $("zone-tabs").addEventListener("click", function (event) {
-    var button = event.target.closest("button");
-    if (button) showView({ kind: "zone", index: Number(button.getAttribute("data-zone")) });
-  });
-  $("style-tabs").addEventListener("click", function (event) {
-    var button = event.target.closest("button");
-    if (!button) return;
-    mapStyle = button.getAttribute("data-style");
-    pressed("style-tabs", "data-style", mapStyle);
-    showView(view);
-  });
-
-  heatCanvas.addEventListener("mousemove", function (event) {
-    var rect = heatCanvas.getBoundingClientRect(), figure = heatCanvas.parentNode.getBoundingClientRect();
-    var mx = event.clientX - rect.left, my = event.clientY - rect.top, text = null;
-    hoverZone = null;
-    if (view.kind === "continent") {
-      // The smallest zone on your route that contains the pointer.
-      var w = continentToWorld(continentGrid(view.id), mx / rect.width, my / rect.height), best = Infinity;
-      routeOn(view.id).forEach(function (r) {
-        var b = r.map.world, area = (b.maxX - b.minX) * (b.maxY - b.minY);
-        if (w.X >= b.minX && w.X <= b.maxX && w.Y >= b.minY && w.Y <= b.maxY && area < best) { best = area; hoverZone = r; }
-      });
-      if (hoverZone) {
-        text = "<b>" + esc(hoverZone.name) + "</b> " + dur(hoverZone.seconds) + "<span>levels " + hoverZone.from + " to " +
-          hoverZone.to + (detailFor(hoverZone.map.uiMapID) >= 0 ? ", click to zoom in" : "") + "</span>";
-      }
     } else {
-      var x = mx / rect.width * 100, y = my / rect.height * 100, near = null, nearest = Infinity;
-      S.heat[view.index].spots.forEach(function (s) {
-        var dx = x - s[1], dy = (y - s[2]) / 1.5, d = Math.sqrt(dx * dx + dy * dy) / s[4];
-        if (d < nearest) { nearest = d; near = s; }
-      });
-      var coords = Math.round(x) + ", " + Math.round(y);
-      text = nearest < 1.8 ? "<b>" + esc(near[0]) + "</b> " + dur(near[3] * 60) + "<span>" + coords + "</span>" : coords;
+      routeList(); // this sample only has hotspots for four zones
     }
-    heatCanvas.style.cursor = hoverZone && detailFor(hoverZone.map.uiMapID) >= 0 ? "pointer" : "crosshair";
-    if (!text) { heatTip.hidden = true; return; }
-    heatTip.innerHTML = text;
-    heatTip.style.left = (rect.left - figure.left + Math.min(Math.max(mx, 110), rect.width - 110)) + "px";
-    heatTip.style.top = (rect.top - figure.top + my) + "px";
-    heatTip.hidden = false;
+  }
+  $("spots").addEventListener("click", function (event) {
+    var button = event.target.closest(".zone-link");
+    if (button) focusZone(route[Number(button.getAttribute("data-zone")) - 1]);
   });
-  heatCanvas.addEventListener("mouseleave", function () { heatTip.hidden = true; });
-  heatCanvas.addEventListener("click", function () {
-    var d = hoverZone ? detailFor(hoverZone.map.uiMapID) : -1;
-    if (view.kind === "continent" && d >= 0) showView({ kind: "zone", index: d });
+  $("map-reset").addEventListener("click", function () {
+    map.flyToBounds(world, { padding: [8, 8], animate: !reduceMotion, duration: 0.8 });
+    showRoute();
   });
-  showView(view);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawHeat);
+  showRoute();
 
+  // Leaflet resizes itself; the level chart needs redrawing.
   var resizeTimer;
   window.addEventListener("resize", function () {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () { drawRoad(); drawHeat(); }, 150);
+    resizeTimer = setTimeout(drawRoad, 150);
   });
 
   // How you compare: [headline, line, cohort]
