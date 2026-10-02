@@ -85,25 +85,55 @@ $tileParams = Quality $TileQuality
 $T = 51200 / 3 / 32           # yards per minimap tile
 $TILE = 512                     # pixels per exported minimap tile
 $CONTINENTS = @{ 1415 = "azeroth"; 1414 = "kalimdor" }   # UiMap ID -> wow.export map folder
-$OCEAN = [System.Drawing.Color]::FromArgb(255, 4, 54, 72)   # the game's own deep-water color
-# Open sea in the minimap tiles is near-black teal (mostly rgb 8,16,16, with a
-# few other dark shades); repaint it as $OCEAN so it matches the game's drawn
-# water and the gaps between tiles. Dark terrain keeps some red, brown or
-# olive (blue below green), so it's left alone.
+# Sea color for the whole web map: the minimap's most common open water,
+# averaged over tiles that are all sea. The website's --sea matches it.
+$OCEAN = [System.Drawing.Color]::FromArgb(255, 27, 49, 68)
+# The minimap draws open water in a few flat shades that change at tile
+# edges (mostly rgb 27,51,71, some 4,54,72 and 32,66,98), and the void past
+# the map's edge as near-black teal (mostly 8,16,16). Left alone, every
+# change shows as a box at a distance, so all of it becomes $OCEAN. Water is
+# dark, blue over green over red; dark terrain keeps more red, brown or olive
+# (blue below green), and snow and lit shallows are too bright, so they're
+# left alone. A few tiles out at sea are void with a strip of flat,
+# untextured ground along an edge (unfinished terrain north of Azshara);
+# those become sea entirely.
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 public static class MinimapSea {
+    static bool IsVoid(int R, int G, int B) {
+        return R <= 16 && G <= 30 && B <= 32 && G >= R && B >= G - 2 && B - G <= 8;
+    }
+    static bool IsSea(int R, int G, int B) {
+        return IsVoid(R, G, B) || (R <= 45 && G * 2 >= R * 3 + 10 && B >= G + 8 && B <= 125 && B - R >= 30);
+    }
+    // Mostly void, and the rest mostly a single flat color: not real ground.
+    static bool IsPlaceholder(byte[] px) {
+        int total = px.Length / 4, voids = 0, other = 0, best = 0;
+        var colors = new Dictionary<int, int>();
+        for (int i = 0; i < px.Length; i += 4) {
+            int B = px[i], G = px[i + 1], R = px[i + 2];
+            if (IsVoid(R, G, B)) { voids++; continue; }
+            if (IsSea(R, G, B)) continue;
+            other++;
+            int key = (R << 16) | (G << 8) | B, n;
+            colors.TryGetValue(key, out n);
+            colors[key] = ++n;
+            if (n > best) best = n;
+        }
+        return voids >= total * 0.85 && other > 0 && best * 2 >= other;
+    }
     public static void Repaint(Bitmap bmp, byte r, byte g, byte b) {
         var data = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
         int length = Math.Abs(data.Stride) * bmp.Height;
         var px = new byte[length];
         Marshal.Copy(data.Scan0, px, 0, length);
+        bool placeholder = IsPlaceholder(px);
         for (int i = 0; i < length; i += 4) {
-            byte B = px[i], G = px[i + 1], R = px[i + 2];
-            if (R <= 16 && G <= 30 && B <= 32 && G >= R && B >= G - 2 && B - G <= 8) {
+            if (placeholder || IsSea(px[i + 2], px[i + 1], px[i])) {
                 px[i] = b; px[i + 1] = g; px[i + 2] = r; px[i + 3] = 255;
             }
         }
