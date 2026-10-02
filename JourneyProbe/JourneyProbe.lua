@@ -961,6 +961,25 @@ local function LogProbeInfo(isInitialLogin, isReloadingUi)
     Finish(rec)
 end
 
+-- "Interface action failed because of an AddOn": the game's message doesn't
+-- say which addon, or what it was doing; these two events do. Printed even
+-- with /jprobe off, and the last 20 are kept in JourneyProbeDB.blocked.
+local blockWatch = CreateFrame("Frame")
+for _, event in ipairs({ "ADDON_ACTION_BLOCKED", "ADDON_ACTION_FORBIDDEN" }) do
+    pcall(blockWatch.RegisterEvent, blockWatch, event)
+end
+blockWatch:SetScript("OnEvent", function(_, event, addon, func)
+    local kind = event == "ADDON_ACTION_FORBIDDEN" and "Forbidden" or "Blocked"
+    print(string.format("%s %s: %s tried %s", PREFIX, kind, tostring(addon), tostring(func)))
+    if JourneyProbeDB then
+        JourneyProbeDB.blocked = JourneyProbeDB.blocked or {}
+        local list = JourneyProbeDB.blocked
+        table.insert(list, { t = time(), event = event, addon = tostring(addon), func = tostring(func),
+            combat = (InCombatLockdown and InCombatLockdown()) or nil })
+        while #list > 20 do table.remove(list, 1) end
+    end
+end)
+
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
