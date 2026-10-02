@@ -207,6 +207,13 @@ var JourneyModel = (function () {
     J.deathZones = topRows(tally(deaths, "zone"), 4);
     J.killers = topRows(tally(deaths, "killer"), 4);
     J.rez = { corpse: number(rez["corpse run"]), spirit: number(rez["spirit healer"]), player: number(rez["player rez"]) };
+    // Where each death happened: the zone map (UiMapID) and the spot on it, 0 to 100.
+    J.deathSpots = deaths.filter(function (d) {
+      return d && number(d.mapID) > 0 && typeof d.x === "number" && typeof d.y === "number" &&
+        d.x >= 0 && d.x <= 100 && d.y >= 0 && d.y <= 100;
+    }).map(function (d) {
+      return { map: number(d.mapID), x: number(d.x), y: number(d.y), level: number(d.level), killer: String(d.killer || "") };
+    });
     J.dungeonDeaths = deaths.filter(function (d) { return d && d.dungeon; }).length;
     J.groupDeaths = deaths.filter(function (d) { return d && d.grouped; }).length;
     J.timeDead = number(T.dead);
@@ -256,6 +263,15 @@ var JourneyModel = (function () {
     J.zoneHeat = true;
     J.zonesVisited = Object.keys(zones).filter(function (z) { return z !== "Unknown"; }).length;
     J.subzones = Object.keys(named(st.subzones)).length;
+    // The places found in each zone ("Zone: Subzone" keys).
+    J.places = Object.create(null);
+    Object.keys(named(st.subzones)).forEach(function (key) {
+      var at = key.indexOf(": ");
+      if (at < 1) return;
+      var zone = key.slice(0, at);
+      if (!J.places[zone]) J.places[zone] = [];
+      J.places[zone].push(key.slice(at + 2));
+    });
     J.zoneChanges = path.length;
     var travel = named(st.travel), falls = named(st.falls);
     J.travel = { groundYards: number(travel.ground), airYards: number(travel.taxi), flights: best(travel.flights, 349),

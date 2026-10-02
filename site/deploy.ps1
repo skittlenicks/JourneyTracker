@@ -64,13 +64,13 @@ $card = Stage-Function "card" @((Join-Path $PSScriptRoot "api\preview.js"), (Joi
     (Join-Path $PSScriptRoot "node_modules"))
 Copy-Item (Join-Path $dist "site\favicon.png") (Join-Path $card "logo.png")
 
-# Tiles only change when the maps are rebuilt, so browsers may keep them a
-# day. /j/<id> is a shared journey's page, made by the share function, and
-# /j/<id>/card.png its preview image, made by the card function.
+# The map art only changes when it's read from the game again, so browsers
+# may keep it a day. /j/<id> is a shared journey's page, made by the share
+# function, and /j/<id>/card.png its preview image, made by the card function.
 $config = [ordered]@{
     version = 3
     routes = @(
-        [ordered]@{ src = "^/tiles/(.*)$"; headers = @{ "Cache-Control" = "public, max-age=86400" }; continue = $true },
+        [ordered]@{ src = "^/(worldmap|zones)/(.*)$"; headers = @{ "Cache-Control" = "public, max-age=86400" }; continue = $true },
         [ordered]@{ src = "^/j/([^/]*)/card\.png$"; dest = "/api/card?id=`$1" },
         [ordered]@{ src = "^/j/([^/]*)/?$"; dest = "/api/share?id=`$1" },
         @{ handle = "filesystem" }
@@ -82,8 +82,8 @@ if (-not (Test-Path (Join-Path $stage ".vercel\project.json"))) {
     npx --yes vercel@latest link --yes --project journeytracker --cwd $stage
     if ($LASTEXITCODE) { throw "Linking $stage to the Vercel project failed. Logged in? (npx vercel login)" }
 }
-# One archive instead of a request per file: thousands of tiles one by one
-# run into Vercel's upload limits.
+# One archive instead of a request per file, which once ran into Vercel's
+# upload limits (with thousands of map tiles).
 $deploy = @("--yes", "vercel@latest", "deploy", "--prebuilt", "--archive=tgz", "--yes", "--cwd", $stage)
 if (-not $Preview) { $deploy += "--prod" }
 npx @deploy
