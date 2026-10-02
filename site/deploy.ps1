@@ -3,8 +3,8 @@ param(
     [switch]$Preview
 )
 # Puts the website draft online with Vercel (project "journeytracker"): builds
-# it (build.ps1 -Site), stages it as Vercel's prebuilt output and uploads it
-# with the Vercel CLI. The map art is Blizzard's and stays out of git, so
+# it (build.ps1 -Site), stages it and the upload function (api\upload.js) as
+# Vercel's prebuilt output and uploads it with the Vercel CLI. The map art is Blizzard's and stays out of git, so
 # Vercel gets the built site from this machine, and vercel.json at the repo
 # root stops deploys on git push (they would replace the site with the bare
 # repo, which has no page).
@@ -24,6 +24,17 @@ $stage = Join-Path $dist "vercel"
 $output = Join-Path $stage ".vercel\output"
 robocopy (Join-Path $dist "site") (Join-Path $output "static") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "Staging the site in $output failed (robocopy exit $LASTEXITCODE)." }
+# The upload function (/api/upload) with its copy of the importer's decoder.
+# It reads SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from the project's
+# environment variables on Vercel.
+$func = Join-Path $output "functions\api\upload.func"
+if (Test-Path $func) { Remove-Item -Recurse -Force $func }
+New-Item -ItemType Directory -Force $func | Out-Null
+Copy-Item (Join-Path $PSScriptRoot "api\upload.js") (Join-Path $func "index.js")
+Copy-Item (Join-Path $root "tools\import\decode.js") (Join-Path $func "decode.js")
+[System.IO.File]::WriteAllText((Join-Path $func ".vc-config.json"),
+    '{ "runtime": "nodejs22.x", "handler": "index.js", "launcherType": "Nodejs", "shouldAddHelpers": true }',
+    (New-Object System.Text.UTF8Encoding $false))
 # Tiles only change when the maps are rebuilt, so browsers may keep them a day.
 $config = [ordered]@{
     version = 3

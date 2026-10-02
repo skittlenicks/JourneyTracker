@@ -40,7 +40,9 @@ the reason. A bad line never stops the rest of the batch.
 
 - `decode.js`: decoding (`JT1:` + base64 + raw deflate + JSON), validation,
   and the mapping to an `uploads` row. Node built-ins only and no database
-  code, so the website's paste page can reuse it as is.
+  code, so the website's upload function (`site/api/upload.js`) uses it as
+  is. If the rules change, change the page's own copy too
+  (`decodeExport` and `checkExport` in `site/recap.template.html`).
 - `import.js`: reads the file and does the Supabase work.
 
 ## Tests

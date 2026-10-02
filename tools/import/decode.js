@@ -3,11 +3,14 @@
 //
 // Format 1: "JT1:" + base64( raw deflate( UTF-8 JSON ) ), made by the addon's
 // JourneyTrackerSerialize.lua. Only Node built-ins are used and there's no
-// database code here, so the website's paste page can reuse this unchanged.
+// database code here, so the website's upload function (site/api/upload.js)
+// uses this file unchanged. The page itself decodes in the browser with the
+// same rules (site/recap.template.html, decodeExport and checkExport).
 
 const zlib = require('zlib');
 
 const PREFIX = 'JT1:';
+const MAX_JSON = 32 * 1024 * 1024; // bytes after decompressing; real exports are a few hundred KB at most
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 // Stats that can legitimately be negative (e.g. killing a mob 3 levels
@@ -32,7 +35,9 @@ function decode(text) {
   }
   let json;
   try {
-    json = zlib.inflateRawSync(Buffer.from(body, 'base64')).toString('utf8');
+    // The website decodes exports from anyone, so a string that inflates to
+    // something huge is refused rather than unpacked.
+    json = zlib.inflateRawSync(Buffer.from(body, 'base64'), { maxOutputLength: MAX_JSON }).toString('utf8');
   } catch (err) {
     return fail('corrupted export: could not decompress (was it cut off when pasting?)');
   }

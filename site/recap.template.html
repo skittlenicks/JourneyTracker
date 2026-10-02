@@ -26,6 +26,7 @@
   --q-uncommon: #1eff00;
   --q-rare: #2f8ef0;
   --q-epic: #a335ee;
+  --q-legendary: #ff8000;
   --coin-gold: #ffd100;
   --coin-silver: #c7c7cf;
   --coin-copper: #c8793c;
@@ -127,8 +128,25 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   cursor: pointer;
 }
 .import button:hover { background: var(--gold-pale); border-color: var(--gold-pale); }
+.import button:disabled { cursor: progress; opacity: 0.7; }
 .import-help { margin: 0; font-size: var(--step--1); color: var(--ink-soft); }
 .import-help strong { color: var(--ink); }
+/* What happened to a paste: an error, or the journey you're looking at */
+.import-status { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: var(--step--1); }
+.import-status:empty { display: none; }
+.import-status.bad { color: #ff9c7a; }
+.import-status.good { color: var(--ink); }
+.import-status b { color: var(--gold); font-weight: 700; }
+.import-status .link-button {
+  padding: 0;
+  font: inherit;
+  color: var(--gold-pale);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
 
 /* Hero */
 .hero { display: grid; gap: 12px; padding-block: 48px 40px; }
@@ -242,6 +260,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .q-uncommon { color: var(--q-uncommon); }
 .q-rare { color: var(--q-rare); }
 .q-epic { color: var(--q-epic); }
+.q-legendary { color: var(--q-legendary); }
 .quest { color: var(--gold-pale); font-weight: 500; }
 .money { white-space: nowrap; }
 .money .cg { color: var(--coin-gold); }
@@ -568,17 +587,18 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 
 <header class="site frame">
   <a class="brand" href="#top"><img src="__LOGO__" alt="" width="36" height="36"><span>Journey Tracker</span></a>
-  <span class="chip">Sample journey</span>
+  <span class="chip" id="journey-chip">Sample journey</span>
 </header>
 
 <main class="frame" id="top">
-  <form class="import" id="import-form">
+  <form class="import" id="import-form" novalidate>
     <label for="export-text">Paste your export</label>
     <div class="import-row">
-      <input id="export-text" name="export" type="text" spellcheck="false" autocomplete="off" value="__SAMPLE_EXPORT__">
-      <button type="submit">Show my journey</button>
+      <input id="export-text" name="export" type="text" spellcheck="false" autocomplete="off" placeholder="JT1:...">
+      <button type="submit" id="import-button">Show my journey</button>
     </div>
-    <p class="import-help">In game, type <code>/journey export</code>, copy the text and paste it here. <strong>Draft:</strong> importing isn't connected yet, so the button shows the sample journey below.</p>
+    <p class="import-help">In game, type <code>/journey export</code>, copy the text and paste it here. Pasting also saves your export to Journey Tracker so it counts toward the rankings. Exports never include your character's name or realm.</p>
+    <p class="import-status" id="import-status" role="status" aria-live="polite"></p>
   </form>
 
   <section class="hero" id="journey" aria-labelledby="hero-title">
@@ -587,14 +607,14 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     <p class="hero-total"><span class="big" id="total-played"></span><span class="unit">of /played</span></p>
     <p class="pill" id="hero-rank"></p>
     <p class="hero-sub" id="hero-sub"></p>
-    <figure class="road">
+    <figure class="road" id="road">
       <svg id="road-chart" role="img" aria-label="Time spent at each level from 1 to 59"></svg>
-      <figcaption>Time spent at each level, 1 to 59. Hover a bar for the exact time.</figcaption>
+      <figcaption id="road-caption">Time spent at each level, 1 to 59. Hover a bar for the exact time.</figcaption>
     </figure>
     <ul class="milestones" id="milestones" aria-label="Milestones"></ul>
   </section>
 
-  <section class="chapter" aria-labelledby="time-title">
+  <section class="chapter" id="chapter-time" aria-labelledby="time-title">
     <div class="chapter-head">
       <p class="eyebrow">Time</p>
       <h2 id="time-title"></h2>
@@ -613,7 +633,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="combat-title">
+  <section class="chapter" id="chapter-combat" aria-labelledby="combat-title">
     <div class="chapter-head">
       <p class="eyebrow">Combat</p>
       <h2 id="combat-title"></h2>
@@ -627,7 +647,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="deaths-title">
+  <section class="chapter" id="chapter-deaths" aria-labelledby="deaths-title">
     <div class="chapter-head">
       <p class="eyebrow">Deaths</p>
       <h2 id="deaths-title"></h2>
@@ -647,7 +667,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="quests-title">
+  <section class="chapter" id="chapter-quests" aria-labelledby="quests-title">
     <div class="chapter-head">
       <p class="eyebrow">Quests and XP</p>
       <h2 id="quests-title"></h2>
@@ -667,7 +687,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter wide journey" aria-labelledby="heat-title">
+  <section class="chapter wide journey" id="chapter-map" aria-labelledby="heat-title">
     <div class="chapter-head">
       <p class="eyebrow">The road</p>
       <h2 id="heat-title">Your journey through Azeroth</h2>
@@ -675,7 +695,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
     <figure class="heat-map">
       <div class="world-map" id="world-map" aria-label="Map of Azeroth with your route and where you spent your time"></div>
-      <figcaption>Drag to explore, scroll or pinch to zoom, and pick a numbered stop to fly in. The dotted line is your route; brighter means longer (AFK time and flight paths are left out). Sample heat on the WoW Forever client's own minimap.</figcaption>
+      <figcaption id="map-caption">Drag to explore, scroll or pinch to zoom, and pick a numbered stop to fly in. The dotted line is your route; brighter means longer (AFK time and flight paths are left out). Sample heat on the WoW Forever client's own minimap.</figcaption>
     </figure>
     <div class="heat-info">
       <p class="zone-total" id="zone-total"></p>
@@ -687,7 +707,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="gold-title">
+  <section class="chapter" id="chapter-gold" aria-labelledby="gold-title">
     <div class="chapter-head">
       <p class="eyebrow">Gold</p>
       <h2 id="gold-title"></h2>
@@ -707,7 +727,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="gear-title">
+  <section class="chapter" id="chapter-gear" aria-labelledby="gear-title">
     <div class="chapter-head">
       <p class="eyebrow">Gear and loot</p>
       <h2 id="gear-title"></h2>
@@ -721,7 +741,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="skills-title">
+  <section class="chapter" id="chapter-skills" aria-labelledby="skills-title">
     <div class="chapter-head">
       <p class="eyebrow">Professions</p>
       <h2 id="skills-title"></h2>
@@ -732,21 +752,21 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="class-title">
+  <section class="chapter" id="chapter-class" aria-labelledby="class-title">
     <div class="chapter-head">
       <p class="eyebrow" id="class-eyebrow"></p>
       <h2 id="class-title"></h2>
     </div>
     <div class="chapter-body">
       <div>
-        <p class="label">Time in each form</p>
+        <p class="label" id="class-bars-label">Time in each form</p>
         <ul class="bars" id="forms"></ul>
       </div>
       <dl class="stats cols-2" id="class-stats"></dl>
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="forever-title">
+  <section class="chapter" id="chapter-forever" aria-labelledby="forever-title">
     <div class="chapter-head">
       <p class="eyebrow">WoW Forever and friends</p>
       <h2 id="forever-title"></h2>
@@ -757,7 +777,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter wide" aria-labelledby="ranks-title">
+  <section class="chapter wide" id="chapter-ranks" aria-labelledby="ranks-title">
     <div class="chapter-head">
       <p class="eyebrow">How you compare</p>
       <h2 id="ranks-title"></h2>
@@ -772,7 +792,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
         <summary id="all-ranks-summary"></summary>
         <ol id="all-ranks-list"></ol>
       </details>
-      <p class="footnote"><span id="rank-count"></span> rankings in all: one for every stat the addon tracks, each class's own stats and the game's Statistics pane. A journey is ranked on the ones that apply to it, against all players or its own class, race, faction or realm type, and you see the ones you stand out in most. Until enough players have imported, the site shows your place instead, like "2nd of 9". In this draft the percentages are made up, and so are the numbers the sample journey doesn't have.</p>
+      <p class="footnote"><span id="rank-count"></span> rankings in all: one for every stat the addon tracks, each class's own stats and the game's Statistics pane. A journey is ranked on the ones that apply to it, against all players or its own class, race, faction or realm type, and you see the ones you stand out in most. Until enough players have imported, the site shows your place instead, like "2nd of 9". <span id="ranks-madeup">In this draft the percentages are made up, and so are the numbers the sample journey doesn't have.</span></p>
     </div>
   </section>
 
@@ -784,7 +804,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
         <img src="__LOGO__" alt="Journey Tracker logo" width="64" height="64">
         <div class="card-id">
           <span class="who" id="card-who"></span>
-          <span class="lvl">Level 60</span>
+          <span class="lvl" id="card-level">Level 60</span>
           <span class="played" id="card-played"></span>
         </div>
       </div>
@@ -797,16 +817,16 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   </section>
 </main>
 
-<footer class="frame foot">Draft with a made-up sample journey. The real site will build this page from a <code>/journey export</code>.</footer>
+<footer class="frame foot" id="foot-note">Draft with a made-up sample journey. The real site will build this page from a <code>/journey export</code>.</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
-(function () {
+(async function () {
   "use strict";
 
-  // A made-up level 60 Night Elf Druid. The real site computes all of this
-  // from a /journey export.
-  var S = {
+  // A made-up level 60 Night Elf Druid, shown until someone pastes their own
+  // export. journeyFromExport (below) turns an export into this same shape.
+  var SAMPLE = {
     who: "Night Elf Druid · Alliance · Normal realm",
     firstLogin: "January 12", reached60: "February 27", calendarDays: 46, daysPlayed: 39,
     sessions: 96, longestSession: 28320, bestSession: { levels: 4, from: 12, to: 16 },
@@ -871,18 +891,22 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     ],
     // Iconic moments: the level you first did them, or how many times.
     iconic: { vanCleefLevel: 21, boatTrips: 14, bangalashLevel: 41 },
-    // From the game's own Statistics pane.
-    pane: { duelsWon: 34, hugs: 57, lols: 312, largestHit: 2890, critters: 41 }
+    // From the game's own Statistics pane, by statistic ID: duels won, hugs,
+    // /lols, largest hit dealt and critters killed.
+    pane: { 319: 34, 1042: 57, 1066: 312, 193: 2890, 108: 41 },
+    level: 60, complete: true, classToken: "DRUID", race: "Night Elf", faction: "Alliance", ruleset: "Normal",
+    trades: ["Skinning", "Leatherworking"]
   };
 
   // Time at each level 1-59 in seconds, shaped like a Classic climb:
   // minutes early on, hours near 60.
-  var perLevel = [];
+  SAMPLE.perLevel = [];
   for (var lv = 1; lv <= 59; lv++) { // not "L": that's Leaflet's global
     var base = 10 + 0.125 * lv * lv;
     var wobble = 1 + 0.16 * Math.sin(lv * 1.9) + 0.06 * Math.cos(lv * 0.7);
-    perLevel.push(Math.round(base * wobble * 60));
+    SAMPLE.perLevel.push(Math.round(base * wobble * 60));
   }
+  SAMPLE.played = SAMPLE.perLevel.reduce(function (t, v) { return t + v; }, 0);
 
   function $(id) { return document.getElementById(id); }
   function sum(list) { return list.reduce(function (t, v) { return t + v; }, 0); }
@@ -929,38 +953,439 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     }).join("");
   }
 
-  var total = sum(perLevel);
-  var fastest = perLevel.indexOf(Math.min.apply(null, perLevel));
-  var slowest = perLevel.indexOf(Math.max.apply(null, perLevel));
+  // ---- A pasted export ----
+  // Same format and checks as tools/import/decode.js, which the server's
+  // /api/upload uses: "JT1:" + base64( raw deflate( UTF-8 JSON ) ).
+  var DAMAGED = "The export is cut off or damaged. Copy all of it in the game and paste it again.";
+  function decodeExport(text) {
+    var s = String(text || "").trim();
+    if (s.indexOf("JT") !== 0) return Promise.reject(new Error("That isn't a Journey Tracker export: those start with JT1:"));
+    if (s.indexOf("JT1:") !== 0) {
+      return Promise.reject(new Error("This export (" + s.split(":")[0] + ") is newer than this page. Reload the page and try again."));
+    }
+    var body = s.slice(4).replace(/\s+/g, "");
+    if (!body || body.length % 4 || !/^[A-Za-z0-9+\/]+={0,2}$/.test(body)) return Promise.reject(new Error(DAMAGED));
+    if (typeof DecompressionStream === "undefined") {
+      return Promise.reject(new Error("This browser can't open exports. Try a current Chrome, Edge, Firefox or Safari."));
+    }
+    var bytes = Uint8Array.from(atob(body), function (c) { return c.charCodeAt(0); });
+    // (Not a Blob: this script has its own Blob, for the heat.)
+    var stream = new Response(bytes).body.pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Response(stream).text().then(JSON.parse).catch(function () { throw new Error(DAMAGED); });
+  }
+  // What's wrong with a decoded export, if anything.
+  function checkExport(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return ["not an export"];
+    var problems = [], c = data.character || {};
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.characterId || "")) problems.push("character ID");
+    if (!c.class) problems.push("class");
+    if (!(c.level >= 1 && c.level <= 60)) problems.push("level");
+    if (!data.addonVersion) problems.push("addon version");
+    if (!(data.schemaVersion >= 1)) problems.push("data version");
+    var negative = (function find(value, key) {
+      if (typeof value === "number") return value < 0 && key !== "diff";
+      if (value && typeof value === "object" && key !== "diff") {
+        return Object.keys(value).some(function (k) { return find(value[k], k); });
+      }
+      return false;
+    })(data, "");
+    if (negative) problems.push("a negative count");
+    return problems;
+  }
+
+  // Lua tables arrive as JSON objects, or as arrays when their keys run 1..n
+  // (and an empty table is []).
+  function named(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
+  function numbered(x) {
+    var out = {};
+    if (Array.isArray(x)) x.forEach(function (v, i) { out[i + 1] = v; });
+    else Object.keys(named(x)).forEach(function (k) { out[k] = x[k]; });
+    return out;
+  }
+  function listOf(x) { return Array.isArray(x) ? x : Object.keys(named(x)).map(function (k) { return x[k]; }); }
+  // The sum of a map's numbers (or of one field of each entry).
+  function addUp(map, field) {
+    return listOf(map).reduce(function (t, v) { var n = field ? named(v)[field] : v; return t + (n > 0 ? n : 0); }, 0);
+  }
+  // A { name: count } map as [name, count] rows, biggest first.
+  function topRows(map, n) {
+    var m = named(map);
+    return Object.keys(m).map(function (k) { return [k, Number(m[k]) || 0]; })
+      .filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, n || 5);
+  }
+  function tally(records, field) {
+    var out = {};
+    records.forEach(function (r) { if (r && r[field]) out[r[field]] = (out[r[field]] || 0) + 1; });
+    return out;
+  }
+  function capFirst(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
+  function dayOf(t) { return new Date(t * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric" }); }
+  var QUALITY = ["poor", "common", "uncommon", "rare", "epic", "legendary"];
+  var QUALITY_BY_COLOR = { "9d9d9d": 0, ffffff: 1, "1eff00": 2, "0070dd": 3, a335ee: 4, ff8000: 5 };
+  // An item link ("|cnIQ3:|Hitem:...|h[Name]|h|r") as { name, q }.
+  function itemOf(link) {
+    var s = String(link || ""), name = (s.match(/\[([^\]]+)\]/) || [])[1];
+    if (!name) return null;
+    var q = s.match(/\|cnIQ(\d):/);
+    q = q ? Number(q[1]) : QUALITY_BY_COLOR[((s.match(/\|cff([0-9a-f]{6})/i) || [])[1] || "").toLowerCase()];
+    return { name: name, q: QUALITY[q] || "common" };
+  }
+  // A Statistics pane value as a number: "--" is none, money is in copper.
+  function paneNumber(value) {
+    var s = String(value == null ? "" : value).trim(), copper = 0;
+    if (s === "--" || s === "") return 0;
+    if (s.indexOf("|T") >= 0) {
+      s.replace(/([\d,]+)\s*\|T[^|]*?(Gold|Silver|Copper)Icon[^|]*\|t/gi, function (all, n, coin) {
+        copper += Number(n.replace(/,/g, "")) * { gold: 10000, silver: 100, copper: 1 }[coin.toLowerCase()];
+      });
+      return copper;
+    }
+    var n = Number(s.replace(/,/g, ""));
+    return isFinite(n) ? n : null;
+  }
+  var CLASS_NAMES = { WARRIOR: "Warrior", PALADIN: "Paladin", HUNTER: "Hunter", ROGUE: "Rogue", PRIEST: "Priest",
+                      SHAMAN: "Shaman", MAGE: "Mage", WARLOCK: "Warlock", DRUID: "Druid" };
+  var RACE_NAMES = { NightElf: "Night Elf", Scourge: "Undead" };
+  var PRIMARY = ["Alchemy", "Blacksmithing", "Enchanting", "Engineering", "Herbalism", "Leatherworking", "Mining",
+                 "Skinning", "Tailoring"];
+  var SLOTS = { 1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet",
+                9: "Wrist", 10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back",
+                16: "Main hand", 17: "Off hand", 18: "Ranged", 19: "Tabard" };
+
+  // A decoded export as a journey for this page: the sample's fields, from
+  // what the addon saved (JourneyTracker.lua's DEFAULTS describe the stats).
+  // Anything the export doesn't have stays empty, and the page leaves it out.
+  function journeyFromExport(data) {
+    var st = named(data.stats), ch = named(data.character), lv = named(data.levels), wr = named(data.wrapped);
+    var classes = named(data.class), cls = named(classes[ch.class]), all = named(classes.ALL);
+    var now = data.exportedAt || Math.floor(Date.now() / 1000), since = st.firstSeen || now;
+    var className = CLASS_NAMES[ch.class] || capFirst(String(ch.class || "").toLowerCase());
+    var race = RACE_NAMES[ch.race] || String(ch.race || "").replace(/([a-z])([A-Z])/g, "$1 $2");
+    var J = { imported: true, level: ch.level, played: ch.played || 0, className: className, classToken: ch.class,
+              race: race, faction: ch.faction || "", ruleset: ch.ruleset || "Normal", hoursAreSeconds: true };
+    J.who = [race + " " + className, J.faction, J.ruleset + " realm"].filter(Boolean).join(" · ");
+    // The Statistics pane, by statistic ID. It has counted since before the
+    // tracker was installed, so where both count the same thing the page
+    // shows the bigger of the two, as the addon's own window does.
+    var paneValues = named(named(named(data.statistics).latest).values), pane = {};
+    Object.keys(paneValues).forEach(function (id) {
+      var n = paneNumber(paneValues[id]);
+      if (n !== null) pane[id] = n;
+    });
+    function best(tracked, id) { return Math.max(tracked || 0, pane[id] || 0); }
+    J.pane = pane;
+    J.firstLogin = dayOf(since);
+    J.reached60 = st.reachedMax ? dayOf(st.reachedMax) : null;
+    J.calendarDays = Math.max(1, Math.ceil(((st.reachedMax || now) - since) / 86400));
+    J.daysPlayed = Object.keys(named(st.days)).length;
+
+    // Each level's time: from the level's own counters, or the /played at
+    // the level-ups on either side. Levels before the tracker stay empty.
+    var levelStats = numbered(lv.stats), dings = numbered(lv.snapshots), L;
+    J.perLevel = [];
+    for (L = 1; L <= 59; L++) {
+      var took = named(levelStats[L]).played, a = named(dings[L]).played, b = named(dings[L + 1]).played;
+      if (!(took > 0) && a > 0 && b > a) took = b - a;
+      J.perLevel.push(took > 0 ? took : null);
+    }
+    var path = listOf(st.path);
+    var pathLevels = path.map(function (p) { return named(p).level; }).filter(function (l) { return l > 0; });
+    J.firstLevel = pathLevels.length ? Math.min.apply(null, pathLevels) : ch.level;
+    J.complete = J.firstLevel <= 2 && ch.level >= 60;   // tracked from the start to 60
+    function mostIn(field) {
+      return Object.keys(levelStats).reduce(function (m, k) { return Math.max(m, named(levelStats[k])[field] || 0); }, 0);
+    }
+
+    // Time
+    var T = named(st.time);
+    J.trackedTime = (T.solo || 0) + (T.grouped || 0) || J.played;
+    J.timeSpent = [["Mounted", T.mounted], ["In combat", T.combat], ["Resting in inns and cities", T.resting],
+                   ["On flight paths", T.taxi], ["AFK", T.afk], ["Dead", T.dead]]
+      .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
+    var hours = numbered(st.hours);
+    J.hourWeights = [];
+    for (var h = 0; h < 24; h++) J.hourWeights.push(Number(hours[h]) || 0);
+    var sessions = named(st.sessions), runs = listOf(sessions.list).concat(sessions.current ? [sessions.current] : []);
+    var lengths = runs.map(function (r) { return (named(r).last || 0) - (named(r).start || 0); })
+      .filter(function (s) { return s > 0; });
+    J.sessions = runs.length;
+    J.longestSession = lengths.length ? Math.max.apply(null, lengths) : 0;
+    J.avgSession = lengths.length ? sum(lengths) / lengths.length : 0;
+    J.bestSession = null;
+    runs.forEach(function (r) {
+      if (r && r.levels > 0 && (!J.bestSession || r.levels > J.bestSession.levels)) {
+        J.bestSession = { levels: r.levels, from: r.startLevel, to: r.startLevel + r.levels };
+      }
+    });
+
+    // Milestones the tracker saw happen
+    var loot = named(st.loot), social = named(st.social), professions = named(st.professions), marks = [];
+    function mark(level, text) { if (level > 0) marks.push([level, text]); }
+    Object.keys(professions).forEach(function (name) {
+      if (named(professions[name]).t - since > 60) mark(professions[name].level, "Took up " + name);
+    });
+    mark(named(loot.firstBlue).level, "First blue");
+    mark(named(loot.firstEpic).level, "First epic");
+    mark(social.guildJoinLevel, "Joined a guild");
+    mark(named(st.firstMount).level, "First mount");
+    mark(named(wr["W-001"]).level, "Left Zephras Isle");
+    mark(named(wr["W-006"]).level, "Reached Mount Hyjal");
+    if (st.reachedMax) mark(60, "Level 60");
+    J.milestones = marks.sort(function (x, y) { return x[0] - y[0]; });
+
+    // Combat
+    var kills = named(st.kills), byClass = named(kills.byClass), combat = named(st.combat);
+    J.kills = Math.max(kills.total || 0, (pane[1198] || 0) - (pane[588] || 0));   // kills that give XP
+    J.topMobs = topRows(kills.byName, 5);
+    J.mobKinds = Object.keys(named(kills.byName)).length;
+    J.killTypes = named(kills.byType);
+    J.elites = (byClass.elite || 0) + (byClass.rareelite || 0) + (byClass.worldboss || 0);
+    J.rares = (byClass.rare || 0) + (byClass.rareelite || 0);
+    J.bosses = addUp(st.bosses, "kills");
+    J.wipes = addUp(st.bosses, "wipes");
+    J.honorKills = best(named(st.pvp).honorableKills, 588);
+    J.fights = combat.fights || 0;
+    J.longestFight = combat.longest || 0;
+    J.ambushes = combat.ambushMobs || 0;
+    J.multiPulls = combat.multiPulls || 0;
+    J.maxMobs = combat.maxMobs || 0;
+    var gap = named(kills.maxLevelDiff);
+    J.bestKill = gap.diff > 0 ? { mob: gap.mobLevel, you: gap.level } : null;
+    J.levelKills = mostIn("kills");
+
+    // Deaths
+    var deaths = listOf(st.deaths), rez = named(st.rez);
+    J.deaths = best(deaths.length, 60);
+    J.deathZones = topRows(tally(deaths, "zone"), 4);
+    J.killers = topRows(tally(deaths, "killer"), 4);
+    J.rez = { corpse: rez["corpse run"] || 0, spirit: rez["spirit healer"] || 0, player: rez["player rez"] || 0 };
+    J.dungeonDeaths = deaths.filter(function (d) { return d && d.dungeon; }).length;
+    J.groupDeaths = deaths.filter(function (d) { return d && d.grouped; }).length;
+    J.timeDead = T.dead || 0;
+    J.corpseTime = T.corpseRuns || 0;
+    J.graveyards = Object.keys(named(st.graveyards)).length;
+    J.levelDeaths = mostIn("deaths");
+    J.streak = null;
+    for (var run = null, lvl = 1; lvl <= 60; lvl++) {
+      var s = levelStats[lvl];
+      if (!s || s.deaths > 0) { run = null; continue; }
+      run = run ? { levels: run.levels + 1, from: run.from, to: lvl } : { levels: 1, from: lvl, to: lvl };
+      if (!J.streak || run.levels > J.streak.levels) J.streak = run;
+    }
+
+    // Quests and XP
+    var quests = named(st.quests), tags = named(quests.byTag), forever = named(wr["W-007"]);
+    J.quests = { completed: best(quests.completed, 98), accepted: quests.accepted || 0, abandoned: best(quests.abandoned, 94),
+                 group: addUp(tags) - (tags.Dungeon || 0), dungeon: tags.Dungeon || 0,
+                 forever: forever.forever || 0, classic: forever.classic || 0 };
+    var longest = named(quests.longest);
+    J.longestQuest = longest.seconds > 0 ? { days: Math.round(longest.seconds / 86400), seconds: longest.seconds } : null;
+    J.questZones = topRows(quests.byZone, 5);
+    J.questGold = best(quests.money, 326);
+    J.levelQuests = mostIn("quests");
+    var xp = named(st.xp), xpTotal = xp.total || 0;
+    J.xpTotal = xpTotal;
+    function xpShare(v) { return xpTotal ? Math.round((v || 0) / xpTotal * 100) : 0; }
+    J.xpSplit = [["Quests", xpShare(xp.quest), "var(--gold)"], ["Kills", xpShare(xp.kill), "var(--gold-deep)"],
+                 ["Exploration", xpShare(xp.explore), "var(--gold-pale)"], ["Other", xpShare(xp.other), "var(--ink-soft)"]]
+      .filter(function (p) { return p[1] > 0; });
+    J.restedShare = xpShare(xp.restedUsed);
+    J.groupXP = xpShare(xp.grouped);
+
+    // The road: zones in the order you first reached them, the levels you
+    // were while there, and the time spent in each.
+    var zones = named(st.zones), stops = [], stopOf = {};
+    path.forEach(function (p, i) {
+      p = named(p);
+      if (!p.zone || p.zone === "Unknown") return;
+      var stop = stopOf[p.zone];
+      if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, p.level, p.level, named(zones[p.zone]).seconds || 0]);
+      var next = named(path[i + 1]), left = next.level || (i === path.length - 1 ? ch.level : p.level);
+      stop[2] = Math.max(stop[2], p.level || 0, left || 0);
+    });
+    J.path = stops;
+    J.heat = [];
+    J.zoneHeat = true;
+    J.zonesVisited = Object.keys(zones).filter(function (z) { return z !== "Unknown"; }).length;
+    J.subzones = Object.keys(named(st.subzones)).length;
+    J.zoneChanges = path.length;
+    var travel = named(st.travel), falls = named(st.falls);
+    J.travel = { groundYards: travel.ground || 0, airYards: travel.taxi || 0, flights: best(travel.flights, 349),
+                 flightPaths: listOf(travel.flightPaths).length, hearths: best(travel.hearths, 353),
+                 longestFall: Math.round(named(falls.longestSurvived).yards || 0), fallen: Math.round(falls.total || 0) };
+    J.fallDeaths = best(falls.fatal, 114);
+
+    // Gold, with what the tracker couldn't place as "Other"
+    var money = named(st.money);
+    function withOther(rows, whole) {
+      rows = rows.filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
+      var rest = (whole || 0) - sum(rows.map(function (r) { return r[1]; }));
+      return rest > 0 ? rows.concat([["Other", rest]]) : rows;
+    }
+    J.earned = withOther([["Quest rewards", J.questGold], ["Selling to vendors", best(money.vendor, 921)],
+                          ["Looting", best(money.loot, 333)], ["Auction house sales", best(money.auctionIncome, 919)],
+                          ["Mail", money.mail]], best(money.earned, 328));
+    J.spent = withOther([["Vendor purchases", money.vendorSpent], ["Auction house", money.auctionSpent],
+                         ["Class training", money.training], ["Repairs", money.repairs], ["Flights", best(money.flights, 1146)]],
+                        money.spent);
+    J.earnedTotal = sum(J.earned.map(function (r) { return r[1]; }));
+    J.spentTotal = sum(J.spent.map(function (r) { return r[1]; }));
+    J.peakGold = best(money.peak, 334) > 0 ? { copper: best(money.peak, 334) } : null;
+    J.auctionsSold = money.auctionsSold || 0;
+    J.firstMountLevel = named(st.firstMount).level || null;
+    J.firstMountPlayed = named(st.firstMount).played || null;
+
+    // Gear and loot
+    var worn = listOf(st.worn).filter(function (w) { return w && itemOf(w.link); });
+    function wornItem(w) {
+      var it = itemOf(w.link);
+      it.slot = SLOTS[w.slot] || "Gear";
+      it.levels = w.levels || 0;
+      it.played = w.played || 0;
+      it.from = w.first;
+      it.to = w.last;
+      return it;
+    }
+    var mostLevels = worn.slice().sort(function (x, y) { return (y.levels || 0) - (x.levels || 0); })[0];
+    var mostPlayed = worn.slice().sort(function (x, y) { return (y.played || 0) - (x.played || 0); })[0];
+    J.wornLevels = mostLevels && mostLevels.levels >= 1 ? wornItem(mostLevels) : null;
+    J.wornPlayed = mostPlayed && mostPlayed.played > 0 ? wornItem(mostPlayed) : null;
+    function found(record) {
+      var it = record && itemOf(record.link);
+      if (it) { it.level = record.level; it.where = record.zone; it.ilvl = record.ilvl; }
+      return it;
+    }
+    J.bestLoot = found(loot.best);
+    J.firstBlue = found(loot.firstBlue);
+    J.firstEpic = found(loot.firstEpic);
+    J.looted = loot.items || 0;
+    var byQuality = numbered(loot.byQuality);
+    J.loot = QUALITY.map(function (q, i) { return [capFirst(q), byQuality[i] || 0, "var(--q-" + q + ")"]; })
+      .filter(function (r) { return r[1] > 0; });
+
+    // Professions
+    J.professions = Object.keys(professions).map(function (name) { return [name, named(professions[name]).rank || 0]; })
+      .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
+    J.trades = Object.keys(professions).filter(function (name) { return PRIMARY.indexOf(name) >= 0; });
+    var gathering = named(st.gathering);
+    J.skinned = named(gathering.skinning).nodes || 0;
+    J.herbs = named(gathering.herb).nodes || 0;
+    J.ore = named(gathering.mining).nodes || 0;
+    J.fish = best(st.fish, 1518);
+    J.crafted = st.crafted || 0;
+    J.skillUps = st.skillUps || 0;
+
+    // Class: what the class tracker saved (spells cast, time in each form,
+    // stance or aspect, healing, power spent), plus what every class shares
+    J.casts = named(cls.casts);
+    J.classTime = named(cls.time);
+    J.swaps = named(cls.swaps);
+    J.targets = named(cls.targets);
+    J.powerSpent = named(cls.powerSpent);
+    J.healing = addUp(cls.healing);
+    J.classAll = all;
+
+    // WoW Forever and friends
+    J.camps = addUp(wr["W-008"]);
+    J.campTime = named(wr["W-009"]).Camp || 0;
+    J.campShops = named(wr["W-010"]).vendor || 0;
+    J.campBuffs = addUp(wr["W-011"]);
+    J.campCrafts = addUp(wr["W-012"]);
+    J.valthalak = listOf(wr["W-016"]).length;
+    J.transmog = named(wr["W-019"]).changes || 0;
+    J.autoFlagged = typeof wr["W-021"] === "number" ? wr["W-021"] : 0;
+    J.zephras = named(wr["W-001"]).level || null;
+    J.hyjal = named(wr["W-006"]).daysAfter60;
+    J.grouped = T.grouped || 0;
+    J.groupedWith = social.unique || 0;
+    J.guildLevel = social.guildJoinLevel || null;
+    J.guildBefore = !!social.guildBeforeTracking;
+    J.jumps = social.jumps || 0;
+    return J;
+  }
+
+  // A pasted export stays in this tab (sessionStorage) until "Show the
+  // sample" or the tab closes.
+  function remembered(key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } }
+  function remember(key, value) { try { sessionStorage.setItem(key, value); return true; } catch (e) { return false; } }
+  function forget() { try { sessionStorage.removeItem("jt-export"); sessionStorage.removeItem("jt-save"); } catch (e) { /* nothing kept */ } }
+
+  // The journey this page shows: the one pasted in this tab, or the sample.
+  var S = SAMPLE, pastedSave = null, pasted = remembered("jt-export");
+  if (pasted) {
+    try {
+      var pastedData = await decodeExport(pasted);
+      if (checkExport(pastedData).length) throw new Error("not a valid export");
+      S = journeyFromExport(pastedData);
+      pastedSave = JSON.parse(remembered("jt-save") || "null");
+    } catch (err) {
+      forget();
+      S = SAMPLE;
+    }
+  }
+
+  var perLevel = S.perLevel, total = S.played;
+  // Levels with a known time (all of them for the sample), and the fastest
+  // and slowest of those.
+  var knownLevels = [];
+  perLevel.forEach(function (sec, i) { if (sec > 0) knownLevels.push(i); });
+  function extremeLevel(beats) {
+    return knownLevels.reduce(function (best, i) { return best < 0 || beats(perLevel[i], perLevel[best]) ? i : best; }, -1);
+  }
+  var fastest = extremeLevel(function (a, b) { return a < b; });
+  var slowest = extremeLevel(function (a, b) { return a > b; });
   var toLevel = function (level) { return sum(perLevel.slice(0, level - 1)); };
+  function hide(id, hidden) { $(id).hidden = !!hidden; }
+  // A list or chart together with its label.
+  function hideBlock(id, hidden) { $(id).parentNode.hidden = !!hidden; }
 
   // Hero
+  if (S.imported) {
+    $("journey-chip").textContent = "Your journey";
+    $("hero-title").textContent = S.level >= 60 ? "Your road to 60" : "Your road to 60, so far";
+    $("foot-note").textContent = "Built from the export you pasted. The rankings' spreads are made up until enough players have imported.";
+    $("road-caption").textContent = "Time spent at each level the tracker saw level up. Hover a bar for the exact time.";
+  }
   $("hero-who").textContent = S.who;
   $("total-played").textContent = dur(total);
-  $("hero-sub").textContent = "From your first login on " + S.firstLogin + " to level 60 on " + S.reached60 +
-    ", " + S.calendarDays + " days later. Fastest level: " + (fastest + 1) + " in " + dur(perLevel[fastest]) +
-    ". Slowest: " + (slowest + 1) + " in " + dur(perLevel[slowest]) + ".";
+  var levelNote = knownLevels.length >= 2 ? " Fastest level: " + (fastest + 1) + " in " + dur(perLevel[fastest]) +
+    ". Slowest: " + (slowest + 1) + " in " + dur(perLevel[slowest]) + "." : "";
+  $("hero-sub").textContent = (!S.imported ?
+    "From your first login on " + S.firstLogin + " to level 60 on " + S.reached60 + ", " + S.calendarDays + " days later." :
+    "Tracked since " + S.firstLogin + (S.reached60 ? ", level 60 on " + S.reached60 + ", " + S.calendarDays + " days later." :
+      ", " + S.calendarDays + (S.calendarDays === 1 ? " day" : " days") + " ago. Level " + S.level + " so far.")) + levelNote;
+  hide("road", knownLevels.length < 2);
   $("milestones").innerHTML = S.milestones.map(function (m) {
     return "<li><b>" + m[0] + "</b>" + esc(m[1]) + "</li>";
   }).join("");
+  hide("milestones", !S.milestones.length);
 
   function drawRoad() {
+    if (knownLevels.length < 2) return;
     var svg = $("road-chart");
     var W = Math.max(300, Math.round(svg.parentNode.clientWidth || 900));
     var H = W < 560 ? 220 : 300;
     var m = { l: 40, r: 6, t: 28, b: 26 };
     var pw = W - m.l - m.r, ph = H - m.t - m.b;
-    var step = (W < 560 ? 4 : 2) * 3600;
-    var top = Math.ceil(Math.max.apply(null, perLevel) / step) * step;
+    // Gridlines every 5 minutes to 4 hours: the smallest step that keeps to
+    // a few lines.
+    var longest = Math.max.apply(null, knownLevels.map(function (i) { return perLevel[i]; }));
+    var steps = [300, 600, 900, 1800, 3600, 7200, 14400], step = steps[steps.length - 1];
+    for (var k = 0; k < steps.length; k++) {
+      if (longest / steps[k] <= (W < 560 ? 3 : 5)) { step = steps[k]; break; }
+    }
+    var top = Math.ceil(longest / step) * step;
     var slot = pw / perLevel.length, bw = Math.max(2, slot * 0.66);
     var y = function (v) { return m.t + ph - v / top * ph; };
     var out = ['<defs><linearGradient id="bar-gold" x1="0" y1="0" x2="0" y2="1">' +
       '<stop offset="0" class="stop-top"></stop><stop offset="1" class="stop-bottom"></stop></linearGradient></defs>'];
     for (var v = 0; v <= top; v += step) {
       out.push('<line class="grid" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y(v) + '" y2="' + y(v) + '"></line>');
-      out.push('<text class="axis" x="' + (m.l - 8) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + v / 3600 + "h</text>");
+      out.push('<text class="axis" x="' + (m.l - 8) + '" y="' + (y(v) + 4) + '" text-anchor="end">' +
+        (v % 3600 ? v / 60 + "m" : v / 3600 + "h") + "</text>");
     }
     perLevel.forEach(function (sec, i) {
+      if (!(sec > 0)) return;
       var x = m.l + i * slot + (slot - bw) / 2;
       var mark = i === fastest || i === slowest ? " mark" : "";
       out.push('<rect class="bar' + mark + '" x="' + x.toFixed(1) + '" y="' + y(sec).toFixed(1) + '" width="' +
@@ -973,7 +1398,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     });
     var sx = m.l + slowest * slot + slot / 2;
     out.push('<text class="note" x="' + sx.toFixed(1) + '" y="' + (y(perLevel[slowest]) - 9).toFixed(1) +
-      '" text-anchor="end">Slowest: level ' + (slowest + 1) + ", " + dur(perLevel[slowest]) + "</text>");
+      '" text-anchor="' + (slowest < 8 ? "start" : "end") + '">Slowest: level ' + (slowest + 1) + ", " + dur(perLevel[slowest]) + "</text>");
     svg.setAttribute("viewBox", "0 0 " + W + " " + H);
     svg.setAttribute("width", W);
     svg.setAttribute("height", H);
@@ -981,59 +1406,74 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   }
   drawRoad();
 
-  // Time
+  // Time (for an export, rates use the time the tracker saw rather than all
+  // of /played)
+  var trackedTime = S.trackedTime || total;
   var hourTotal = sum(S.hourWeights);
   var peak = S.hourWeights.indexOf(Math.max.apply(null, S.hourWeights));
-  $("time-title").textContent = "You played on " + S.daysPlayed + " of those " + S.calendarDays +
-    " days, most often around " + hourName(peak) + ".";
+  $("time-title").textContent = (S.imported && S.calendarDays <= 1 ? "One day of tracking so far" :
+    "You played on " + S.daysPlayed + " of " +
+    (S.imported ? "the " + S.calendarDays + " days since tracking began" : "those " + S.calendarDays + " days")) +
+    (hourTotal ? ", most often around " + hourName(peak) : "") + ".";
   stats("time-stats", [
     ["Play sessions", num(S.sessions)],
-    ["Average session", dur(total / S.sessions)],
+    ["Average session", dur(S.avgSession || total / S.sessions)],
     ["Longest session", dur(S.longestSession)],
-    ["Most levels in one session", S.bestSession.levels + " <small>(" + S.bestSession.from + " to " + S.bestSession.to + ")</small>"]
-  ]);
+    S.bestSession && ["Most levels in one session", S.bestSession.levels + " <small>(" + S.bestSession.from + " to " + S.bestSession.to + ")</small>"]
+  ].filter(Boolean));
   $("hours").innerHTML = S.hourWeights.map(function (w, h) {
-    var share = Math.round(w / Math.max.apply(null, S.hourWeights) * 88) + 8;
+    var share = Math.round(w / (Math.max.apply(null, S.hourWeights) || 1) * 88) + 8;
     return '<span style="background:color-mix(in srgb, var(--gold) ' + share + '%, var(--panel))" title="' +
-      hourName(h) + ": " + dur(total * w / hourTotal) + '"></span>';
+      hourName(h) + ": " + dur(S.hoursAreSeconds ? w : total * w / hourTotal) + '"></span>';
   }).join("");
+  hideBlock("hours", !hourTotal);
   bars("time-bars", S.timeSpent, dur);
+  hideBlock("time-bars", !S.timeSpent.length);
+  hide("chapter-time", !S.sessions && !hourTotal);
 
   // Combat
-  $("combat-title").textContent = num(S.kills) + " kills. " + S.topMobs[0][1] + " of them were " + S.topMobs[0][0] + "s.";
+  hide("chapter-combat", !S.kills);
+  $("combat-title").textContent = num(S.kills) + " kills." +
+    (S.topMobs.length ? " " + num(S.topMobs[0][1]) + " of them were " + S.topMobs[0][0] + "s." : "");
   bars("mobs", S.topMobs, num);
+  hideBlock("mobs", !S.topMobs.length);
   stats("combat-stats", [
     ["Elites", num(S.elites)],
     ["Rares", num(S.rares)],
     ["Dungeon bosses", num(S.bosses)],
     ["Honorable kills", num(S.honorKills)],
     ["Longest fight", dur(S.longestFight)],
-    ["Biggest level gap won", "+" + (S.bestKill.mob - S.bestKill.you) + " <small>(" + S.bestKill.mob + " at " + S.bestKill.you + ")</small>"]
-  ]);
+    S.bestKill && ["Biggest level gap won", "+" + (S.bestKill.mob - S.bestKill.you) + " <small>(" + S.bestKill.mob + " at " + S.bestKill.you + ")</small>"]
+  ].filter(Boolean));
 
   // Deaths
-  $("deaths-title").textContent = "You died " + S.deaths + " times. " + S.deathZones[0][0] + " took " +
-    S.deathZones[0][1] + " of them.";
+  $("deaths-title").textContent = !S.deaths ? "Not a single death so far." : S.deaths === 1 ? "You died once." :
+    "You died " + S.deaths + " times." + (S.deathZones.length ? " " + S.deathZones[0][0] + " took " + S.deathZones[0][1] + " of them." : "");
   bars("death-zones", S.deathZones, num);
   bars("killers", S.killers, num);
-  stats("death-stats", [
+  $("death-zones").parentNode.parentNode.hidden = !S.deathZones.length && !S.killers.length;
+  stats("death-stats", (S.deaths ? [
     ["Corpse runs", num(S.rez.corpse)],
     ["Spirit healer", num(S.rez.spirit)],
     ["Rezzed by a player", num(S.rez.player)],
     ["Deaths in dungeons", num(S.dungeonDeaths)],
-    ["Time spent dead", dur(S.timeDead)],
-    ["Longest run without dying", S.streak.levels + " levels <small>(" + S.streak.from + " to " + S.streak.to + ")</small>"]
-  ]);
+    ["Time spent dead", dur(S.timeDead)]
+  ] : []).concat(S.streak ? [["Longest run without dying", S.streak.levels + " levels <small>(" + S.streak.from + " to " + S.streak.to + ")</small>"]] : []));
 
   // Quests and XP
-  $("quests-title").textContent = num(S.quests.completed) + " quests done. One stayed in your log for " +
-    S.longestQuest.days + " days.";
-  $("longest-quest").innerHTML = '<span class="quest">' + esc(S.longestQuest.title) + "</span> sat in your quest log for " +
-    S.longestQuest.days + " days, from level " + S.longestQuest.from + " to " + S.longestQuest.to + ".";
+  var Q = S.quests, LQ = S.longestQuest;
+  var heldFor = LQ ? (LQ.days >= 1 ? LQ.days + (LQ.days === 1 ? " day" : " days") : dur(LQ.seconds)) : "";
+  hide("chapter-quests", !Q.completed && !Q.accepted);
+  $("quests-title").textContent = (Q.completed ? num(Q.completed) + " quests done." : "No quests turned in yet.") +
+    (LQ ? " One stayed in your log for " + heldFor + "." : "");
+  $("longest-quest").innerHTML = !LQ ? "" : LQ.title ?
+    '<span class="quest">' + esc(LQ.title) + "</span> sat in your quest log for " + heldFor + ", from level " + LQ.from + " to " + LQ.to + "." :
+    "Your longest-held quest sat in your quest log for " + heldFor + ".";
+  hide("longest-quest", !LQ);
   stats("quest-stats", [
-    ["Quests accepted", num(S.quests.accepted)],
-    ["Abandoned", num(S.quests.abandoned)],
-    ["Group and elite", num(S.quests.group)],
+    ["Quests accepted", num(Q.accepted)],
+    ["Abandoned", num(Q.abandoned)],
+    ["Group and elite", num(Q.group)],
     ["XP from rested", S.restedShare + "%"]
   ]);
   $("xp-split").innerHTML = S.xpSplit.map(function (p) {
@@ -1042,7 +1482,9 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   $("xp-legend").innerHTML = S.xpSplit.map(function (p) {
     return '<li><i style="background:' + p[2] + '"></i>' + esc(p[0]) + " <b>" + p[1] + "%</b></li>";
   }).join("");
+  hideBlock("xp-split", !S.xpSplit.length);
   bars("quest-zones", S.questZones, num);
+  hideBlock("quest-zones", !S.questZones.length);
 
   // Travel, under the map
   var miles = function (yards) { return num(yards / 1760); };
@@ -1056,53 +1498,96 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   ]);
 
   // Gold
-  var earned = sum(S.earned.map(function (r) { return r[1]; }));
-  var spent = sum(S.spent.map(function (r) { return r[1]; }));
-  $("gold-title").textContent = "You earned " + gold(earned) + " gold and kept " + gold(earned - spent) + " of it.";
+  var earned = S.earnedTotal !== undefined ? S.earnedTotal : sum(S.earned.map(function (r) { return r[1]; }));
+  var spent = S.spentTotal !== undefined ? S.spentTotal : sum(S.spent.map(function (r) { return r[1]; }));
+  hide("chapter-gold", !earned && !spent);
+  $("gold-title").textContent = !earned ? "You spent " + coins(spent) + "." :
+    earned >= spent ? "You earned " + coins(earned) + " and kept " + coins(earned - spent) + " of it." :
+    "You earned " + coins(earned) + " and spent " + coins(spent) + ".";
   bars("earned", S.earned, money);
   bars("spent", S.spent, money);
+  hideBlock("earned", !S.earned.length);
+  hideBlock("spent", !S.spent.length);
   stats("gold-stats", [
     ["Earned", money(earned)],
     ["Spent", money(spent)],
-    ["Most gold at once", money(S.peakGold.copper) + " <small>(level " + S.peakGold.level + ")</small>"],
-    ["First mount", "Level " + S.firstMountLevel + " <small>(" + dur(toLevel(S.firstMountLevel)) + " /played)</small>"]
-  ]);
+    S.peakGold && ["Most gold at once", money(S.peakGold.copper) + (S.peakGold.level ? " <small>(level " + S.peakGold.level + ")</small>" : "")],
+    S.firstMountLevel && ["First mount", "Level " + S.firstMountLevel + " <small>(" +
+      dur(S.firstMountPlayed || toLevel(S.firstMountLevel)) + " /played)</small>"]
+  ].filter(Boolean));
 
   // Gear and loot
-  $("gear-title").textContent = "[" + S.wornLevels.name + "] stayed on for " + Math.round(S.wornLevels.levels) + " levels.";
   var gear = [
-    ["Worn for the most levels", S.wornLevels, S.wornLevels.slot + ", " + S.wornLevels.levels.toFixed(1) +
+    S.wornLevels && ["Worn for the most levels", S.wornLevels, S.wornLevels.slot + ", " + S.wornLevels.levels.toFixed(1) +
       " levels (" + levels(S.wornLevels.from, S.wornLevels.to) + ")"],
-    ["Worn for the most /played", S.wornPlayed, S.wornPlayed.slot + ", " + dur(S.wornPlayed.played) +
+    S.wornPlayed && ["Worn for the most /played", S.wornPlayed, S.wornPlayed.slot + ", " + dur(S.wornPlayed.played) +
       " (" + levels(S.wornPlayed.from, S.wornPlayed.to) + ")"],
-    ["Best item looted", S.bestLoot, "Level " + S.bestLoot.level + ", " + S.bestLoot.where],
-    ["First blue", S.firstBlue, "Level " + S.firstBlue.level + ". First epic: not yet."]
-  ];
+    S.bestLoot && ["Best item looted", S.bestLoot, "Level " + S.bestLoot.level + ", " + S.bestLoot.where],
+    S.firstBlue && ["First blue", S.firstBlue, "Level " + S.firstBlue.level + ". First epic: " +
+      (S.firstEpic ? "level " + S.firstEpic.level : "not yet") + "."]
+  ].filter(Boolean);
+  $("gear-title").textContent = S.wornLevels ? "[" + S.wornLevels.name + "] stayed on for " + Math.round(S.wornLevels.levels) + " levels." :
+    S.wornPlayed ? "[" + S.wornPlayed.name + "] stayed on for " + dur(S.wornPlayed.played) + "." :
+    S.bestLoot ? "Your best find: [" + S.bestLoot.name + "]." : num(S.looted || 0) + " items looted.";
   $("gear-items").innerHTML = gear.map(function (g) {
     return '<div class="item"><p class="label">' + esc(g[0]) + "</p>" + item(g[1]) +
       '<span class="item-detail">' + esc(g[2]) + "</span></div>";
   }).join("");
+  hide("gear-items", !gear.length);
   bars("loot", S.loot, num);
+  hideBlock("loot", !S.loot.length);
+  hide("chapter-gear", !gear.length && !S.loot.length);
 
   // Professions
-  $("skills-title").textContent = num(S.skinned) + " creatures skinned and " + num(S.fish) + " fish caught.";
+  var gathered = [["Herbs picked", S.herbs], ["Ore mined", S.ore], ["Creatures skinned", S.skinned], ["Fish caught", S.fish]]
+    .filter(function (r) { return r[1] > 0; });
+  $("skills-title").textContent = !S.imported ? num(S.skinned) + " creatures skinned and " + num(S.fish) + " fish caught." :
+    S.professions.length ? S.professions.slice(0, 2).map(function (p) { return p[0] + " " + p[1]; }).join(" and ") + "." :
+    gathered.map(function (r) { return num(r[1]) + " " + r[0].toLowerCase(); }).join(", ") + ".";
   bars("profs", S.professions, function (v) { return v + " / 300"; }, 300);
+  hide("profs", !S.professions.length);
   stats("skill-stats", [
     ["Items crafted", num(S.crafted)],
     ["Weapon skill-ups", num(S.skillUps)]
-  ]);
+  ].concat(S.imported ? gathered.map(function (r) { return [r[0], num(r[1])]; }) : []));
+  hide("chapter-skills", !S.professions.length && !gathered.length && !S.crafted);
 
   // Class
-  var formTime = sum(S.forms.map(function (f) { return f[1]; }));
   $("class-eyebrow").textContent = S.className;
-  $("class-title").textContent = dur(S.forms[0][1]) + " in " + S.forms[0][0] + ", and " + num(S.shifts) + " shapeshifts.";
-  bars("forms", [["Caster form", total - formTime]].concat(S.forms), dur);
-  stats("class-stats", [
-    ["Most common shift", esc(S.topShift.from) + " to " + esc(S.topShift.to) + " <small>(" + num(S.topShift.n) + ")</small>"],
-    ["Healing done (estimated)", num(S.healing)],
-    ["Time in Prowl", dur(S.prowl)],
-    ["Forms learned at", '<small>' + esc(S.formsLearned) + "</small>"]
-  ]);
+  if (!S.imported) {
+    var formTime = sum(S.forms.map(function (f) { return f[1]; }));
+    $("class-title").textContent = dur(S.forms[0][1]) + " in " + S.forms[0][0] + ", and " + num(S.shifts) + " shapeshifts.";
+    bars("forms", [["Caster form", total - formTime]].concat(S.forms), dur);
+    stats("class-stats", [
+      ["Most common shift", esc(S.topShift.from) + " to " + esc(S.topShift.to) + " <small>(" + num(S.topShift.n) + ")</small>"],
+      ["Healing done (estimated)", num(S.healing)],
+      ["Time in Prowl", dur(S.prowl)],
+      ["Forms learned at", '<small>' + esc(S.formsLearned) + "</small>"]
+    ]);
+  } else {
+    // Whatever the class tracked most time in (forms, stances, auras,
+    // aspects...), its most cast spells, healing and power spent.
+    var STATE_WORDS = { form: "form", stance: "stance", aura: "aura", seal: "seal", aspect: "aspect",
+                        stealth: "stealth", shadowform: "Shadowform", ghostwolf: "Ghost Wolf" };
+    var groups = Object.keys(S.classTime).filter(function (g) { return STATE_WORDS[g] && addUp(S.classTime[g]) > 0; })
+      .sort(function (a, b) { return addUp(S.classTime[b]) - addUp(S.classTime[a]); });
+    var main = groups[0], mainRows = main ? topRows(S.classTime[main], 6) : [];
+    var casts = topRows(S.casts, 8).filter(function (r) { return r[0] !== "LOGINEFFECT" && r[0] !== "Hearthstone"; }).slice(0, 6);
+    var swaps = main ? named(S.swaps[main]) : {}, pair = topRows(swaps.pairs, 1)[0];
+    var POWER = { MANA: "Mana", RAGE: "Rage", ENERGY: "Energy", FOCUS: "Focus" };
+    $("class-title").textContent = main ? dur(mainRows[0][1]) + " in " + mainRows[0][0] +
+      (swaps.total ? ", and " + num(swaps.total) + (main === "form" ? " shapeshifts." : " swaps.") : ".") :
+      casts.length ? casts[0][0] + ", cast " + num(casts[0][1]) + " times." : "";
+    $("class-bars-label").textContent = main ? "Time in each " + STATE_WORDS[main] : "Most cast spells";
+    if (main) bars("forms", mainRows, dur); else bars("forms", casts, num);
+    stats("class-stats", [
+      main && casts.length && ["Most cast spell", esc(casts[0][0]) + " <small>(" + num(casts[0][1]) + ")</small>"],
+      pair && ["Most common " + (main === "form" ? "shift" : "swap"), esc(pair[0].replace(" > ", " to ")) + " <small>(" + num(pair[1]) + ")</small>"],
+      S.healing > 0 && ["Healing done (estimated)", num(S.healing)]
+    ].concat(topRows(S.powerSpent, 2).map(function (p) { return [(POWER[p[0]] || capFirst(p[0].toLowerCase())) + " spent", num(p[1])]; }))
+      .filter(Boolean));
+    hide("chapter-class", !main && !casts.length);
+  }
 
   // WoW Forever and friends
   $("forever-title").textContent = S.quests.forever + " new Forever quests, " + S.camps + " campfires and " +
@@ -1116,10 +1601,10 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     ["Transmog changes", num(S.transmog)]
   ]);
   stats("social-stats", [
-    ["Time grouped", dur(S.grouped) + " <small>(" + Math.round(S.grouped / total * 100) + "%)</small>"],
+    ["Time grouped", dur(S.grouped) + " <small>(" + Math.round(S.grouped / trackedTime * 100) + "%)</small>"],
     ["Players grouped with", num(S.groupedWith)],
-    ["Joined a guild", "Level " + S.guildLevel],
-    ["Jumps", num(S.jumps) + " <small>(one every " + Math.round(total / S.jumps) + "s)</small>"]
+    ["Joined a guild", S.guildLevel ? "Level " + S.guildLevel : S.guildBefore ? "Before tracking began" : "Not yet"],
+    ["Jumps", num(S.jumps) + (S.jumps ? " <small>(one every " + Math.round(trackedTime / S.jumps) + "s)</small>" : "")]
   ]);
 
   // Your journey through Azeroth: one interactive map (Leaflet) of both
@@ -1142,9 +1627,13 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   function zoneSeconds(from, to) { return 0.82 * sum(perLevel.slice(from - 1, to - 1)); }
 
   // Your route: the zones of the journey in order, with their place in the world.
-  var route = S.path.map(function (p, i) {
-    return { n: i + 1, name: p[0], from: p[1], to: p[2], map: MAP_BY_NAME[p[0]], seconds: zoneSeconds(p[1], p[2]) };
+  // (An export has each zone's time as p[3]; the sample spreads its made-up
+  // /played over its route.)
+  var route = S.path.map(function (p) {
+    return { name: p[0], from: p[1], to: p[2], map: MAP_BY_NAME[p[0]], seconds: p[3] !== undefined ? p[3] : zoneSeconds(p[1], p[2]) };
   }).filter(function (r) { return r.map; });
+  route.forEach(function (r, i) { r.n = i + 1; });
+  var homeZone = route.slice().sort(function (a, b) { return b.seconds - a.seconds; })[0];
   function detailFor(uiMapID) {
     for (var i = 0; i < S.heat.length; i++) if (S.heat[i].map === uiMapID) return i;
     return -1;
@@ -1168,10 +1657,17 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   var continents = {};
   route.forEach(function (r) { continents[r.map.mapID] = true; });
   var firstStop = route[0], lastStop = route[route.length - 1];
-  var lede = count(route.length, "zone") + " across " + count(Object.keys(continents).length, "continent") +
-    ", from your first steps in " + place(firstStop.name) + " to " + (lastStop.to === 60 ? "level 60 in " : "") +
-    place(lastStop.name) + ". You lingered longest in " + favorite.spot[0] + ", " + place(favorite.zone) + ".";
+  var lede = !route.length ? "your route shows up here once the tracker has seen you travel." :
+    count(route.length, "zone") + " across " + count(Object.keys(continents).length, "continent") +
+    (S.imported ? ", from " : ", from your first steps in ") + place(firstStop.name) + " to " +
+    (lastStop.to === 60 ? "level 60 in " : "") + place(lastStop.name) + ". " +
+    (favorite ? "You lingered longest in " + favorite.spot[0] + ", " + place(favorite.zone) + "." :
+      homeZone.seconds > 0 ? "You spent the most time in " + place(homeZone.name) + ": " + dur(homeZone.seconds) + "." : "");
   $("heat-lede").textContent = lede.charAt(0).toUpperCase() + lede.slice(1);
+  if (S.imported) {
+    $("map-caption").textContent = "Drag to explore, scroll or pinch to zoom, and pick a numbered stop to fly in. " +
+      "The dotted line joins the zones in the order you first reached them; the brighter a zone, the more time you spent there.";
+  }
 
   // Map space is measured in minimap tiles (533 yards a side): x runs east
   // and y south, with each continent where the game's world map puts it
@@ -1245,6 +1741,10 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
       }
       if (d >= 0) {
         zonePoints(S.heat[d]).forEach(function (p) { add(p.x, p.y, p.m, p.r / 100 * zoneYards); });
+      } else if (S.zoneHeat) {
+        // An export knows the time in each zone, not where in it: one soft
+        // glow, never smaller than a minimap tile so a city's shows around its pin.
+        add(50, 50, r.seconds / 60, Math.max(zoneYards * 0.16, tileYards));
       } else {
         var rnd = seeded(hashText(r.name));
         for (var k = 0; k < 3; k++) add(30 + rnd() * 40, 30 + rnd() * 40, r.seconds / 60 / 3, zoneYards * 0.07);
@@ -1685,64 +2185,194 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   }
   function cap(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
 
-  // This journey's values. The sample has about a third of them; the rest
-  // are made up below.
-  var hoursPlayed = total / 3600;
+  // Class rankings an export can answer, from what the class tracker saved:
+  // spells cast, time in each state, buffs cast on others, swaps and power
+  // spent. "Teleport: *" counts every spell starting so, "*Totem" every one
+  // ending so.
+  var CLASS_CASTS = {
+    charges: ["Charge", "Intercept"], overpowers: ["Overpower"], executes: ["Execute"],
+    shouts: ["Battle Shout", "Demoralizing Shout", "Intimidating Shout", "Challenging Shout"],
+    sunders: ["Sunder Armor", "Rend"], hamstrings: ["Hamstring", "Piercing Howl"],
+    panicButtons: ["Shield Wall", "Last Stand", "Retaliation", "Recklessness", "Berserker Rage"],
+    warriorInterrupts: ["Pummel", "Shield Bash"], cleaves: ["Thunder Clap", "Cleave", "Whirlwind"],
+    judgements: ["Judgement"], layOnHands: ["Lay on Hands"], bubbles: ["Divine Shield", "Divine Protection"],
+    hammers: ["Hammer of Justice"], paladinHeals: ["Holy Light", "Flash of Light"], redemptions: ["Redemption"],
+    exorcisms: ["Exorcism", "Turn Undead"], consecrations: ["Consecration"], cleanses: ["Cleanse", "Purify"],
+    warhorse: ["Summon Warhorse", "Summon Charger"],
+    feeds: ["Feed Pet"], mends: ["Mend Pet"], feigns: ["Feign Death"],
+    traps: ["Freezing Trap", "Immolation Trap", "Frost Trap", "Explosive Trap"],
+    shots: ["Arcane Shot", "Aimed Shot", "Multi-Shot", "Concussive Shot", "Scatter Shot", "Serpent Sting"],
+    marks: ["Hunter's Mark"],
+    openers: ["Cheap Shot", "Ambush", "Garrote", "Sap"], pickPockets: ["Pick Pocket"], locks: ["Pick Lock"],
+    finishers: ["Eviscerate", "Slice and Dice", "Kidney Shot", "Rupture", "Expose Armor"],
+    escapes: ["Vanish", "Sprint", "Evasion"], kicks: ["Kick"], blinds: ["Gouge", "Blind"],
+    stabs: ["Sinister Strike", "Backstab", "Hemorrhage"],
+    shields: ["Power Word: Shield"], priestHeals: ["Renew", "Lesser Heal", "Heal", "Flash Heal", "Greater Heal"],
+    resurrections: ["Resurrection"], shadowSpells: ["Shadow Word: Pain", "Mind Blast", "Mind Flay"],
+    screams: ["Psychic Scream", "Fade"], mindControls: ["Mind Control"], levitates: ["Levitate"],
+    wandShots: ["Shoot"], holyNovas: ["Holy Nova"],
+    totems: ["*Totem"], reincarnations: ["Reincarnation"],
+    imbues: ["Rockbiter Weapon", "Flametongue Weapon", "Frostbrand Weapon", "Windfury Weapon"],
+    shocks: ["Earth Shock", "Flame Shock", "Frost Shock"], lightning: ["Lightning Bolt", "Chain Lightning"],
+    shamanHeals: ["Healing Wave", "Lesser Healing Wave", "Chain Heal"], lightningShields: ["Lightning Shield"],
+    astralRecalls: ["Astral Recall"], ancestralSpirits: ["Ancestral Spirit"],
+    waterWalks: ["Water Walking", "Water Breathing"],
+    teleports: ["Teleport: *"], portals: ["Portal: *"], polymorphs: ["Polymorph*"],
+    novas: ["Frost Nova", "Blink", "Ice Block", "Ice Barrier"], counterspells: ["Counterspell"],
+    evocations: ["Evocation"], fireballs: ["Fireball"], frostbolts: ["Frostbolt"],
+    mageAoE: ["Arcane Explosion", "Blizzard"], slowFalls: ["Slow Fall"],
+    summonings: ["Ritual of Summoning"], lifeTaps: ["Life Tap"], fears: ["Fear", "Howl of Terror", "Death Coil"],
+    dots: ["Corruption", "Curse of Agony", "Immolate", "Siphon Life"], felsteed: ["Summon Felsteed"],
+    demonsSummoned: ["Summon Imp", "Summon Voidwalker", "Summon Succubus", "Summon Felhunter", "Inferno", "Ritual of Doom"],
+    rebirths: ["Rebirth", "Innervate"], moonfires: ["Wrath", "Moonfire", "Starfire", "Insect Swarm"],
+    catAbilities: ["Claw", "Shred", "Rake", "Rip", "Ferocious Bite", "Ravage", "Pounce"],
+    bearAbilities: ["Maul", "Swipe", "Growl", "Demoralizing Roar", "Bash", "Feral Charge"],
+    roots: ["Entangling Roots", "Hibernate"], moonglade: ["Teleport: Moonglade"], faerieFires: ["Faerie Fire*"]
+  };
+  var CLASS_TIMES = {   // [state group, state names...]; no names = the whole group
+    battleStance: ["stance", "Battle Stance"], defensiveStance: ["stance", "Defensive Stance"],
+    berserkerStance: ["stance", "Berserker Stance"], sealTime: ["seal"], auraTime: ["aura", "Devotion Aura"],
+    hawk: ["aspect", "Aspect of the Hawk"], cheetah: ["aspect", "Aspect of the Cheetah"],
+    stealth: ["stealth", "Stealth"], prowl: ["stealth", "Prowl"], shadowform: ["shadowform"], ghostWolf: ["ghostwolf"],
+    cat: ["form", "Cat Form"], bear: ["form", "Bear Form", "Dire Bear Form"], travelForm: ["form", "Travel Form"],
+    aquatic: ["form", "Aquatic Form"], casterForm: ["form", "Caster Form"]
+  };
+  var CLASS_BUFFS = { blessings: ["Blessing of*", "Greater Blessing of*"],
+    fortitudes: ["Power Word: Fortitude", "Prayer of Fortitude", "Divine Spirit"],
+    intellects: ["Arcane Intellect", "Arcane Brilliance"], wildMarks: ["Mark of the Wild", "Gift of the Wild", "Thorns"] };
+  function spellIn(name, patterns) {
+    return patterns.some(function (p) {
+      if (p.charAt(p.length - 1) === "*") return name.indexOf(p.slice(0, -1)) === 0;
+      if (p.charAt(0) === "*") return name.slice(1 - p.length) === p.slice(1);
+      return name === p;
+    });
+  }
+  function classValues(J, v) {
+    function spells(map, patterns, read) {
+      return Object.keys(map).reduce(function (t, name) { return t + (spellIn(name, patterns) ? read(map[name]) || 0 : 0); }, 0);
+    }
+    Object.keys(CLASS_CASTS).forEach(function (key) { v[key] = spells(J.casts, CLASS_CASTS[key], Number); });
+    Object.keys(CLASS_TIMES).forEach(function (key) {
+      var spec = CLASS_TIMES[key], group = named(J.classTime[spec[0]]);
+      v[key] = spec.length > 1 ? spec.slice(1).reduce(function (t, name) { return t + (group[name] || 0); }, 0) : addUp(group);
+    });
+    Object.keys(CLASS_BUFFS).forEach(function (key) {
+      v[key] = spells(J.targets, CLASS_BUFFS[key], function (t) { return named(t).other; });
+    });
+    v.stanceSwaps = named(J.swaps.stance).total || 0;
+    v.shifts = named(J.swaps.form).total || 0;
+    v.rage = J.powerSpent.RAGE || 0;
+    v.priestMana = J.powerSpent.MANA || 0;
+    var all = J.classAll, potions = named(all.potions);
+    v.bandages = addUp(all.bandages);
+    v.healPotions = Math.max(addUp(potions.healing), J.pane[345] || 0);
+    v.manaPotions = Math.max(addUp(potions.mana), J.pane[922] || 0);
+    v.cookies = addUp(all.healthstones);
+    v.mageFood = addUp(all.conjured);
+    v.food = addUp(all.food);
+    v.buffs = addUp(named(all.buffs).bySpell);
+    v.summoned = typeof all.summons === "number" ? all.summons : listOf(all.summons).length;
+    v.trainerVisits = listOf(all.trainerVisits).length;
+    v.classQuests = listOf(all.classQuests).length;
+  }
+
+  // This journey's values. The sample has about a third of them and makes up
+  // the rest (madeUp, below); an export is ranked only on what it has.
+  // Rates are per hour of /played, since an export's counts include the
+  // game's lifetime statistics. A share (of XP, of playtime) needs enough
+  // behind it first: 100% of 200 XP from exploring isn't a ranking.
+  var rateTime = total / 3600;
   function part(rows, name) {
     var row = rows.filter(function (r) { return r[0] === name; })[0];
     return row ? row[1] : 0;
   }
-  var homeZone = route.slice().sort(function (a, b) { return b.seconds - a.seconds; })[0];
+  function first(rows) { return rows.length ? rows[0][1] : undefined; }
+  var hourSum = sum(S.hourWeights);
+  var enoughXP = !S.imported || S.xpTotal >= 10000;
+  var enoughHours = !S.imported || hourSum >= 5 * 3600;
+  var enoughTime = !S.imported || trackedTime >= 5 * 3600;
+  function when(enough, value) { return enough ? value : undefined; }
   var YOU = {
-    label: "You", classToken: "DRUID", className: S.className, race: "Night Elf", faction: "Alliance",
-    ruleset: "Normal", trades: ["Skinning", "Leatherworking"],
-    names: { mob: S.topMobs[0][0], zone: S.deathZones[0][0], quest: S.longestQuest.title,
-             item: "[" + S.wornPlayed.name + "]", kept: "[" + S.wornLevels.name + "]", fav: homeZone.name },
+    label: "You", classToken: S.classToken, className: S.className, race: S.race, faction: S.faction,
+    ruleset: S.ruleset, trades: S.trades, partial: !S.complete,
+    names: { mob: S.topMobs.length ? S.topMobs[0][0] : "", zone: S.deathZones.length ? S.deathZones[0][0] : "",
+             quest: S.longestQuest && S.longestQuest.title || "Your longest quest",
+             item: S.wornPlayed ? "[" + S.wornPlayed.name + "]" : "", kept: S.wornLevels ? "[" + S.wornLevels.name + "]" : "",
+             fav: homeZone ? homeZone.name : "" },
     values: {
-      played: total, days: S.calendarDays, sessions: S.sessions, avgSession: total / S.sessions,
-      session: S.longestSession, sessionLevels: S.bestSession.levels, daysPlayed: S.daysPlayed,
+      played: total, days: S.calendarDays, sessions: S.sessions, avgSession: S.avgSession || total / S.sessions,
+      session: S.longestSession, sessionLevels: S.bestSession && S.bestSession.levels, daysPlayed: S.daysPlayed,
       afk: part(S.timeSpent, "AFK"), resting: part(S.timeSpent, "Resting in inns and cities"),
       taxiTime: part(S.timeSpent, "On flight paths"), mounted: part(S.timeSpent, "Mounted"),
       combatTime: part(S.timeSpent, "In combat"), timeDead: S.timeDead, slowestLevel: perLevel[slowest],
-      nightOwl: sum(S.hourWeights.slice(0, 5)) / sum(S.hourWeights) * 100,
-      earlyBird: sum(S.hourWeights.slice(5, 9)) / sum(S.hourWeights) * 100,
-      rested: S.restedShare, questXP: part(S.xpSplit, "Quests"), killXP: part(S.xpSplit, "Kills"),
-      exploreXP: part(S.xpSplit, "Exploration"),
-      kills: S.kills, killRate: S.kills / hoursPlayed, topMob: S.topMobs[0][1], elites: S.elites, rares: S.rares,
-      gap: S.bestKill.mob - S.bestKill.you, fight: S.longestFight, bosses: S.bosses, honor: S.honorKills,
-      deaths: S.deaths, zoneDeaths: S.deathZones[0][1], dungeonDeaths: S.dungeonDeaths, corpseRuns: S.rez.corpse,
-      spiritRez: S.rez.spirit, playerRez: S.rez.player, streak: S.streak.levels,
-      pvpDeaths: part(S.killers, "Players (PvP)"), fallDeaths: part(S.killers, "Falling"),
-      quests: S.quests.completed, questRate: S.quests.completed / hoursPlayed, zoneQuests: S.questZones[0][1],
+      nightOwl: when(hourSum && enoughHours, sum(S.hourWeights.slice(0, 5)) / hourSum * 100),
+      earlyBird: when(hourSum && enoughHours, sum(S.hourWeights.slice(5, 9)) / hourSum * 100),
+      rested: when(enoughXP, S.restedShare), questXP: when(enoughXP, part(S.xpSplit, "Quests")),
+      killXP: when(enoughXP, part(S.xpSplit, "Kills")), exploreXP: when(enoughXP, part(S.xpSplit, "Exploration")),
+      kills: S.kills, killRate: S.kills / rateTime, topMob: first(S.topMobs), elites: S.elites, rares: S.rares,
+      gap: S.bestKill ? S.bestKill.mob - S.bestKill.you : undefined, fight: S.longestFight, bosses: S.bosses,
+      honor: S.honorKills, deaths: S.deaths, zoneDeaths: first(S.deathZones), dungeonDeaths: S.dungeonDeaths,
+      corpseRuns: S.rez.corpse, spiritRez: S.rez.spirit, playerRez: S.rez.player, streak: S.streak && S.streak.levels,
+      pvpDeaths: part(S.killers, "Players (PvP)") || part(S.killers, "Player (PvP)"),
+      fallDeaths: S.fallDeaths !== undefined ? S.fallDeaths : part(S.killers, "Falling"),
+      quests: S.quests.completed, questRate: S.quests.completed / rateTime, zoneQuests: first(S.questZones),
       questGold: part(S.earned, "Quest rewards"), accepted: S.quests.accepted, abandoned: S.quests.abandoned,
-      questDays: S.longestQuest.days, groupQuests: S.quests.group, forever: S.quests.forever,
-      zoneTime: homeZone.seconds, hearths: S.travel.hearths, flightPaths: S.travel.flightPaths,
+      questDays: S.longestQuest && S.longestQuest.days, groupQuests: S.quests.group, forever: S.quests.forever,
+      zoneTime: homeZone && homeZone.seconds, hearths: S.travel.hearths, flightPaths: S.travel.flightPaths,
       flights: S.travel.flights, ground: S.travel.groundYards / 1760, air: S.travel.airYards / 1760,
       fallen: S.travel.fallen, longestFall: S.travel.longestFall,
-      earned: earned, spent: spent, saved: earned - spent, peakGold: S.peakGold.copper,
+      earned: earned, spent: spent, saved: earned - spent, peakGold: S.peakGold && S.peakGold.copper,
       lootGold: part(S.earned, "Looting"), vendorGold: part(S.earned, "Selling to vendors"),
       auctions: part(S.earned, "Auction house sales"), auctionSpend: part(S.spent, "Auction house"),
       training: part(S.spent, "Class training"), repairs: part(S.spent, "Repairs"),
-      flightGold: part(S.spent, "Flights"), mount: S.firstMountLevel,
-      looted: sum(S.loot.map(function (l) { return l[1]; })), grays: part(S.loot, "Poor"),
-      greens: part(S.loot, "Uncommon"), rareLoot: part(S.loot, "Rare"), epics: part(S.loot, "Epic"),
-      firstBlue: S.firstBlue.level, worn: S.wornPlayed.played, wornLevels: S.wornLevels.levels,
+      flightGold: part(S.spent, "Flights"), mount: S.firstMountLevel || undefined,
+      looted: S.looted !== undefined ? S.looted : sum(S.loot.map(function (l) { return l[1]; })),
+      grays: part(S.loot, "Poor"), greens: part(S.loot, "Uncommon"), rareLoot: part(S.loot, "Rare"),
+      epics: part(S.loot, "Epic"), firstBlue: S.firstBlue && S.firstBlue.level,
+      worn: S.wornPlayed && S.wornPlayed.played, wornLevels: S.wornLevels && S.wornLevels.levels,
       crafted: S.crafted, fish: S.fish, skillUps: S.skillUps, skinned: S.skinned,
       maxed: S.professions.filter(function (p) { return p[1] >= 300; }).length,
-      skinning: part(S.professions, "Skinning"), leatherworking: part(S.professions, "Leatherworking"),
-      firstAid: part(S.professions, "First Aid"), cooking: part(S.professions, "Cooking"),
-      fishing: part(S.professions, "Fishing"),
-      grouped: S.grouped / total * 100, solo: (1 - S.grouped / total) * 100, groupedWith: S.groupedWith,
-      guild: S.guildLevel, jumps: S.jumps, jumpEvery: total / S.jumps,
-      camps: S.camps, campTime: S.campTime, campBuffs: S.campBuffs, transmog: S.transmog,
-      cat: part(S.forms, "Cat Form"), bear: part(S.forms, "Bear Form"), travelForm: part(S.forms, "Travel Form"),
-      aquatic: part(S.forms, "Aquatic Form"), casterForm: total - sum(S.forms.map(function (f) { return f[1]; })),
-      shifts: S.shifts, prowl: S.prowl, healing: S.healing,
-      largestHit: S.pane.largestHit, duelsWon: S.pane.duelsWon, hugs: S.pane.hugs, lols: S.pane.lols,
-      critters: S.pane.critters,
-      vanCleef: S.iconic.vanCleefLevel, boat: S.iconic.boatTrips, bangalash: S.iconic.bangalashLevel
+      grouped: when(enoughTime, S.grouped / trackedTime * 100), solo: when(enoughTime, (1 - S.grouped / trackedTime) * 100),
+      groupedWith: S.groupedWith,
+      guild: S.guildLevel || undefined, jumps: S.jumps, jumpEvery: S.jumps ? trackedTime / S.jumps : undefined,
+      camps: S.camps, campTime: S.campTime, campBuffs: S.campBuffs, transmog: S.transmog, healing: S.healing
     }
   };
+  var PROFESSION_KEYS = { Alchemy: "alchemy", Blacksmithing: "blacksmithing", Enchanting: "enchanting",
+    Engineering: "engineering", Herbalism: "herbalism", Leatherworking: "leatherworking", Mining: "mining",
+    Skinning: "skinning", Tailoring: "tailoring", Cooking: "cooking", "First Aid": "firstAid", Fishing: "fishing" };
+  S.professions.forEach(function (p) { if (PROFESSION_KEYS[p[0]]) YOU.values[PROFESSION_KEYS[p[0]]] = p[1]; });
+  if (!S.imported) {
+    var formTimes = S.forms;
+    Object.assign(YOU.values, {
+      cat: part(formTimes, "Cat Form"), bear: part(formTimes, "Bear Form"), travelForm: part(formTimes, "Travel Form"),
+      aquatic: part(formTimes, "Aquatic Form"), casterForm: total - sum(formTimes.map(function (f) { return f[1]; })),
+      shifts: S.shifts, prowl: S.prowl,
+      vanCleef: S.iconic.vanCleefLevel, boat: S.iconic.boatTrips, bangalash: S.iconic.bangalashLevel
+    });
+  } else {
+    var types = S.killTypes;
+    Object.assign(YOU.values, {
+      beasts: types.Beast || 0, humanoids: types.Humanoid || 0, undead: types.Undead || 0, demons: types.Demon || 0,
+      elementals: types.Elemental || 0, dragonkin: types.Dragonkin || 0, mobTypes: S.mobKinds,
+      levelKills: S.levelKills, levelDeaths: S.levelDeaths, levelQuests: S.levelQuests, fights: S.fights,
+      avgFight: S.fights ? part(S.timeSpent, "In combat") / S.fights : undefined, ambushes: S.ambushes,
+      multiPulls: S.multiPulls, maxMobs: S.maxMobs, wipes: S.wipes, groupDeaths: S.groupDeaths,
+      corpseTime: S.corpseTime, graveyards: S.graveyards, zonesVisited: S.zonesVisited, subzones: S.subzones,
+      zoneChanges: S.zoneChanges, dungeonQuests: S.quests.dungeon, groupXP: when(enoughXP, S.groupXP),
+      auctionsSold: S.auctionsSold,
+      mountPlayed: S.firstMountPlayed || undefined, firstEpic: S.firstEpic && S.firstEpic.level,
+      bestItem: S.bestLoot && S.bestLoot.ilvl, herbs: S.herbs, ore: S.ore, campShops: S.campShops,
+      campCrafts: S.campCrafts, valthalak: S.valthalak, autoFlagged: S.autoFlagged, zephras: S.zephras || undefined,
+      hyjal: S.hyjal
+    });
+    classValues(S, YOU.values);
+  }
+  // Every ranking from the game's Statistics pane, by statistic ID.
+  RANKINGS.forEach(function (r) {
+    var id = /^P-(\d+)$/.exec(r.source);
+    if (id && S.pane[id[1]] !== undefined) YOU.values[r.key] = S.pane[id[1]];
+  });
 
   // Made-up values for whatever a profile doesn't have, the same on every
   // load: drawn around each ranking's median, `spread` times as far out as
@@ -1770,7 +2400,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     if (xp > 98) ["questXP", "killXP", "exploreXP"].forEach(function (k) { v[k] = Math.round(v[k] * 98 / xp); });
     return p;
   }
-  madeUp(YOU, 0.6);
+  if (!S.imported) madeUp(YOU, 0.6);
 
   // Made-up players of the other classes, to show each class's own rankings
   // and that every journey gets its own picks.
@@ -1824,11 +2454,15 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     if (r.cohort === "ruleset") return p.ruleset + " realm players";
     return "All players";
   }
-  // Whether a ranking applies: the right class, race, faction or realm, the
-  // profession it's about, and (where more is notable) something to count.
+  // Whether a ranking applies: a number to rank, the right class, race,
+  // faction or realm, the profession it's about, and (where more is notable)
+  // something to count. Where less is notable (fewest deaths, fastest to
+  // 60), only a journey tracked from level 1 to 60 counts.
   function applies(r, p) {
+    var v = p.values[r.key];
+    if (typeof v !== "number" || !isFinite(v)) return false;
     if (r.trade && p.trades.indexOf(r.trade) < 0) return false;
-    if (r.high && !(p.values[r.key] > 0)) return false;
+    if (r.high ? !(v > 0) : p.partial) return false;
     return !r.only || Object.keys(r.only).every(function (k) { return [].concat(r.only[k]).indexOf(p[k]) >= 0; });
   }
   // Every ranking that applies to a profile, best first.
@@ -1860,12 +2494,14 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   function showRankings(p) {
     var all = rankingsFor(p), picks = picksFor(all, 9);
     $("ranks-for").textContent = p.example ? "Where this " + p.label + " stands out (made-up example)" : "Where you stand out";
-    $("ranks").innerHTML = picks.map(rankCard).join("");
+    $("ranks").innerHTML = picks.length ? picks.map(rankCard).join("") :
+      '<p class="footnote">Nothing to rank yet. Play on, then export and paste again.</p>';
     $("all-ranks-summary").textContent = "See all " + all.length + (p.example ? " of this player's" : " of your") + " rankings, best first";
     $("all-ranks-list").innerHTML = all.map(function (x) {
       return "<li><b>Top " + x.top + "%</b><span>" + esc(cap(x.name)) + ": " + esc(x.detail) + "</span><i>" +
         esc(x.line) + "</i><small>" + esc(GROUP_NAMES[x.r.group] + " · " + x.cohort) + "</small></li>";
     }).join("");
+    hide("all-ranks", !all.length);
     PROFILES.forEach(function (q, i) { $("profile-" + i).setAttribute("aria-pressed", String(q === p)); });
   }
   $("profiles").innerHTML = PROFILES.map(function (p, i) {
@@ -1875,48 +2511,102 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   }).join("");
   PROFILES.forEach(function (p, i) { $("profile-" + i).addEventListener("click", function () { showRankings(p); }); });
   $("rank-count").textContent = RANKINGS.length;
+  if (S.imported) $("ranks-madeup").textContent = "Your numbers are real; the percentages are made up in this draft.";
 
   var mine = rankingsFor(YOU), myPicks = picksFor(mine, 9), best = myPicks[0];
-  $("ranks-title").textContent = "You're in the top " + best.top + "% of " + best.name +
-    (best.cohort === "All players" ? "" : " among " + best.cohort) + ".";
+  $("ranks-title").textContent = best ? "You're in the top " + best.top + "% of " + best.name +
+    (best.cohort === "All players" ? "" : " among " + best.cohort) + "." : "Your rankings fill in as the tracker records more.";
   showRankings(YOU);
   var pace = mine.filter(function (x) { return x.r.id === "played"; })[0];
-  $("hero-rank").textContent = "Faster to 60 than " + (100 - pace.top) + "% of players";
+  if (pace) $("hero-rank").textContent = "Faster to 60 than " + (100 - pace.top) + "% of players";
+  hide("hero-rank", !pace);
 
   // Share card: your three best rankings, the headline numbers, and the
   // highlights of the journey.
-  $("card-who").textContent = YOU.race + " " + YOU.className + " · " + YOU.faction;
-  $("card-played").textContent = dur(total) + " /played over " + S.calendarDays + " days";
+  $("card-who").textContent = YOU.race + " " + YOU.className + (YOU.faction ? " · " + YOU.faction : "");
+  $("card-level").textContent = "Level " + S.level;
+  $("card-played").textContent = dur(total) + " /played" + (S.imported && !S.reached60 ? "" : " over " + S.calendarDays + " days");
   $("card-ranks").innerHTML = myPicks.slice(0, 3).map(function (x) {
     return "<li><b>Top " + x.top + "%</b><span>" + esc(cap(x.name)) + "</span><small>" + esc(x.detail) + " · " +
       esc(x.cohort) + "</small><i>" + esc(x.line) + "</i></li>";
   }).join("");
+  hide("card-ranks", !myPicks.length);
   stats("card-stats", [
     ["Kills", num(S.kills)],
     ["Deaths", num(S.deaths)],
     ["Quests", num(S.quests.completed)],
-    ["Gold earned", gold(earned)],
-    ["Zones", S.path.length],
+    [earned >= 10000 ? "Gold earned" : "Earned", earned >= 10000 ? gold(earned) : coins(earned)],
+    ["Zones", route.length],
     ["Dungeon bosses", num(S.bosses)],
     ["Miles traveled", miles(S.travel.groundYards + S.travel.airYards)],
     ["Jumps", num(S.jumps)]
   ]);
   var lines = [
-    ["Most killed", esc(S.topMobs[0][0]) + " ×" + num(S.topMobs[0][1])],
-    ["Favorite spot", esc(favorite.spot[0] + ", " + favorite.zone)],
-    ["Deadliest zone", esc(S.deathZones[0][0]) + " (" + S.deathZones[0][1] + " deaths)"],
-    ["Slowest level", "Level " + (slowest + 1) + " in " + dur(perLevel[slowest])],
-    ["Longest session", dur(S.longestSession)],
-    ["Worn the longest", item(S.wornPlayed) + " (" + dur(S.wornPlayed.played) + ")"],
-    ["Best loot", item(S.bestLoot)],
-    ["First mount", "Level " + S.firstMountLevel]
-  ];
+    S.topMobs.length && ["Most killed", esc(S.topMobs[0][0]) + " ×" + num(S.topMobs[0][1])],
+    favorite ? ["Favorite spot", esc(favorite.spot[0] + ", " + favorite.zone)] :
+      homeZone && homeZone.seconds > 0 && ["Most time in", esc(homeZone.name) + " (" + dur(homeZone.seconds) + ")"],
+    S.deathZones.length && ["Deadliest zone", esc(S.deathZones[0][0]) + " (" + S.deathZones[0][1] +
+      (S.deathZones[0][1] === 1 ? " death)" : " deaths)")],
+    slowest >= 0 && ["Slowest level", "Level " + (slowest + 1) + " in " + dur(perLevel[slowest])],
+    S.longestSession > 0 && ["Longest session", dur(S.longestSession)],
+    S.wornPlayed && ["Worn the longest", item(S.wornPlayed) + " (" + dur(S.wornPlayed.played) + ")"],
+    S.bestLoot && ["Best loot", item(S.bestLoot)],
+    S.firstMountLevel && ["First mount", "Level " + S.firstMountLevel]
+  ].filter(Boolean);
   $("card-lines").innerHTML = lines.map(function (l) { return "<dt>" + l[0] + "</dt><dd>" + l[1] + "</dd>"; }).join("");
+  hide("card-lines", !lines.length);
 
-  // Import (draft): jump to the sample journey.
+  // Pasting an export: checked here, saved by /api/upload (site/api/upload.js,
+  // the importer's own checks), then the page reloads to show it.
+  function say(html, kind) {
+    var line = $("import-status");
+    line.className = "import-status" + (kind ? " " + kind : "");
+    line.innerHTML = html;
+  }
+  function saveExport(text) {
+    var timeout = new Promise(function (resolve) {
+      setTimeout(function () { resolve({ status: "error", message: "Saving took too long." }); }, 15000);
+    });
+    var request = fetch("/api/upload", { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: text })
+      .then(function (response) {
+        return response.json().catch(function () {
+          return { status: "error", message: "Saving isn't available here (" + response.status + ")." };
+        });
+      }, function () { return { status: "error", message: "Couldn't reach Journey Tracker." }; });
+    return Promise.race([request, timeout]);
+  }
   $("import-form").addEventListener("submit", function (event) {
     event.preventDefault();
-    $("journey").scrollIntoView();
+    var text = $("export-text").value.trim(), button = $("import-button");
+    if (!text) { say("Paste the text from <code>/journey export</code> first.", "bad"); return; }
+    button.disabled = true;
+    say("Reading your export…");
+    decodeExport(text).then(function (data) {
+      var problems = checkExport(data);
+      if (problems.length) {
+        throw new Error("This export is missing its " + problems.join(", ") + ". Make a fresh one with /journey export.");
+      }
+      say("Saving…");
+      return saveExport(text).then(function (result) {
+        if (!remember("jt-export", text)) throw new Error("This browser won't keep the export for the page. Allow this site's data and try again.");
+        remember("jt-save", JSON.stringify(result));
+        window.scrollTo(0, 0);
+        location.reload();
+      });
+    }).catch(function (err) {
+      button.disabled = false;
+      say(esc(err.message), "bad");
+    });
   });
+  if (S.imported) {
+    var saved = pastedSave || {};
+    var note = saved.status === "saved" ? "Saved: it counts toward the rankings." :
+      saved.status === "duplicate" ? "This export was already saved." :
+      "Not saved: " + esc(saved.message || "something went wrong.") + " The recap below still works.";
+    say("<b>This is the journey you pasted.</b> " + note +
+      ' <button type="button" class="link-button" id="show-sample">Show the sample journey instead</button>',
+      saved.status === "saved" || saved.status === "duplicate" ? "good" : "bad");
+    $("show-sample").addEventListener("click", function () { forget(); window.scrollTo(0, 0); location.reload(); });
+  }
 })();
 </script>

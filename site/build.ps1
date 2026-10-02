@@ -12,8 +12,8 @@ param(
 #   dist\road-to-60.html
 # With -Site it's the website:
 #   dist\site\index.html, favicon.png and tiles\<zoom>\<x>\<y>.jpg
-# It fills recap.template.html with the logo, a sample export string, the map
-# art the sample uses, art\maps.json and the web map tiles. The maps come from
+# It fills recap.template.html with the logo, the map art the sample uses,
+# art\maps.json, the rankings catalog and the web map tiles. The maps come from
 # art\export\web (run art\build-maps.ps1 first); they're Blizzard's art, so the
 # build goes to the git-ignored dist\ folder, not the repo.
 #
@@ -35,13 +35,8 @@ $g.Dispose(); $logo.Dispose()
 $ms = New-Object System.IO.MemoryStream
 $small.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
 
-# The import box shows the round-trip test's export string (fake data).
-$export = (Get-Content (Join-Path $root "tools\import\fixtures\testexport.txt") -Encoding UTF8 |
-    Where-Object { $_ -like "JT*" } | Select-Object -First 1).Trim()
-
 $html = Get-Content (Join-Path $PSScriptRoot "recap.template.html") -Raw -Encoding UTF8
 $html = $html.Replace("__LOGO__", (DataUri "image/png" $ms.ToArray()))
-$html = $html.Replace("__SAMPLE_EXPORT__", [System.Net.WebUtility]::HtmlEncode($export))
 # Map art: __MAP_<id>__ parchment zone maps and __TERRAIN_<id>__ terrain zone
 # maps (from art\build-maps.ps1).
 $folders = @{ MAP = "zones"; TERRAIN = "terrain" }

@@ -391,11 +391,10 @@ var RANKINGS = (function () {
     R("shamanRez", "P-799", "deaths", "shaman-revived", "spirit returned by shamans {n} times", "+", 2, 1, "The ancestors sent you back."),
     R("paladinRez", "P-800", "deaths", "paladin-redeemed", "redeemed by paladins {n} times", "+", 2, 1, "The Light has plans for you."),
     R("soulstoneRez", "P-801", "deaths", "soulstone users", "brought back by soulstones {n} times", "+", 0.5, 1.2, "A warlock's insurance paid out."),
-    // Quests and character
-    R("questsPerDay", "P-95", "quests", "daily questers", "{d} quests a day", "+", 12, 0.5, "Your quest log is never empty."),
+    // Character (the pane's "average quests completed per day" and "average
+    // gold earned per day" aren't here: on Forever they hold the totals)
     R("respecs", "P-1149", "class", "talent rethinkers", "{n} talent respecs", "+", 2, 0.9, "Your talent tree has been replanted a few times.", CLASS),
     // Wealth
-    R("goldPerDay", "P-753", "gold", "daily earners", "{g} a day", "+", 300000, 0.6, "Steady income, steady outcome."),
     R("auctionsPosted", "P-329", "gold", "auction posters", "{n} auctions posted", "+", 80, 1, "The auction house is basically your shop."),
     R("auctionsBought", "P-330", "gold", "auction shoppers", "{n} auction purchases", "+", 40, 1, "Why farm when you can buy?"),
     R("biggestBid", "P-331", "gold", "high rollers", "{g} on a single bid", "+", 200000, 1, "Go big or go home."),
