@@ -435,7 +435,7 @@ kbd {
   position: relative;
   aspect-ratio: 1002 / 668;
   overflow: hidden;
-  background: var(--panel);
+  background: #4a4433;   /* the parchment sea, dimmed, for past a map's edge mid-move */
   border: 1px solid var(--rule);
   border-radius: 6px;
   container-type: inline-size;
@@ -444,20 +444,21 @@ kbd {
   user-select: none;
 }
 .atlas-frame:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; }
-.atlas-view { position: absolute; inset: 0; transform-origin: 0 0; }
+.atlas-view { position: absolute; inset: 0; transform-origin: 0 0; isolation: isolate; }
+/* Both maps of a move, moving as one. */
+.atlas-stage { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
 .atlas-view > img, .atlas-view > canvas, .atlas-view > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* The art is dimmed, as the old map's terrain was, so the heat's glow stands out. */
 .atlas-view > img.atlas-art { filter: brightness(0.66); }
-.atlas-heat { opacity: 0; pointer-events: none; }
-.atlas-view.heat-ready .atlas-heat { opacity: 1; }
+.atlas-heat { pointer-events: none; }
 /* The game adds a zone's highlight to the map's light (plus-lighter; screen
    where a browser doesn't have it). */
 .atlas-view > img.atlas-glow { inset: auto; mix-blend-mode: screen; mix-blend-mode: plus-lighter; pointer-events: none; }
 .atlas-route { overflow: visible; pointer-events: none; }
-/* While the map zooms between views, its pins and route wait (they'd grow
-   with it), then fade back in. */
+/* While the map zooms between views, its pins and route fade out (they'd
+   grow with it) and fade back in after. */
 .atlas-route, .atlas-pin { transition: opacity 0.15s; }
-.atlas-view.moving .atlas-route, .atlas-view.moving .atlas-pin { opacity: 0; transition: none; }
+.atlas-view.moving .atlas-route, .atlas-view.moving .atlas-pin { opacity: 0; }
 .atlas-route path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .atlas-route .halo { stroke: rgba(255, 238, 190, 0.5); stroke-width: 5; }
 .atlas-route .line { stroke: #2a1406; stroke-width: 2.2; stroke-dasharray: 0.5 6.5; }
@@ -1708,14 +1709,34 @@ kbd {
     var up = own(WORLDMAP.zones, id) ? WORLDMAP.zones[id].continent : m.parent === 1414 || m.parent === 1415 ? m.parent : 947;
     return { kind: "zone", id: id, map: m, name: m.name, up: up };
   }
+  // Each view's heat, painted once and kept: views are built again each time
+  // they open, and the glow takes a moment to paint.
+  var heatOf = {};
+  function heatFor(view) {
+    if (!heatOf[view.id]) {
+      heatOf[view.id] = document.createElement("canvas");
+      paintHeat(heatOf[view.id], view);
+    }
+    return heatOf[view.id];
+  }
+  // Art the map is about to show, fetched ahead.
+  var fetched = {};
+  function fetchArt(name) {
+    var src = artURL(name);
+    if (!src || fetched[name]) return;
+    fetched[name] = new Image();
+    fetched[name].src = src;
+  }
   function buildView(view) {
     var el = document.createElement("div"), art = new Image(), heat = document.createElement("canvas");
     el.className = "atlas-view atlas-" + view.kind;
     art.className = "atlas-art";
     art.alt = "";
-    art.decoding = "async";
     art.src = artURL(view.kind === "zone" ? "zones/" + view.id + ".jpg" : "worldmap/" + view.id + ".jpg");
     heat.className = "atlas-heat";
+    heat.width = AW;
+    heat.height = AH;
+    heat.getContext("2d").drawImage(heatFor(view), 0, 0);
     el.appendChild(art);
     el.appendChild(heat);
     el.insertAdjacentHTML("beforeend", routeLayer(view));
@@ -1733,57 +1754,137 @@ kbd {
       pin.addEventListener("click", function (event) { event.stopPropagation(); openZone(r.map.uiMapID); });
       el.appendChild(pin);
     });
-    glowsReady.then(function () {
-      paintHeat(heat, view);
-      el.classList.add("heat-ready");
-    });
-    return { view: view, el: el };
+    // Ready once its art is decoded, so nothing pops in mid-move.
+    var ready = art.decode ? art.decode().catch(function () {}) :
+      new Promise(function (resolve) { art.onload = art.onerror = resolve; });
+    return { view: view, el: el, ready: ready };
   }
 
-  // Moving between views: into a zone (or a continent from Azeroth) the map
-  // grows from that rectangle while the new map fades in; out again it
-  // shrinks back into it. Across, it fades.
-  var frame = $("atlas-frame"), nameTag = $("atlas-name"), current = null, hover = null;
+  // Moving between views. Into a zone (or a continent from Azeroth) the map
+  // grows into the zone's rectangle while the zone's own map fades in; out
+  // again, it shrinks back into its place. Between Kalimdor and the Eastern
+  // Kingdoms it slides across, the way they lie. Pins and route go with
+  // their map, or fade while it grows. The new map's art is decoded before
+  // anything moves, and a click while one move is on its way hurries it
+  // along and goes next.
+  var frame = $("atlas-frame"), nameTag = $("atlas-name"), current = null, shown = null, hover = null;
+  var moving = false, queued = null, running = [];
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var EASE = "cubic-bezier(.4,0,.2,1)", PAN_EASE = "cubic-bezier(.65,0,.35,1)";
   function into(rect) {
     return "scale(" + 1 / (rect[2] - rect[0]) + "," + 1 / (rect[3] - rect[1]) + ") translate(" +
       (-rect[0] * 100) + "%," + (-rect[1] * 100) + "%)";
   }
+  function shrinkTo(rect) {
+    return "translate(" + rect[0] * 100 + "%," + rect[1] * 100 + "%) scale(" + (rect[2] - rect[0]) + "," + (rect[3] - rect[1]) + ")";
+  }
+  function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
+  // The part of the outer map in the frame partway (p, 0 to 1) into a zoom
+  // into rect: it shrinks by the same factor each step and closes in on the
+  // one point that stays put, so the zoom feels even rather than slow, then
+  // rushing. As stage transforms, from p = 0 to 1 (or back, zooming out).
+  function zoomFrames(rect, back) {
+    var w1 = rect[2] - rect[0], h1 = rect[3] - rect[1], frames = [];
+    for (var i = 0; i <= 12; i++) {
+      var p = back ? 1 - i / 12 : i / 12, w = Math.pow(w1, p), h = Math.pow(h1, p);
+      var fx = Math.abs(1 - w1) < 1e-6 ? p : (1 - w) / (1 - w1), fy = Math.abs(1 - h1) < 1e-6 ? p : (1 - h) / (1 - h1);
+      frames.push({ transform: into([rect[0] * fx, rect[1] * fy, rect[0] * fx + w, rect[1] * fy + h]) });
+    }
+    return frames;
+  }
+  function moveOf(from, to) {
+    var inside = rectOnView(from, to.map), around = rectOnView(to, from.map);
+    if (inside && inside[2] - inside[0] < 1 && to.kind !== "world") return { kind: "in", rect: inside };
+    if (around && around[2] - around[0] < 1 && from.kind !== "world") return { kind: "out", rect: around };
+    if (from.kind === "continent" && to.kind === "continent") {
+      var a = PARTS[from.map.mapID], b = PARTS[to.map.mapID];
+      return { kind: "pan", dir: a && b && b.uiMin.x < a.uiMin.x ? -1 : 1 };
+    }
+    return { kind: "fade" };
+  }
+  function animateMove(prev, next) {
+    var m = moveOf(prev.view, next.view), anims = [], stage = null;
+    function run(el, keyframes, options) { anims.push(el.animate(keyframes, options)); }
+    if (m.kind === "fade") {
+      run(next.el, [{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: "ease-out", fill: "forwards" });
+    } else {
+      // Both maps on one stage, placed as they lie on each other, so they
+      // move as one picture: the stage zooms or slides, and the map on top
+      // fades. (The stage starts where the old map already is on screen.)
+      stage = document.createElement("div");
+      stage.className = "atlas-stage";
+      if (m.kind === "in") {
+        next.el.style.transform = shrinkTo(m.rect);
+        stage.appendChild(prev.el);
+        stage.appendChild(next.el);
+        prev.el.classList.add("moving");
+        next.el.classList.add("moving");
+        run(stage, zoomFrames(m.rect), { duration: 640, easing: EASE, fill: "forwards" });
+        run(next.el, [{ opacity: 0 }, { opacity: 0, offset: 0.38 }, { opacity: 1, offset: 0.82 }, { opacity: 1 }],
+          { duration: 640, fill: "forwards" });
+      } else if (m.kind === "out") {
+        stage.style.transform = into(m.rect);
+        prev.el.style.transform = shrinkTo(m.rect);
+        stage.appendChild(next.el);
+        stage.appendChild(prev.el);
+        prev.el.classList.add("moving");
+        next.el.classList.add("moving");
+        run(stage, zoomFrames(m.rect, true), { duration: 640, easing: EASE, fill: "forwards" });
+        run(prev.el, [{ opacity: 1 }, { opacity: 1, offset: 0.06 }, { opacity: 0, offset: 0.46 }, { opacity: 0 }],
+          { duration: 640, fill: "forwards" });
+      } else {
+        next.el.style.transform = "translateX(" + m.dir * 100 + "%)";
+        stage.appendChild(prev.el);
+        stage.appendChild(next.el);
+        run(stage, [{ transform: "none" }, { transform: "translateX(" + -m.dir * 100 + "%)" }],
+          { duration: 640, easing: PAN_EASE, fill: "forwards" });
+      }
+      frame.insertBefore(stage, nameTag);
+    }
+    running = anims;
+    return Promise.all(anims.map(function (x) { return x.finished.catch(function () {}); })).then(function () {
+      // The new map stays just where it is, on its own; the stage goes, with the old map.
+      next.el.style.transform = "";
+      next.el.getAnimations().forEach(function (x) { x.cancel(); });
+      frame.insertBefore(next.el, nameTag);
+      if (stage) stage.remove();
+    });
+  }
   function show(view) {
-    var prev = current, next = buildView(view);
+    if (moving) {
+      queued = view;
+      running.forEach(function (a) { a.finish(); });
+      return;
+    }
+    moving = true;
+    var prev = shown, next = buildView(view);
     current = next;
     setHover(null);
-    var zoomIn = prev && rectOnView(prev.view, view.map), zoomOut = prev && !zoomIn && rectOnView(view, prev.view.map);
-    var animate = prev && !reduceMotion && typeof next.el.animate === "function";
-    if (prev && animate && zoomOut && (prev.view.kind !== "world")) {
-      frame.insertBefore(next.el, prev.el);
-      prev.el.classList.add("moving");
-      next.el.classList.add("moving");
-      next.el.animate([{ transform: into(zoomOut) }, { transform: "none" }], { duration: 520, easing: "cubic-bezier(.4,0,.2,1)" })
-        .onfinish = function () { next.el.classList.remove("moving"); };
-      prev.el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translate(" + zoomOut[0] * 100 + "%," +
-        zoomOut[1] * 100 + "%) scale(" + (zoomOut[2] - zoomOut[0]) + "," + (zoomOut[3] - zoomOut[1]) + ")" }],
-        { duration: 520, easing: "cubic-bezier(.4,0,.2,1)" }).onfinish = function () { prev.el.remove(); };
-    } else if (prev && animate && zoomIn && view.kind !== "world") {
-      frame.insertBefore(next.el, nameTag);
-      prev.el.classList.add("moving");
-      prev.el.animate([{ transform: "none" }, { transform: into(zoomIn) }], { duration: 520, easing: "cubic-bezier(.4,0,.2,1)" })
-        .onfinish = function () { prev.el.remove(); };
-      next.el.animate([{ opacity: 0 }, { opacity: 0, offset: 0.3 }, { opacity: 1 }], { duration: 520, easing: "ease-out" });
-    } else if (prev && animate) {
-      frame.insertBefore(next.el, nameTag);
-      next.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: "ease-out" })
-        .onfinish = function () { prev.el.remove(); };
-    } else {
-      frame.insertBefore(next.el, nameTag);
-      if (prev) prev.el.remove();
-    }
     var level = view.kind === "zone" ? view.up : view.id;
     [].forEach.call($("atlas-bar").querySelectorAll("button"), function (b) {
       b.setAttribute("aria-pressed", String(Number(b.getAttribute("data-map")) === level));
     });
     nameTag.innerHTML = view.kind === "zone" ? nameFor(view.id) : "";
     if (view.kind === "zone") focusZone(view.id); else showRoute();
+    function done() {
+      if (prev) prev.el.remove();
+      next.el.classList.remove("moving");
+      shown = next;
+      running = [];
+      moving = false;
+      if (queued) { var q = queued; queued = null; show(q); }
+    }
+    if (!prev || reduceMotion || typeof next.el.animate !== "function") {
+      frame.insertBefore(next.el, nameTag);
+      done();
+      return;
+    }
+    next.el.style.visibility = "hidden";
+    frame.insertBefore(next.el, nameTag);
+    Promise.race([next.ready, wait(800)]).then(function () {
+      next.el.style.visibility = "";
+      return queued ? null : animateMove(prev, next);
+    }).then(done);
   }
   function nameFor(id) {
     var r = stopOf(id), m = MAP_BY_ID[id];
@@ -1794,7 +1895,20 @@ kbd {
   function openMap(id) { if (!current || current.view.id !== id) show(viewOf(id)); }
 
   // Pointing: on a continent, the zone under the pointer lights up with the
-  // game's own highlight; on Azeroth, a continent shows its name.
+  // game's own highlight (and its map starts loading); on Azeroth, the
+  // continent's coastline lights up, as the game outlines it.
+  function glowOver(rect, src) {
+    var img = new Image();
+    img.className = "atlas-glow";
+    img.alt = "";
+    img.src = src;
+    img.style.left = (rect[0] * 100) + "%";
+    img.style.top = (rect[1] * 100) + "%";
+    img.style.width = ((rect[2] - rect[0]) * 100) + "%";
+    img.style.height = ((rect[3] - rect[1]) * 100) + "%";
+    current.el.insertBefore(img, current.el.querySelector(".atlas-route"));
+    return img;
+  }
   function setHover(target) {
     if (hover && hover.glow) hover.glow.remove();
     hover = null;
@@ -1804,18 +1918,14 @@ kbd {
     hover = { id: target };
     frame.style.cursor = "pointer";
     if (current.view.kind === "continent") {
-      var g = GLOWS[target], img = new Image();
-      img.className = "atlas-glow";
-      img.alt = "";
-      img.src = g.src;
-      img.style.left = (g.rect[0] * 100) + "%";
-      img.style.top = (g.rect[1] * 100) + "%";
-      img.style.width = ((g.rect[2] - g.rect[0]) * 100) + "%";
-      img.style.height = ((g.rect[3] - g.rect[1]) * 100) + "%";
-      current.el.insertBefore(img, current.el.querySelector(".atlas-route"));
-      hover.glow = img;
+      hover.glow = glowOver(GLOWS[target].rect, GLOWS[target].src);
       nameTag.innerHTML = nameFor(target);
+      // Its map and its heat, ready before the click.
+      fetchArt("zones/" + target + ".jpg");
+      (window.requestIdleCallback || setTimeout)(function () { heatFor(viewOf(target)); });
     } else {
+      var rect = rectOnView(current.view, MAP_BY_ID[target]), src = artURL("worldmap/highlights/" + target + ".jpg");
+      if (rect && src && WORLDMAP.outlines.indexOf(target) >= 0) hover.glow = glowOver(rect, src);
       nameTag.innerHTML = "<b>" + esc(MAP_BY_ID[target].name) + "</b><span>" +
         count(route.filter(function (r) { return r.map.mapID === MAP_BY_ID[target].mapID; }).length, "zone") + " of your route</span>";
     }
@@ -1833,7 +1943,7 @@ kbd {
     return hit;
   }
   frame.addEventListener("pointermove", function (event) {
-    if (event.pointerType === "touch") return;
+    if (event.pointerType === "touch" || moving) return;
     var target = targetAt(event);
     if ((hover && hover.id) !== target) setHover(target);
   });
@@ -1909,6 +2019,12 @@ kbd {
   var timeOn = {};
   route.forEach(function (r) { timeOn[r.map.mapID] = (timeOn[r.map.mapID] || 0) + r.seconds; });
   openMap((timeOn[0] || 0) > (timeOn[1] || 0) ? 1415 : 1414);
+  // Then, when the page is idle, the other maps, their heat and the
+  // continents' outlines, so the first moves and hovers don't wait.
+  (window.requestIdleCallback || function (f) { setTimeout(f, 500); })(function () {
+    [947, 1414, 1415].forEach(function (id) { fetchArt("worldmap/" + id + ".jpg"); heatFor(viewOf(id)); });
+    WORLDMAP.outlines.forEach(function (id) { fetchArt("worldmap/highlights/" + id + ".jpg"); });
+  });
 
   // The level chart needs redrawing when the window changes size.
   var resizeTimer;

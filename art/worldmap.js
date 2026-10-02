@@ -6,7 +6,9 @@
 //                                                  (1414) and the Eastern
 //                                                  Kingdoms (1415), 1002x668
 //   art\export\worldmap\highlights\<UiMapID>.png   each zone's glow when you
-//                                                  point at it on its continent
+//                                                  point at it on its continent,
+//                                                  and each continent's outline
+//                                                  on the world map
 //   art\worldmap.json                              where each zone's glow is
 //                                                  brightest (its middle)
 //
@@ -139,8 +141,39 @@ for (const continentID of CONTINENTS) {
       center: [round(l + (sx / sw / cw) * (r - l)), round(t + (sy / sw / ch) * (b - t))] };
   }
 }
+// The continents' highlights on the world map: their coastlines, as the game
+// outlines one you point at. They're placed the same way (over the
+// continent map's rectangle on the world map, through the world map's part
+// for that continent) but are faint lines, so they're brightened to full and
+// made the game's outline gold.
+const worldParts = byId.get(WORLD).parts;
+result.outlines = [];
+for (const continentID of CONTINENTS) {
+  const continent = byId.get(continentID), part = worldParts.find((p) => p.mapID === continent.mapID);
+  const art = artOf(continentID);
+  if (!part || !art || !art.HighlightFileDataID) continue;
+  const pw = part.world, c = continent.world;
+  const u = (Y) => part.uiMin.x + (pw.maxY - Y) / (pw.maxY - pw.minY) * (part.uiMax.x - part.uiMin.x);
+  const v = (X) => part.uiMin.y + (pw.maxX - X) / (pw.maxX - pw.minX) * (part.uiMax.y - part.uiMin.y);
+  const w = (u(c.minY) - u(c.maxY)) * 1002, h = (v(c.minX) - v(c.maxX)) * 668, longer = Math.max(w, h);
+  const tex = decodeBLP(game.read(art.HighlightFileDataID));
+  const cw = Math.round(tex.width * w / longer), ch = Math.round(tex.height * h / longer);
+  const crop = { width: cw, height: ch, data: Buffer.alloc(cw * ch * 4) };
+  let peak = 1;
+  for (let i = 0; i < tex.width * tex.height; i++) peak = Math.max(peak, tex.data[i * 4], tex.data[i * 4 + 1], tex.data[i * 4 + 2]);
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      const s = (y * tex.width + x) * 4, o = (y * cw + x) * 4;
+      const t = Math.pow(Math.max(tex.data[s], tex.data[s + 1], tex.data[s + 2]) / peak, 0.8);
+      crop.data[o] = Math.round(255 * t); crop.data[o + 1] = Math.round(214 * t); crop.data[o + 2] = Math.round(92 * t); crop.data[o + 3] = 255;
+    }
+  }
+  fs.writeFileSync(path.join(out, 'highlights', continentID + '.png'), encodePNG(crop));
+  result.outlines.push(continentID);
+}
+
 const zoneLines = Object.entries(result.zones).map(([id, z]) => `    "${id}": ${JSON.stringify(z).replace(/,/g, ', ').replace(/:/g, ': ')}`);
 fs.writeFileSync(path.join(__dirname, 'worldmap.json'), `{\n  "build": ${JSON.stringify(result.build)},\n  "art": [${result.art.join(', ')}],\n` +
-  `  "zones": {\n${zoneLines.join(',\n')}\n  }\n}\n`);
-console.log(`Wrote ${result.art.length} maps and ${Object.keys(result.zones).length} zone highlights to ${out}, and art\\worldmap.json ` +
-  `(${((Date.now() - started) / 1000).toFixed(1)}s)`);
+  `  "outlines": [${result.outlines.join(', ')}],\n  "zones": {\n${zoneLines.join(',\n')}\n  }\n}\n`);
+console.log(`Wrote ${result.art.length} maps, ${result.outlines.length} continent outlines and ${Object.keys(result.zones).length} zone ` +
+  `highlights to ${out}, and art\\worldmap.json (${((Date.now() - started) / 1000).toFixed(1)}s)`);

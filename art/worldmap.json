@@ -1,6 +1,7 @@
 {
   "build": "wow_classic_beta 1.60.1.70170",
   "art": [947, 1414, 1415],
+  "outlines": [1414, 1415],
   "zones": {
     "1411": {"continent": 1414, "center": [0.5854, 0.5098]},
     "1412": {"continent": 1414, "center": [0.4769, 0.5959]},

@@ -67,6 +67,8 @@ foreach ($id in $worldmap.art) { $art["worldmap/$id.jpg"] = @{ png = (Join-Path 
 foreach ($zone in $worldmap.zones.PSObject.Properties) {
     $art["worldmap/highlights/$($zone.Name).jpg"] = @{ png = (Join-Path $worldmapDir "highlights\$($zone.Name).png"); quality = 92 }
 }
+# And each continent's outline on the world map.
+foreach ($id in $worldmap.outlines) { $art["worldmap/highlights/$id.jpg"] = @{ png = (Join-Path $worldmapDir "highlights\$id.png"); quality = 92 } }
 foreach ($m in $maps) { if ($m.image) { $art[$m.image] = @{ jpg = (Join-Path $root "art\export\web\$($m.image)") } } }
 
 if ($Site) {
