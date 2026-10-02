@@ -22,7 +22,13 @@ doesn't start with `JT` (chat text, "here's mine!") are ignored.
 node import.js exports.txt             # decode, validate, insert
 node import.js exports.txt --dry-run   # decode and validate only
 node import.js exports.txt --print     # also print each decoded export
+node import.js exports.txt --stats     # also print each export's Statistics pane data
 ```
+
+`--stats` shows the level the Statistics pane baseline was read at and how
+many statistics the baseline and latest snapshot hold (exports from before
+the addon read the pane say "no statistics"). Statistics are stored in
+`payload` like the rest of the export; no table changes.
 
 Each line is reported as `inserted`, `duplicate` (same character and export
 time already in the table, or pasted twice in the file) or `rejected` with

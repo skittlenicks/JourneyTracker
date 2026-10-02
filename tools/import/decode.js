@@ -108,4 +108,18 @@ function parseExport(text) {
   return { ok: true, data: decoded.data, row: toRow(decoded.data) };
 }
 
-module.exports = { PREFIX, decode, validate, toRow, parseExport };
+// One line about an export's Statistics pane data (W-505): the baseline's
+// level and how many statistics the baseline and the latest snapshot hold.
+function describeStatistics(data) {
+  const s = data && data.statistics;
+  if (!s || !s.latest) return 'no statistics';
+  const count = (snapshot) => Object.keys((snapshot && snapshot.values) || {}).length;
+  const parts = [];
+  if (s.baseline) parts.push(`baseline at level ${s.baseline.level ?? '?'} (${count(s.baseline)} statistics)`);
+  parts.push(`latest at level ${s.latest.level ?? '?'} (${count(s.latest)} statistics)`);
+  const levels = Object.keys(s.levels || {}).length;
+  if (levels) parts.push(`changes at ${levels} level-up${levels === 1 ? '' : 's'}`);
+  return parts.join(', ');
+}
+
+module.exports = { PREFIX, decode, validate, toRow, parseExport, describeStatistics };

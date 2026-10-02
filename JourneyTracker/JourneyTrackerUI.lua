@@ -399,6 +399,12 @@ local function Played(db)
     return ns.PlayedNow() or db.played.total
 end
 
+-- W-506 the game's own lifetime number (Statistics pane) under ours, when
+-- it has one: the first of the statistic names given that it knows.
+local function Lifetime(B, label, ...)
+    if ns.LifetimeRow then ns.LifetimeRow(B, label, ...) end
+end
+
 local function PageSummary(B, db)
     local c = db.char
     B:Title(c.name or "Your Journey")
@@ -412,8 +418,11 @@ local function PageSummary(B, db)
     B:Row("Play sessions", #AllSessions(db))
     B:Row("Experience earned", Num(db.xp.total))
     B:Row("Monsters slain", db.kills.total)
+    Lifetime(B, "Monsters slain, all time", "Total kills that grant experience or honor", "Total kills")
     B:Row("Deaths", #db.deaths)
+    Lifetime(B, "Deaths, all time", "Total deaths")
     B:Row("Quests completed", db.quests.completed)
+    Lifetime(B, "Quests completed, all time", "Quests completed")
     B:Row("Zones visited", Count(db.zones))
     B:Row("Distance on foot", Yards(db.travel.ground))
     B:Row("Distance fallen", Yards(db.falls.total))
@@ -421,6 +430,9 @@ local function PageSummary(B, db)
     B:Row("Items looted", db.loot.items)
     local G = db.gathering
     B:Row("Nodes gathered", G.herb.nodes + G.mining.nodes + G.skinning.nodes)
+    if ns.Lifetime and ns.Lifetime("Quests completed", "Total deaths") ~= nil then
+        B:Footnote("\"All time\" numbers come from the game's own Statistics pane, so they include everything from before you installed Journey Tracker. The rest count from when you installed it.")
+    end
 end
 
 local function PagePlayed(B, db)
@@ -572,6 +584,7 @@ local function PageKills(B, db)
     local K = db.kills
     B:Title("Kills")
     B:Row("XP-granting kills", K.total)                                      -- #26
+    Lifetime(B, "XP-granting kills, all time", "Total kills that grant experience or honor", "Total kills")
     local top = Sorted(K.byName)[1]
     B:Row("Most killed", top and (top[1] .. " x" .. top[2]) or "-")          -- #29
     local m = K.maxLevelDiff
@@ -617,6 +630,7 @@ local function PageDeaths(B, db)
         best = math.max(best, streak)
     end
     B:Row("Total deaths", #db.deaths)                                        -- #44
+    Lifetime(B, "Total deaths, all time", "Total deaths")
     B:Row("Deadliest zone", worst and (worst[1] .. " (" .. worst[2] .. ")") or "-") -- #51
     B:Row("Solo / grouped / in dungeons", solo .. " / " .. grouped .. " / " .. dungeon) -- #48
     B:Row("Fights that ended in death", db.combat.died)                      -- #38
@@ -664,8 +678,10 @@ local function PageQuests(B, db)
     local Q = db.quests
     B:Title("Quests")
     B:Row("Completed", Q.completed)                                          -- #53
+    Lifetime(B, "Completed, all time", "Quests completed")
     B:Row("Accepted", Q.accepted)                                            -- #58
     B:Row("Abandoned", Q.abandoned)                                          -- #59
+    Lifetime(B, "Abandoned, all time", "Quests abandoned")
     B:Row("XP from quests", Num(Q.xp))                                       -- #56
     B:Row("Gold from quests", Money(Q.money))                                -- #57
     B:Row("In your log (tracked)", Count(Q.open))
@@ -723,7 +739,9 @@ local function PageTravel(B, db)
     B:Row("Time on flight paths", Dur(db.time.taxi))                         -- #13
     B:Row("Time mounted", Dur(db.time.mounted))                              -- #14
     B:Row("Hearthstone uses", T.hearths)                                     -- #68
+    Lifetime(B, "Hearthstone uses, all time", "Number of times hearthed")
     B:Row("Flights taken", T.flights)                                        -- #70
+    Lifetime(B, "Flights taken, all time", "Flight paths taken")
     B:Heading("Flight Paths Discovered")                                     -- #69
     if #T.flightPaths == 0 then B:Note("None yet.") end
     for _, fp in ipairs(T.flightPaths) do
@@ -1223,6 +1241,10 @@ local function CreateWindow()
         end
     end
     for i, section in ipairs(extra) do table.insert(SECTIONS, 1 + i, section) end
+    -- The game's Statistics pane goes last.
+    if ns.StatsSections then
+        for _, section in ipairs(ns.StatsSections()) do table.insert(SECTIONS, section) end
+    end
 
     local f, template = TryCreate("Frame", "JourneyTrackerFrame", UIParent,
         { "ButtonFrameTemplate", "PortraitFrameTemplate", "BackdropTemplate" })

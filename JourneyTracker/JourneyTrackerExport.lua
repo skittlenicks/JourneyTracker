@@ -22,7 +22,7 @@ local function BuildSummary(db)
 
     local stats = Copy(db)
     -- These get their own places in the summary.
-    for _, key in ipairs({ "characterId", "schemaVersion", "dings", "levels", "class", "wrapped" }) do
+    for _, key in ipairs({ "characterId", "schemaVersion", "dings", "levels", "class", "wrapped", "statistics" }) do
         stats[key] = nil
     end
     -- Never exported: the character's name and realm (exports are anonymous),
@@ -56,6 +56,16 @@ local function BuildSummary(db)
     local wrapped = Copy(db.wrapped or {})
     wrapped.flags, wrapped.wasNeutral, wrapped.autoFlagged = nil, nil, nil
 
+    -- W-505 the Statistics pane: the names lookup, the baseline, the latest
+    -- snapshot and what changed at each level (JourneyTrackerStats.lua).
+    -- Left out until something has been read.
+    local S = db.statistics
+    local statistics = S and S.latest and {
+        names = Copy(S.names), categories = Copy(S.categories), order = Copy(S.order),
+        baseline = S.baseline and Copy(S.baseline), latest = Copy(S.latest),
+        levels = Copy(S.levels), skipped = Copy(S.skipped),
+    } or nil
+
     local _, classToken = ns.Call("UnitClass", "player")
     local _, raceToken = ns.Call("UnitRace", "player")
     local played = ns.PlayedNow() or (db.played and db.played.total) or 0
@@ -77,6 +87,7 @@ local function BuildSummary(db)
         stats = stats,
         class = class,
         wrapped = wrapped,
+        statistics = statistics,
     }
 end
 
@@ -183,6 +194,7 @@ function ns.Export()
     end
     local db = ns.GetDB()
     if not db then return end
+    if ns.StatsSnapshot then ns.StatsSnapshot("export") end   -- W-504
     local summary = BuildSummary(db)
     local text, problem = Serialize.Encode(summary)
     if not text then

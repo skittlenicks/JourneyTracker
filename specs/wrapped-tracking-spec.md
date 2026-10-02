@@ -615,13 +615,13 @@ _From login/logout timestamps and per-session counters._
 _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, gold, consumables, factions, items, professions, dungeons/raids, emotes), read with the retail statistics API: GetStatisticsCategoryList, GetCategoryInfo, GetCategoryNumAchievements, GetAchievementInfo, GetStatistic. Never read in combat; secret values are skipped; values are stored raw and parsed on the website._
 
 501. `BUILT` `W-501` Statistics API availability on Forever (probe result) (`/journey statprobe`, dev only; full results in JourneyTrackerDB.dev.statProbe)
-502. `TODO` `W-502` Full statistics baseline at first load, with level and /played
-503. `TODO` `W-503` Statistics snapshot at every ding (diff only)
-504. `TODO` `W-504` Statistics snapshot at every export
-505. `TODO` `W-505` Statistics included in the export string
-506. `TODO` `W-506` Lifetime totals backfill for players who installed mid-leveling
-507. `TODO` `W-507` Cross-check: our kill, death, and quest counts vs Blizzard's for the same period
-508. `TODO` `W-508` Combat stats our tracking can't see: total damage dealt and received, largest hit, largest heal, total healing
+502. `BUILT` `W-502` Full statistics baseline at first load, with level and /played (db.statistics.baseline, read 10s after the first login with this version; never replaced; also records our own counts and trackedSince)
+503. `BUILT` `W-503` Statistics snapshot at every ding (diff only) (db.statistics.levels[level].changed, against the previous ding or the baseline; queued until combat ends)
+504. `BUILT` `W-504` Statistics snapshot at every export
+505. `BUILT` `W-505` Statistics included in the export string (`statistics` section: names lookup, categories, baseline, latest, per-level diffs, skipped)
+506. `BUILT` `W-506` Lifetime totals backfill for players who installed mid-leveling (baseline and latest in the export; "all time" rows in the window and a Statistics Pane page)
+507. `BUILT` `W-507` Cross-check: our kill, death, and quest counts vs Blizzard's for the same period (our counts are kept with each snapshot; `/journey stats` prints the comparison since the baseline)
+508. `TODO` `W-508` Combat stats our tracking can't see: total damage dealt and received, largest hit, largest heal, total healing (read with everything else if Forever's pane has them; the probe dump will say)
 
 ## Changelog
 - 2026-10-01: Wrapped spec created, all items `TODO`. Revised for Forever content: new dungeons, raids, battlegrounds, and Forever exclusives.
@@ -630,3 +630,5 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-01: VERIFIED in game: W-003, W-009, W-011, W-020.
 - 2026-10-01: W-396 `SKIP`: built as journey #104 (gear worn the longest, by /played and by levels gained).
 - 2026-10-01: Added the "Blizzard Statistics pane" section (W-501..W-508) and an architecture note on using Blizzard's statistics for lifetime totals. W-501 `BUILT`: `/journey statprobe` (dev only) in JourneyTrackerStats.lua. W-502..W-508 wait for the probe result.
+- 2026-10-01: Probe run in game on Forever (client 1.60.1): all 5 statistics functions exist, 26 categories, 195 statistics read in 11 ms, none secret.
+- 2026-10-01: W-502..W-507 `BUILT` in JourneyTrackerStats.lua (statistics snapshots): every statistic keyed by ID with raw values, names and categories stored once in db.statistics; a baseline 10s after login, a diff at every ding (queued until combat ends), a full snapshot at every export and every 5 minutes as `latest`. Reads are spread over frames (4 ms each), stop if combat starts, and skip secret values (listed in db.statistics.skipped). `/journey stats` prints the count, baseline level, last snapshot and the cross-check. The export carries a `statistics` section (format unchanged; no migration needed, the new table is filled from defaults). tools/import: `--stats` prints the baseline level and statistic counts per export. W-508 stays `TODO` until the probe dump shows whether Forever's pane has the combat statistics.

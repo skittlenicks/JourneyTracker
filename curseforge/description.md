@@ -74,7 +74,7 @@ Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap.
 ## Good to know
 
 - Stats are saved per character and kept when you update the addon.
-- Tracking starts when you install it. On a character that's already leveling, everything from that point on is recorded.
+- Tracking starts when you install it. On a character that's already leveling, everything from that point on is recorded, and the game's own Statistics pane fills in lifetime totals like quests completed, deaths and kills.
 - **/journey backup** saves a second copy of your data, just in case.
 - This is an early version, made during the WoW Forever beta. Some stats are still being checked in game, so bug reports and ideas are very welcome in the comments.
 
@@ -83,4 +83,5 @@ Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap.
 - **/journey** or **/jt**: open the window
 - **/journey export**: copy your stats as text
 - **/journey backup**: save a backup copy of your data
+- **/journey stats**: show what's been read from the game's Statistics pane
 - **/journey version**: show which version you have

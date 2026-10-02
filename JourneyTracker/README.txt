@@ -72,4 +72,5 @@ COMMANDS
 /journey           Open your stats (same as clicking the minimap button)
 /journey export    Make a text export to send me
 /journey backup    Save a backup copy of your data
+/journey stats     Show what's been read from the game's Statistics pane
 /journey version   Show which version you have

@@ -2,22 +2,25 @@
 'use strict';
 // Import Journey Tracker exports into Supabase.
 //
-//   node import.js <file> [--dry-run] [--print]
+//   node import.js <file> [--dry-run] [--print] [--stats]
 //
 // <file> holds one or more export strings, one per line. Blank lines and
 // lines that don't start with "JT" are ignored. Each valid export becomes a
 // new row in "uploads" (a full snapshot); one already imported (same
-// character and export time) is skipped as a duplicate.
+// character and export time) is skipped as a duplicate. Statistics pane
+// data rides along in payload like everything else.
 //
 //   --dry-run  decode and validate only, nothing is inserted (no .env needed)
 //   --print    pretty-print each decoded export
+//   --stats    print each export's Statistics pane data: baseline level and
+//              how many statistics it holds
 
 const fs = require('fs');
 const path = require('path');
-const { parseExport } = require('./decode');
+const { parseExport, describeStatistics } = require('./decode');
 
 function usage() {
-  console.log('Usage: node import.js <file> [--dry-run] [--print]');
+  console.log('Usage: node import.js <file> [--dry-run] [--print] [--stats]');
 }
 
 // "DRUID level 20", from whatever could be decoded.
@@ -59,6 +62,7 @@ async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes('--dry-run');
   const print = args.includes('--print');
+  const stats = args.includes('--stats');
   const file = args.find((a) => !a.startsWith('--'));
   if (!file) {
     usage();
@@ -90,6 +94,7 @@ async function main() {
     const { row } = result;
     const who = describe(result.data);
     if (print) console.log(JSON.stringify(result.data, null, 2));
+    if (stats) console.log(`${label} statistics: ${describeStatistics(result.data)}`);
 
     const key = `${row.character_id}|${row.exported_at}`;
     if (seen.has(key)) {
