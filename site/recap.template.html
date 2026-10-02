@@ -340,9 +340,6 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   font-size: var(--step--1);
 }
 .world-map .terrain-layer { filter: brightness(0.66); }
-/* Leaflet blends neighboring image tiles so no hairline shows between them;
-   the drawn tiles (heat, and terrain enlarged from a coarser tile) need it too. */
-.world-map canvas.leaflet-tile { mix-blend-mode: plus-lighter; }
 .world-map .leaflet-bar { border: 1px solid var(--rule); box-shadow: none; }
 .world-map .leaflet-bar a {
   width: 32px;
@@ -1257,17 +1254,19 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     return lut;
   })();
 
-  // Blobs never shrink below HEAT_MIN_PX on screen, so zoomed out they
-  // overlap more; each zoom is scaled to its own brightest point.
-  var HEAT_MIN_PX = 1.5, heatPeak = {};
+  // Each blob is a soft circle that fades to nothing at three spreads, so no
+  // edge ever shows. Blobs never shrink below HEAT_MIN_PX on screen, so
+  // zoomed out they overlap more; each zoom is scaled to its own brightest point.
+  var HEAT_MIN_PX = 1.5, HEAT_CUT = Math.exp(-4.5), heatPeak = {};
+  function Blob(d2, s) { return Math.max(0, Math.exp(-d2 / (2 * s * s)) - HEAT_CUT); }
   function peakAt(z) {
     if (!heatPeak[z]) {
       var least = HEAT_MIN_PX / Math.pow(2, z), peak = 0;
       HEAT.forEach(function (p) {
         var f = 0;
         HEAT.forEach(function (q) {
-          var s = Math.max(least, q.s), dx = p.x - q.x, dy = p.y - q.y;
-          f += q.m * Math.exp(-(dx * dx + dy * dy) / (2 * s * s));
+          var dx = p.x - q.x, dy = p.y - q.y;
+          f += q.m * Blob(dx * dx + dy * dy, Math.max(least, q.s));
         });
         if (f > peak) peak = f;
       });
@@ -1276,81 +1275,168 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     return heatPeak[z];
   }
 
-  // The heat, drawn tile by tile at the zoom you're at, so it stays sharp up
-  // close. Each blob only touches the pixels within three spreads of it.
-  var HeatLayer = L.GridLayer.extend({
-    createTile: function (c) {
-      var size = 256, canvas = document.createElement("canvas");
-      canvas.width = canvas.height = size;
-      var scale = Math.pow(2, c.z), left = c.x * size / scale, top = c.y * size / scale, field = null;
-      HEAT.forEach(function (p) {
-        var s = Math.max(HEAT_MIN_PX, p.s * scale), reach = 3 * s;
-        var cx = (p.x - left) * scale, cy = (p.y - top) * scale;
-        if (cx < -reach || cy < -reach || cx > size + reach || cy > size + reach) return;
-        field = field || new Float32Array(size * size);
-        var i0 = Math.max(0, Math.floor(cx - reach)), i1 = Math.min(size - 1, Math.ceil(cx + reach));
-        var j0 = Math.max(0, Math.floor(cy - reach)), j1 = Math.min(size - 1, Math.ceil(cy + reach));
-        var across = [], i, j, d;
-        for (i = i0; i <= i1; i++) { d = i + 0.5 - cx; across.push(Math.exp(-d * d / (2 * s * s))); }
-        for (j = j0; j <= j1; j++) {
-          d = j + 0.5 - cy;
-          var down = p.m * Math.exp(-d * d / (2 * s * s)), row = j * size;
-          for (i = i0; i <= i1; i++) field[row + i] += down * across[i - i0];
+  // The heat for one picture of the view (see ViewCanvas below).
+  function paintHeat(ctx, view) {
+    var w = view.width, h = view.height, scale = Math.pow(2, view.zoom);
+    var left = view.origin.x / scale, top = view.origin.y / scale, field = null;
+    HEAT.forEach(function (p) {
+      var s = Math.max(HEAT_MIN_PX, p.s * scale), reach = 3 * s;
+      var cx = (p.x - left) * scale, cy = (p.y - top) * scale;
+      if (cx < -reach || cy < -reach || cx > w + reach || cy > h + reach) return;
+      field = field || new Float32Array(w * h);
+      var i0 = Math.max(0, Math.floor(cx - reach)), i1 = Math.min(w - 1, Math.ceil(cx + reach));
+      var j0 = Math.max(0, Math.floor(cy - reach)), j1 = Math.min(h - 1, Math.ceil(cy + reach));
+      var across = [], i, j, d;
+      for (i = i0; i <= i1; i++) { d = i + 0.5 - cx; across.push(Math.exp(-d * d / (2 * s * s))); }
+      for (j = j0; j <= j1; j++) {
+        d = j + 0.5 - cy;
+        var down = Math.exp(-d * d / (2 * s * s)), row = j * w;
+        for (i = i0; i <= i1; i++) {
+          var g = down * across[i - i0] - HEAT_CUT;
+          if (g > 0) field[row + i] += p.m * g;
         }
-      });
-      if (field) {
-        var peak = peakAt(c.z), ctx = canvas.getContext("2d"), img = ctx.createImageData(size, size);
-        for (var n = 0; n < field.length; n++) {
-          if (!field[n]) continue;
-          var at = Math.min(255, Math.round(Math.sqrt(field[n] / peak) * 255)) * 4;
-          img.data[n * 4] = HEAT_COLORS[at];
-          img.data[n * 4 + 1] = HEAT_COLORS[at + 1];
-          img.data[n * 4 + 2] = HEAT_COLORS[at + 2];
-          img.data[n * 4 + 3] = HEAT_COLORS[at + 3];
-        }
-        ctx.putImageData(img, 0, 0);
       }
-      return canvas;
+    });
+    if (!field) return;
+    var peak = peakAt(view.zoom), img = ctx.createImageData(w, h);
+    for (var n = 0; n < field.length; n++) {
+      if (!field[n]) continue;
+      var at = Math.min(255, Math.round(Math.sqrt(field[n] / peak) * 255)) * 4;
+      img.data[n * 4] = HEAT_COLORS[at];
+      img.data[n * 4 + 1] = HEAT_COLORS[at + 1];
+      img.data[n * 4 + 2] = HEAT_COLORS[at + 2];
+      img.data[n * 4 + 3] = HEAT_COLORS[at + 3];
     }
-  });
+    ctx.putImageData(img, 0, 0);
+  }
 
-  // The terrain. Where this draft doesn't carry a tile, the nearest coarser
-  // one stands in, enlarged.
+  // The terrain, from TILES and LAND (every zoom-8 tile of the full map, one
+  // per minimap tile), which tells open sea apart from map this draft doesn't carry.
+  var LAND = __TILE_LAND__;
   var TILE_ZOOMS = Object.keys(TILES).map(function (key) { return Number(key.split("/")[0]); });
   var TILE_MIN = Math.min.apply(null, TILE_ZOOMS), TILE_MAX = Math.max.apply(null, TILE_ZOOMS);
-  var decoded = {};
-  function whenDecoded(key, then) {
-    var img = decoded[key];
-    if (!img) { img = decoded[key] = new Image(); img.src = TILES[key]; }
-    if (img.complete) setTimeout(function () { then(img); }, 0);
-    else img.addEventListener("load", function () { then(img); });
+  var LAND_AT = {};   // zoom (3 to 8) -> { "x/y": true } for tiles with any land
+  for (var landZoom = 3; landZoom <= 8; landZoom++) LAND_AT[landZoom] = {};
+  LAND.forEach(function (key) {
+    var p = key.split("/"), x = Number(p[0]), y = Number(p[1]);
+    for (var z = 3; z <= 8; z++) LAND_AT[z][(x >> (8 - z)) + "/" + (y >> (8 - z))] = true;
+  });
+  function isLand(z, x, y) {
+    if (z > 8) return !!LAND_AT[8][(x >> (z - 8)) + "/" + (y >> (z - 8))];
+    return !!(LAND_AT[z] && LAND_AT[z][x + "/" + y]);
   }
-  var TerrainLayer = L.GridLayer.extend({
-    createTile: function (c, done) {
-      for (var d = 0; c.z - d >= TILE_MIN; d++) {
-        var key = (c.z - d) + "/" + (c.x >> d) + "/" + (c.y >> d);
-        if (!TILES[key]) continue;
-        if (d === 0) {
-          var img = document.createElement("img");
-          img.alt = "";
-          img.addEventListener("load", function () { done(null, img); });
-          img.src = TILES[key];
-          return img;
-        }
-        var canvas = document.createElement("canvas"), span = 256 / (1 << d);
-        var sx = (c.x - ((c.x >> d) << d)) * span, sy = (c.y - ((c.y >> d) << d)) * span;
-        canvas.width = canvas.height = 256;
-        whenDecoded(key, function (source) {
-          var ctx = canvas.getContext("2d");
-          ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(source, sx, sy, span, span, 0, 0, 256, 256);
-          done(null, canvas);
-        });
-        return canvas;
+  // Tile z/x/y's image: the tile, or where this draft doesn't carry it, the
+  // part of the nearest coarser tile that covers it. Nil for open sea.
+  function tileSource(z, x, y) {
+    for (var d = 0; z - d >= TILE_MIN; d++) {
+      var key = (z - d) + "/" + (x >> d) + "/" + (y >> d);
+      if (TILES[key]) {
+        var span = 256 / (1 << d);
+        return { key: key, sx: (x - ((x >> d) << d)) * span, sy: (y - ((y >> d) << d)) * span, size: span };
       }
-      var sea = document.createElement("div"); // open sea: the map's own background
-      setTimeout(function () { done(null, sea); }, 0);
-      return sea;
+    }
+    return null;
+  }
+  // The sharpest tile zoom at which every land tile in sight is carried, so a
+  // view is never part sharp, part soft.
+  function tileZoomFor(view) {
+    var want = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.round(view.zoom)));
+    var x0 = view.origin.x + view.visible.min.x, y0 = view.origin.y + view.visible.min.y;
+    var x1 = view.origin.x + view.visible.max.x, y1 = view.origin.y + view.visible.max.y;
+    for (var z = want; z > TILE_MIN; z--) {
+      var size = 256 * Math.pow(2, view.zoom - z), complete = true;
+      for (var x = Math.floor(x0 / size); complete && x <= Math.floor(x1 / size); x++) {
+        for (var y = Math.floor(y0 / size); y <= Math.floor(y1 / size); y++) {
+          if (!TILES[z + "/" + x + "/" + y] && isLand(z, x, y)) { complete = false; break; }
+        }
+      }
+      if (complete) return z;
+    }
+    return TILE_MIN;
+  }
+  var tileImages = {};
+  function paintTerrain(ctx, view, layer) {
+    var z = tileZoomFor(view), size = 256 * Math.pow(2, view.zoom - z), r = view.ratio, o = view.origin;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    for (var x = Math.floor(o.x / size); x <= Math.floor((o.x + view.width) / size); x++) {
+      // Whole device pixels, so neighboring tiles meet exactly: no gap, no overlap.
+      var left = Math.round((x * size - o.x) * r), right = Math.round(((x + 1) * size - o.x) * r);
+      for (var y = Math.floor(o.y / size); y <= Math.floor((o.y + view.height) / size); y++) {
+        var src = tileSource(z, x, y);
+        if (!src) continue;
+        var img = tileImages[src.key];
+        if (!img) {
+          img = tileImages[src.key] = new Image();
+          img.onload = function () { layer.repaintSoon(); };
+          img.src = TILES[src.key];
+        }
+        if (!img.complete || !img.naturalWidth) continue;   // painted once it has loaded
+        var top = Math.round((y * size - o.y) * r), bottom = Math.round(((y + 1) * size - o.y) * r);
+        ctx.drawImage(img, src.sx, src.sy, src.size, src.size, left, top, right - left, bottom - top);
+      }
+    }
+  }
+
+  // A layer painted as one picture of the view (plus a margin) instead of a
+  // grid of tiles, so there are no edges between tiles for the browser to
+  // show. It's painted again after every pan and zoom; in between, the last
+  // picture moves and scales with the map.
+  var ViewCanvas = L.Layer.extend({
+    options: { pane: "tilePane", margin: 0.3, className: "", sharp: true, keepUp: false },
+    initialize: function (paint, options) {
+      this._paint = paint;
+      L.setOptions(this, options);
+    },
+    onAdd: function () {
+      this._canvas = L.DomUtil.create("canvas", "leaflet-image-layer leaflet-zoom-animated " + this.options.className);
+      this.getPane().appendChild(this._canvas);
+      this._repaint();
+    },
+    onRemove: function () { L.DomUtil.remove(this._canvas); },
+    getEvents: function () {
+      return { viewreset: this.repaintSoon, resize: this.repaintSoon, moveend: this.repaintSoon,
+               zoomanim: this._animateZoom, zoom: this._follow, move: this._follow };
+    },
+    repaintSoon: function () {
+      if (this._frame || !this._map) return;
+      this._frame = L.Util.requestAnimFrame(function () { this._frame = null; this._repaint(); }, this);
+    },
+    _repaint: function () {
+      var map = this._map;
+      if (!map) return;
+      var size = map.getSize();
+      if (!size.x || !size.y) return;                       // not laid out yet
+      var pad = size.multiplyBy(this.options.margin).round();
+      var topLeft = map.containerPointToLayerPoint(pad.multiplyBy(-1)).round();
+      var width = size.x + pad.x * 2, height = size.y + pad.y * 2;
+      var ratio = this.options.sharp ? (window.devicePixelRatio || 1) : 1, canvas = this._canvas;
+      L.DomUtil.setPosition(canvas, topLeft);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      canvas.width = Math.round(width * ratio);   // also clears it
+      canvas.height = Math.round(height * ratio);
+      this._origin = map.layerPointToLatLng(topLeft);
+      this._zoom = map.getZoom();
+      this._area = L.bounds(topLeft, topLeft.add([width, height]));
+      this._paint(canvas.getContext("2d"), { zoom: this._zoom, origin: map.getPixelOrigin().add(topLeft),
+        width: width, height: height, ratio: ratio, visible: L.bounds(pad, pad.add(size)) }, this);
+    },
+    // The last picture stays put on the map while it moves or zooms. Panning
+    // past its margin paints it again (the terrain only; it's quick).
+    _follow: function () {
+      var map = this._map;
+      if (!this._origin) return;
+      L.DomUtil.setTransform(this._canvas, map.latLngToLayerPoint(this._origin), map.getZoomScale(map.getZoom(), this._zoom));
+      if (this.options.keepUp && map.getZoom() === this._zoom) {
+        var seen = L.bounds(map.containerPointToLayerPoint([0, 0]), map.containerPointToLayerPoint(map.getSize()));
+        if (!this._area.contains(seen)) this.repaintSoon();
+      }
+    },
+    _animateZoom: function (e) {
+      var map = this._map;
+      L.DomUtil.setTransform(this._canvas, map._latLngToNewLayerPoint(this._origin, e.zoom, e.center),
+        map.getZoomScale(e.zoom, this._zoom));
     }
   });
 
@@ -1362,15 +1448,30 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   map.attributionControl.addAttribution("Map art: World of Warcraft &copy; Blizzard Entertainment");
   // The view comes first: markers only get their elements once the map has one.
   var world = continentBounds(1414).extend(continentBounds(1415));
-  map.fitBounds(world, { padding: [8, 8] });
-  var baseZoom = map.getZoom();
-  map.setMinZoom(baseZoom - 0.5);
+  var baseZoom = 0, fitted = false;
+  function fitWorld() {
+    var size = map.getSize();
+    if (!size.x || !size.y) return false;
+    map.fitBounds(world, { padding: [8, 8] });
+    baseZoom = map.getZoom();
+    map.setMinZoom(baseZoom - 0.5);
+    fitted = true;
+    return true;
+  }
+  if (!fitWorld()) map.setView(world.getCenter(), 4);
   map.setMaxZoom(TILE_MAX + 0.5);
   map.setMaxBounds(world.pad(0.2));
-  new TerrainLayer({ className: "terrain-layer", bounds: world, minZoom: 0, maxZoom: 12,
-                     minNativeZoom: TILE_MIN, maxNativeZoom: TILE_MAX, zIndex: 1 }).addTo(map);
-  new HeatLayer({ className: "heat-layer", bounds: world, minZoom: 0, maxZoom: 12,
-                  updateWhenZooming: false, zIndex: 2 }).addTo(map);
+  // Leaflet measures the map once. Tell it whenever the box changes size (the
+  // page laid out late, or the window was resized), and fit the world the
+  // first time there's a size to fit it in.
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () {
+      map.invalidateSize();
+      if (!fitted && fitWorld()) updateZoomed();
+    }).observe(map.getContainer());
+  }
+  new ViewCanvas(paintTerrain, { className: "terrain-layer", keepUp: true }).addTo(map);
+  new ViewCanvas(paintHeat, { className: "heat-layer", sharp: false }).addTo(map);
 
   // Your route as a dotted line on each continent; the numbers keep the order
   // across trips between continents. Zone names show once you zoom in.

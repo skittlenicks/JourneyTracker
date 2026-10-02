@@ -117,6 +117,10 @@ for ($i = 0; $i -lt $chosen.Count; $i++) {
 }
 [void]$sb.Append("}")
 $html = $html.Replace("__TILES__", $sb.ToString())
+# Every zoom-8 tile of the full map (one per minimap tile), carried or not,
+# so the page can tell open sea from map it doesn't carry.
+$land = $tiles | Where-Object { $_.z -eq 8 } | ForEach-Object { '"' + $_.key.Substring(2) + '"' }
+$html = $html.Replace("__TILE_LAND__", "[" + ($land -join ",") + "]")
 
 # Every map's world rectangle and place on the web map, so heat lands in the right place.
 $html = $html.Replace("__MAPS_JSON__", (Get-Content (Join-Path $root "art\maps.json") -Raw -Encoding UTF8).Trim())
