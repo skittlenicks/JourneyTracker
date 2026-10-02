@@ -127,6 +127,9 @@ $html = $html.Replace("__MAPS_JSON__", (Get-Content (Join-Path $root "art\maps.j
 # Leaflet's stylesheet has to be inside the page (its script loads from cdnjs).
 $leaflet = Get-Content (Join-Path $PSScriptRoot "vendor\leaflet-1.9.4.css") -Raw -Encoding UTF8
 $html = $html.Replace("/*__LEAFLET_CSS__*/", "/* Leaflet 1.9.4, https://leafletjs.com, (c) 2010-2023 Vladimir Agafonkin, (c) 2010-2011 CloudMade. BSD-2-Clause. */`n" + $leaflet.Trim())
+# The rankings catalog, shared with the finished site.
+$rankings = Get-Content (Join-Path $PSScriptRoot "rankings.js") -Raw -Encoding UTF8
+$html = $html.Replace("/*__RANKINGS__*/", $rankings.Trim())
 
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 $out = Join-Path (Resolve-Path $OutDir) "road-to-60.html"
