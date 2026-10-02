@@ -326,22 +326,41 @@ function B:Cols(cells, widths, color)
     self.y = self.y - h - 3
 end
 
--- Classic profession-style bar: blue fill, white "Label   value" text.
+-- A status bar in a thin classic border, like the quest log's counter: a
+-- dark well with the bar set 4px inside it. The header's "Level: x/60" box
+-- and every bar on the pages are made here, so they all look the same.
+local BAR_HEIGHT = 22
+local function BorderedBar(parent)
+    local box = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    box:SetHeight(BAR_HEIGHT)
+    box:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    box:SetBackdropColor(0, 0, 0, 0.8)
+    box:SetBackdropBorderColor(0.6, 0.55, 0.45)
+    local bar = CreateFrame("StatusBar", nil, box)
+    bar:SetPoint("TOPLEFT", 4, -4)
+    bar:SetPoint("BOTTOMRIGHT", -4, 4)
+    bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    return box, bar
+end
+
+-- Classic profession-style bar: blue fill, white "Label   value" text, in
+-- the bordered box above.
 function B:Bar(label, value, max, text, color)
     local bars = self.bars
     bars.n = bars.n + 1
     local bar = bars[bars.n]
     if not bar then
-        bar = CreateFrame("StatusBar", nil, self.child)
-        bar:SetHeight(16)
-        bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        bar.bg = bar:CreateTexture(nil, "BACKGROUND")
-        bar.bg:SetAllPoints()
-        bar.bg:SetColorTexture(0, 0, 0, 0.55)
+        local box
+        box, bar = BorderedBar(self.child)
+        bar.box = box
         bar.left = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        bar.left:SetPoint("LEFT", 6, 0)
+        bar.left:SetPoint("LEFT", 4, 0)
         bar.right = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        bar.right:SetPoint("RIGHT", -6, 0)
+        bar.right:SetPoint("RIGHT", -4, 0)
         bars[bars.n] = bar
     end
     color = color or BAR_BLUE
@@ -356,11 +375,11 @@ function B:Bar(label, value, max, text, color)
         bar:SetValue(v)
         bar.jtMax, bar.jtValue = top, v
     end
-    Place(bar, 14, self.y, self.width - 28)
+    Place(bar.box, 14, self.y, self.width - 28)
     SetText(bar.left, label)
     SetText(bar.right, text or Num(value))
-    if not bar:IsShown() then bar:Show() end
-    self.y = self.y - 20
+    if not bar.box:IsShown() then bar.box:Show() end
+    self.y = self.y - BAR_HEIGHT - 3
 end
 
 -- Bars for a { name = number } table, biggest first.
@@ -379,7 +398,7 @@ function B:End()
     for _, pool in pairs(self.pools) do
         for i = pool.n + 1, #pool do pool[i]:Hide() end
     end
-    for i = self.bars.n + 1, #self.bars do self.bars[i]:Hide() end
+    for i = self.bars.n + 1, #self.bars do self.bars[i].box:Hide() end
     for i = self.hovers.n + 1, #self.hovers do self.hovers[i]:Hide() end
     local height = math.max(-self.y + 10, 1)
     if self.child.jtHeight ~= height then
@@ -634,7 +653,11 @@ local function PageKills(B, db)
     B:Row("Toughest kill", m and string.format("%s (level %d at %d, %+d)",
         m.name, m.mobLevel, m.level, m.diff) or "-")                         -- #33
     B:Heading("By Classification")                                           -- #30-31
-    B:BarList(K.byClass)
+    local CLASSIFICATIONS = { normal = "Normal", elite = "Elite", rare = "Rare", rareelite = "Rare elite",
+        worldboss = "World boss", trivial = "Trivial", minus = "Minor" }
+    local byClass = {}
+    for kind, n in pairs(K.byClass) do byClass[CLASSIFICATIONS[kind] or kind] = n end
+    B:BarList(byClass)
     B:Heading("By Creature Type")                                            -- #32
     B:BarList(K.byType)
     B:Heading("By Monster")                                                  -- #28
@@ -1360,21 +1383,12 @@ local function CreateWindow()
     f.subtitle:SetPoint("TOP", f, "TOP", 0, -34)
 
     -- "Level: 20/60" box in the quest log's counter spot, filled toward 60
-    -- like the Progress to 60 bar.
-    local counter = CreateFrame("Frame", nil, f, "BackdropTemplate")
-    counter:SetSize(130, 22)
+    -- like the Progress to 60 bar (and made the same way as every bar on
+    -- the pages).
+    local counter, counterBar = BorderedBar(f)
+    counter:SetWidth(130)
     counter:SetPoint("TOPRIGHT", f, "TOPRIGHT", -16, -32)
-    counter:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
-    })
-    counter:SetBackdropColor(0, 0, 0, 0.8)
-    counter:SetBackdropBorderColor(0.6, 0.55, 0.45)
-    counter.bar = CreateFrame("StatusBar", nil, counter)
-    counter.bar:SetPoint("TOPLEFT", 4, -4)
-    counter.bar:SetPoint("BOTTOMRIGHT", -4, 4)
-    counter.bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    counter.bar = counterBar
     counter.bar:SetStatusBarColor(BAR_BLUE[1], BAR_BLUE[2], BAR_BLUE[3])
     counter.bar:SetMinMaxValues(0, ns.MAX_LEVEL)
     counter.text = counter.bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
