@@ -233,20 +233,6 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 .legend b { color: var(--ink); font-weight: 500; }
 
-.path { list-style: none; margin: 0; padding: 0; }
-.path li {
-  display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: baseline;
-  padding-block: 9px;
-  border-bottom: 1px dashed var(--rule);
-}
-.path li:last-child { border-bottom: 0; }
-.path .lv, .path .t { font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-.path .lv { color: var(--gold); }
-.path .t { color: var(--ink-soft); white-space: nowrap; }
-
 .items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 30px; }
 .item { display: grid; gap: 3px; align-content: start; }
 .item-name { font-weight: 700; font-size: var(--step-1); line-height: 1.3; }
@@ -263,28 +249,57 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .money .cc { color: var(--coin-copper); }
 .callout { margin: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; }
 
-/* Share card */
+/* Share card: who and how fast, your three best rankings, the headline
+   numbers, then the highlights, like a printed character sheet. */
 .share { display: grid; justify-items: center; gap: 14px; padding-block: 56px 24px; border-top: 1px solid var(--rule); text-align: center; }
 .share h2 { font-size: var(--step-2); color: var(--gold-pale); }
 .card {
-  width: min(100%, 25rem);
+  width: min(100%, 34rem);
   display: grid;
-  justify-items: center;
-  gap: 12px;
+  gap: 18px;
   margin-top: 8px;
-  padding: 30px 26px 26px;
+  padding: 24px 24px 18px;
+  text-align: left;
   background: radial-gradient(circle at 50% 0%, #2b2014, var(--panel) 70%);
   border: 1px solid var(--gold);
   border-radius: 10px;
   box-shadow: 0 0 0 5px var(--ground), 0 0 0 6px var(--rule);
 }
-.card img { width: 92px; height: 92px; border-radius: 50%; }
+.card-head { display: flex; align-items: center; gap: 16px; }
+.card-head img { flex: none; width: 64px; height: 64px; border-radius: 50%; }
+.card-id { display: grid; gap: 3px; }
 .card .who { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
-.card .lvl { font-family: var(--font-display); font-size: 2.6rem; line-height: 1; color: var(--gold); }
-.card .played { color: var(--ink-soft); }
-.card dl { margin: 6px 0 0; width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.card .stat dd { font-size: 1.35rem; }
-.card .lines { margin: 4px 0 0; padding: 12px 0 0; border-top: 1px solid var(--rule); width: 100%; display: grid; gap: 4px; font-size: var(--step--1); color: var(--ink-soft); }
+.card .lvl { font-family: var(--font-display); font-size: 2.1rem; line-height: 1; color: var(--gold); }
+.card .played { font-size: var(--step--1); color: var(--ink-soft); }
+.card-ranks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.card-ranks li {
+  display: grid;
+  grid-template-columns: 4.8rem minmax(0, 1fr);
+  align-items: center;
+  gap: 1px 12px;
+  padding: 9px 12px;
+  background: color-mix(in srgb, var(--gold) 6%, transparent);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.card-ranks b { grid-row: 1 / span 2; font-family: var(--font-display); font-size: 1.35rem; font-weight: 400; line-height: 1.1; color: var(--gold); }
+.card-ranks span { line-height: 1.3; color: var(--ink); }
+.card-ranks small { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
+.card-stats { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 12px; }
+.card .stat dd { font-size: 1.25rem; }
+.card-lines {
+  margin: 0;
+  padding-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
+  gap: 6px 14px;
+  font-size: var(--step--1);
+  border-top: 1px solid var(--rule);
+}
+.card-lines dt { color: var(--ink-soft); }
+.card-lines dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.card-lines .item-name { font-size: inherit; }
+.card-foot { margin: 0; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: var(--gold-deep); }
 .share-note { margin: 0; font-size: var(--step--1); color: var(--ink-soft); }
 .foot { padding-top: 24px; border-top: 1px solid var(--rule); font-size: var(--step--1); color: var(--ink-soft); }
 
@@ -321,18 +336,12 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .chapter.wide { grid-template-columns: minmax(0, 1fr); }
 .chapter.wide .chapter-head { max-width: 46rem; }
 
-/* Your journey through Azeroth: the map runs wider than the frame (up to
-   100rem, never closer than 28px to the window's edges), with the route
-   listed underneath. */
-.journey h2 { font-size: var(--step-3); line-height: 1.1; }
+/* Your journey through Azeroth: the map spans the frame like any wide
+   chapter, with the route and the travel numbers underneath. */
 .journey .chapter-head p.lede { font-size: var(--step-1); line-height: 1.45; color: var(--ink); }
-.heat-map {
-  --map-w: max(100%, min(100vw - 56px, 100rem));
-  width: var(--map-w);
-  margin: 0 calc((100% - var(--map-w)) / 2);
-}
+.heat-map { margin: 0; }
 .heat-map figcaption { max-width: 46rem; margin-top: 8px; font-size: var(--step--1); color: var(--ink-soft); }
-.world-map { height: clamp(380px, min(80vh, 120vw), 900px); border: 1px solid var(--rule); border-radius: 6px; }
+.world-map { height: clamp(340px, min(62vh, 90vw), 620px); border: 1px solid var(--rule); border-radius: 6px; }
 /* The terrain is dimmed so the heat stands out; the sea around it is dimmed to match. */
 .world-map.leaflet-container {
   background: color-mix(in srgb, var(--sea) 66%, #000);
@@ -475,7 +484,6 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 
 /* Rankings */
 .ranks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.ranks.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rank {
   display: grid;
   gap: 6px;
@@ -497,6 +505,22 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .subhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .subhead .label { margin: 0; }
 .footnote { margin: 0; max-width: 46rem; font-size: var(--step--1); color: var(--ink-soft); }
+/* Every ranking, best first, behind a "see all" */
+.all-ranks { padding-top: 14px; border-top: 1px solid var(--rule); }
+.all-ranks summary { cursor: pointer; font-weight: 500; color: var(--gold-pale); }
+.all-ranks summary:hover { color: var(--gold); }
+.all-ranks ol { list-style: none; margin: 12px 0 0; padding: 0; columns: 2 22rem; column-gap: 36px; }
+.all-ranks li {
+  break-inside: avoid;
+  display: grid;
+  grid-template-columns: 3.6rem minmax(0, 1fr);
+  gap: 1px 10px;
+  padding-block: 6px;
+  font-size: var(--step--1);
+  border-bottom: 1px dashed var(--rule);
+}
+.all-ranks li b { grid-row: 1 / span 2; font-family: var(--font-mono); font-weight: 500; color: var(--gold); font-variant-numeric: tabular-nums; }
+.all-ranks li small { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
 
 @media (max-width: 860px) {
   .chapter { grid-template-columns: 1fr; gap: 22px; }
@@ -507,9 +531,10 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   .stats, .stats.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bars li { grid-template-columns: minmax(0, 1fr) auto; row-gap: 5px; }
   .bars .track { grid-column: 1 / -1; grid-row: 2; }
-  .path li { grid-template-columns: 5.5rem minmax(0, 1fr); }
-  .path .t { grid-column: 2; }
-  .ranks, .ranks.cols-2 { grid-template-columns: 1fr; }
+  .ranks { grid-template-columns: 1fr; }
+  .card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card-lines { grid-template-columns: 1fr; }
+  .card-lines dd { margin-bottom: 6px; }
 }
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
@@ -618,28 +643,15 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     </div>
   </section>
 
-  <section class="chapter" aria-labelledby="road-title">
-    <div class="chapter-head">
-      <p class="eyebrow">The road</p>
-      <h2 id="road-title"></h2>
-      <p>Zones in the order you reached them, with the levels you spent there.</p>
-    </div>
-    <div class="chapter-body">
-      <ol class="path" id="path"></ol>
-      <dl class="stats" id="travel-stats"></dl>
-    </div>
-  </section>
-
   <section class="chapter wide journey" aria-labelledby="heat-title">
     <div class="chapter-head">
-      <p class="eyebrow">Where you spent your time</p>
+      <p class="eyebrow">The road</p>
       <h2 id="heat-title">Your journey through Azeroth</h2>
       <p class="lede" id="heat-lede"></p>
-      <p>Drag to explore, scroll or pinch to zoom, and pick a numbered stop to fly in. Brighter means longer. AFK time and flight paths are left out.</p>
     </div>
     <figure class="heat-map">
       <div class="world-map" id="world-map" aria-label="Map of Azeroth with your route and where you spent your time"></div>
-      <figcaption>Sample heat on the WoW Forever client's own minimap. The dotted line is your route, numbered in the order you reached each zone; zoom in for zone names, then each zone's hotspots. This preview carries the sharpest close-ups only for the zones on your route.</figcaption>
+      <figcaption>Drag to explore, scroll or pinch to zoom, and pick a numbered stop to fly in. The dotted line is your route; brighter means longer (AFK time and flight paths are left out). Sample heat on the WoW Forever client's own minimap.</figcaption>
     </figure>
     <div class="heat-info">
       <p class="zone-total" id="zone-total"></p>
@@ -647,6 +659,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
         <p class="label" id="spots-label"></p>
         <ol class="spots" id="spots"></ol>
       </div>
+      <dl class="stats" id="travel-stats"></dl>
     </div>
   </section>
 
@@ -726,16 +739,16 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
       <h2 id="ranks-title"></h2>
     </div>
     <div class="chapter-body">
-      <div class="ranks" id="ranks"></div>
       <div class="subhead">
-        <p class="label">Iconic moments</p>
-        <div class="toggle" id="faction" role="group" aria-label="Faction">
-          <button type="button" id="faction-alliance" aria-pressed="true">Alliance <small>this character</small></button>
-          <button type="button" id="faction-horde" aria-pressed="false">Horde <small>example</small></button>
-        </div>
+        <p class="label" id="ranks-for"></p>
+        <div class="toggle" id="profiles" role="group" aria-label="Whose rankings"></div>
       </div>
-      <div class="ranks cols-2" id="iconic"></div>
-      <p class="footnote">Rankings compare you with everyone who has imported a journey: all players, your faction, your class or your race, as each card says. Until enough players have imported, the site shows your place instead, like "2nd of 9".</p>
+      <div class="ranks" id="ranks"></div>
+      <details class="all-ranks" id="all-ranks">
+        <summary id="all-ranks-summary"></summary>
+        <ol id="all-ranks-list"></ol>
+      </details>
+      <p class="footnote">Every journey is ranked on <span id="rank-count"></span> things, against all players or against its own class, race or faction, and you see the ones you stand out in most. Until enough players have imported, the site shows your place instead, like "2nd of 9"; the percentages in this draft are made up.</p>
     </div>
   </section>
 
@@ -743,12 +756,18 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     <p class="eyebrow">Share</p>
     <h2 id="share-title">Your journey on one card</h2>
     <div class="card" id="card">
-      <img src="__LOGO__" alt="Journey Tracker logo" width="92" height="92">
-      <span class="who" id="card-who"></span>
-      <span class="lvl">Level 60</span>
-      <span class="played" id="card-played"></span>
-      <dl id="card-stats"></dl>
-      <div class="lines" id="card-lines"></div>
+      <div class="card-head">
+        <img src="__LOGO__" alt="Journey Tracker logo" width="64" height="64">
+        <div class="card-id">
+          <span class="who" id="card-who"></span>
+          <span class="lvl">Level 60</span>
+          <span class="played" id="card-played"></span>
+        </div>
+      </div>
+      <ol class="card-ranks" id="card-ranks" aria-label="Where you rank highest"></ol>
+      <dl class="card-stats" id="card-stats"></dl>
+      <dl class="card-lines" id="card-lines"></dl>
+      <p class="card-foot">Journey Tracker · WoW Forever</p>
     </div>
     <p class="share-note">The finished site will let you save this card as an image.</p>
   </section>
@@ -826,21 +845,10 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
       { zone: "Un'Goro Crater", map: 1449, from: 50, to: 53, spots: [["Marshal's Refuge", 44, 9, 170, 2.2], ["The Slithering Scar", 50, 79, 160, 4.4],
         ["Fire Plume Ridge", 51, 50, 110, 3.8], ["Lakkari Tar Pits", 50, 22, 85, 4], ["Golakka Hot Springs", 34, 54, 70, 3.6]] }
     ],
-    // Iconic first kills and memes by faction: [headline, line, cohort]
-    iconic: {
-      alliance: [
-        ["Top 9%", "first to kill Edwin VanCleef, at level 21", "Alliance players"],
-        ["Never", "fought Hogger. 64% of Night Elves never do either.", "Night Elves"],
-        ["Top 4%", "boat riders: 14 trips between Auberdine and Menethil", "Alliance players"],
-        ["Top 25%", "first to kill King Bangalash, at level 41", "All players"]
-      ],
-      horde: [
-        ["Top 3%", "first to find Mankrik's wife, at level 15", "Horde players"],
-        ["Top 12%", "first to kill Echeyakee, at level 16", "Horde players"],
-        ["Top 4%", "killed Lakota'mani, the Barrens' rare kodo", "Horde players"],
-        ["Top 1%", "falls from the Undercity elevator: 3", "Horde players"]
-      ]
-    }
+    // Iconic moments: the level you first did them, or how many times.
+    iconic: { vanCleefLevel: 21, boatTrips: 14, bangalashLevel: 41 },
+    // From the game's own Statistics pane.
+    pane: { duelsWon: 34, hugs: 57, lols: 312, largestHit: 2890, critters: 41 }
   };
 
   // Time at each level 1-59 in seconds, shaped like a Classic climb:
@@ -948,7 +956,6 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     svg.innerHTML = out.join("");
   }
   drawRoad();
-  $("hero-rank").textContent = "Faster to 60 than 92% of players";
 
   // Time
   var hourTotal = sum(S.hourWeights);
@@ -1013,15 +1020,8 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   }).join("");
   bars("quest-zones", S.questZones, num);
 
-  // The road
+  // Travel, under the map
   var miles = function (yards) { return num(yards / 1760); };
-  $("road-title").textContent = S.path.length + " zones, " + miles(S.travel.groundYards) + " miles on foot and " +
-    S.travel.flights + " flights.";
-  $("path").innerHTML = S.path.map(function (z) {
-    var seconds = 0.82 * sum(perLevel.slice(z[1] - 1, z[2] - 1));
-    return '<li><span class="lv">' + z[1] + " to " + z[2] + '</span><span class="zone">' + esc(z[0]) +
-      '</span><span class="t">' + dur(seconds) + "</span></li>";
-  }).join("");
   stats("travel-stats", [
     ["On foot and mounted", miles(S.travel.groundYards) + " <small>mi</small>"],
     ["By flight path", miles(S.travel.airYards) + " <small>mi</small>"],
@@ -1620,42 +1620,268 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     resizeTimer = setTimeout(drawRoad, 150);
   });
 
-  // How you compare: [headline, line, cohort]
-  function rankCards(list) {
-    return list.map(function (r) {
-      return '<div class="rank"><span class="big">' + esc(r[0]) + "</span><p>" + esc(r[1]) +
-        '</p><span class="cohort">' + esc(r[2]) + "</span></div>";
-    }).join("");
-  }
-  $("ranks-title").textContent = "You're in the top 1% of " + S.topMobs[0][0] + " hunters.";
-  $("ranks").innerHTML = rankCards([
-    ["Top 8%", "fastest to 60, at " + dur(total) + " /played", "All players"],
-    ["Top 1%", S.topMobs[0][0] + " hunters: " + S.topMobs[0][1] + " slain", "All players"],
-    ["Top 3%", "jumpers: " + num(S.jumps) + " jumps", "All players"],
-    ["Top 2%", "longest fall survived: " + S.travel.longestFall + " yards", "All players"],
-    ["Top 5%", "time at campfires: " + dur(S.campTime), "All players"],
-    ["Top 8%", "time in Cat Form: " + dur(S.forms[0][1]), "Druids"]
-  ]);
-  function showFaction(name) {
-    $("iconic").innerHTML = rankCards(S.iconic[name]);
-    $("faction-alliance").setAttribute("aria-pressed", String(name === "alliance"));
-    $("faction-horde").setAttribute("aria-pressed", String(name === "horde"));
-  }
-  $("faction-alliance").addEventListener("click", function () { showFaction("alliance"); });
-  $("faction-horde").addEventListener("click", function () { showFaction("horde"); });
-  showFaction("alliance");
+  // How you compare. Every journey is ranked on everything below and shows
+  // the rankings it stands out in most, so no two players see the same list.
+  // Each entry: the value it ranks (`key`, default `id`), whether more is the
+  // notable direction (`high`), the spread across players as [median, sigma
+  // of the log] (`pop`: made up until real imports exist), who it's ranked
+  // against (`cohort`), who it applies to (`only`), and how it reads: `name`
+  // is who the top players are ("jumpers"), `detail` the player's number.
+  // Rankings in one `family` (jumps and jumps per hour) measure the same
+  // thing, so only one of them is ever picked.
+  var RANKINGS = [
+    // Pace
+    { id: "played", group: "pace", high: false, pop: [864000, 0.3], name: "speed-levelers", detail: function (v) { return "60 in " + dur(v) + " /played"; } },
+    { id: "playedClass", key: "played", group: "pace", high: false, pop: [850000, 0.28], cohort: "class", name: "speed-levelers", detail: function (v) { return "60 in " + dur(v) + " /played"; } },
+    { id: "days", group: "pace", high: false, pop: [62, 0.5], name: "fast finishers", detail: function (v) { return "60 in " + v + " calendar days"; } },
+    { id: "session", group: "pace", high: true, pop: [16200, 0.4], name: "marathon players", detail: function (v) { return dur(v) + " in one sitting"; } },
+    { id: "sessionLevels", group: "pace", high: true, pop: [2.5, 0.35], name: "power levelers", detail: function (v) { return v + " levels in one session"; } },
+    { id: "nightOwl", group: "pace", high: true, pop: [4, 0.7], name: "night owls", detail: function (v) { return Math.round(v) + "% of your playtime after midnight"; } },
+    { id: "earlyBird", group: "pace", high: true, pop: [3, 0.8], name: "early birds", detail: function (v) { return Math.round(v) + "% of your playtime before 9 AM"; } },
+    { id: "daysPlayed", group: "pace", high: true, pop: [30, 0.4], name: "regulars", detail: function (v) { return "played on " + v + " different days"; } },
+    // Combat
+    { id: "kills", group: "combat", high: true, pop: [8200, 0.3], name: "monster slayers", detail: function (v) { return num(v) + " kills"; } },
+    { id: "topMob", group: "combat", high: true, pop: [110, 0.4], name: function (p) { return p.names.topMob + " hunters"; }, detail: function (v) { return num(v) + " slain"; } },
+    { id: "elites", group: "combat", high: true, pop: [320, 0.5], name: "elite hunters", detail: function (v) { return num(v) + " elites killed"; } },
+    { id: "rares", group: "combat", high: true, pop: [4, 0.6], name: "rare spawn hunters", detail: function (v) { return v + " rare mobs killed"; } },
+    { id: "bosses", group: "combat", high: true, pop: [55, 0.45], name: "dungeon crawlers", detail: function (v) { return v + " dungeon bosses downed"; } },
+    { id: "honor", group: "combat", high: true, pop: [35, 0.9], name: "world PvPers", detail: function (v) { return v + " honorable kills on the way to 60"; } },
+    { id: "fight", group: "combat", high: true, pop: [85, 0.4], name: "endurance fighters", detail: function (v) { return "one fight lasted " + dur(v); } },
+    { id: "gap", group: "combat", high: true, pop: [3, 0.35], name: "underdogs", detail: function (v) { return "beat a mob " + v + " levels above you"; } },
+    { id: "killRate", family: "kills", group: "combat", high: true, pop: [52, 0.3], name: "grinders", detail: function (v) { return Math.round(v) + " kills per hour played"; } },
+    { id: "largestHit", group: "combat", high: true, pop: [1800, 0.35], name: "heavy hitters", detail: function (v) { return "one hit for " + num(v); } },
+    { id: "duelsWon", group: "combat", high: true, pop: [8, 1], name: "duelists", detail: function (v) { return v + " duels won"; } },
+    // Deaths
+    { id: "deaths", group: "deaths", high: false, pop: [60, 0.45], name: "survivors", detail: function (v) { return "only " + v + " deaths"; } },
+    { id: "streak", group: "deaths", high: true, pop: [8, 0.5], name: "untouchables", detail: function (v) { return v + " levels in a row without dying"; } },
+    { id: "timeDead", group: "deaths", high: false, pop: [18000, 0.5], name: "quick recoverers", detail: function (v) { return "only " + dur(v) + " spent dead"; } },
+    { id: "zoneDeaths", group: "deaths", high: true, pop: [5, 0.6], name: function (p) { return p.names.deathZone + " casualties"; }, detail: function (v) { return v + " deaths there"; } },
+    { id: "pvpDeaths", group: "deaths", high: true, pop: [4, 0.8], name: "gank magnets", detail: function (v) { return "killed by other players " + v + " times"; } },
+    { id: "fallDeaths", group: "deaths", high: true, pop: [1, 0.9], name: "victims of gravity", detail: function (v) { return v + " deaths from falling"; } },
+    // Quests
+    { id: "quests", group: "quests", high: true, pop: [520, 0.25], name: "questers", detail: function (v) { return num(v) + " quests completed"; } },
+    { id: "questRate", family: "quests", group: "quests", high: true, pop: [3.1, 0.3], round: 10, name: "quest machines", detail: function (v) { return v + " quests per hour played"; } },
+    { id: "abandoned", group: "quests", high: false, pop: [45, 0.6], name: "finishers", detail: function (v) { return "abandoned only " + v + " quests"; } },
+    { id: "questDays", group: "quests", high: true, pop: [7, 0.8], name: "procrastinators", detail: function (v, p) { return p.names.longestQuest + " sat in your log for " + v + " days"; } },
+    { id: "forever", group: "quests", high: true, pop: [55, 0.45], name: "Forever explorers", detail: function (v) { return v + " new Forever quests done"; } },
+    { id: "groupQuests", group: "quests", high: true, pop: [22, 0.5], name: "group questers", detail: function (v) { return v + " group and elite quests"; } },
+    { id: "questXP", group: "quests", high: true, pop: [50, 0.2], name: "story followers", detail: function (v) { return v + "% of your XP from quests"; } },
+    { id: "rested", group: "quests", high: true, pop: [8, 0.5], name: "well-rested players", detail: function (v) { return v + "% of your XP from rested bonus"; } },
+    // Travel
+    { id: "ground", group: "travel", high: true, pop: [460, 0.35], name: "long-distance runners", detail: function (v) { return num(v) + " miles on foot and mounted"; } },
+    { id: "air", group: "travel", high: true, pop: [400, 0.5], name: "frequent flyers", detail: function (v) { return num(v) + " miles by flight path"; } },
+    { id: "flights", group: "travel", high: true, pop: [90, 0.4], name: "flight path regulars", detail: function (v) { return v + " flights taken"; } },
+    { id: "flightPaths", group: "travel", high: true, pop: [21, 0.25], name: "flight path collectors", detail: function (v) { return v + " flight paths found"; } },
+    { id: "hearths", group: "travel", high: true, pop: [115, 0.4], name: "homebodies", detail: function (v) { return "hearthed home " + v + " times"; } },
+    { id: "zones", group: "travel", high: true, pop: [17, 0.25], name: "wanderers", detail: function (v) { return "leveled in " + v + " zones"; } },
+    { id: "longestFall", family: "falls", group: "travel", high: true, pop: [35, 0.3], name: "daredevils", detail: function (v) { return "survived a " + v + "-yard fall"; } },
+    // Gold
+    { id: "earned", group: "gold", high: true, pop: [9000000, 0.4], name: "earners", detail: function (v) { return gold(v) + " gold earned"; } },
+    { id: "peakGold", group: "gold", high: true, pop: [1200000, 0.6], name: "hoarders", detail: function (v) { return gold(v) + " gold at your richest"; } },
+    { id: "auctions", group: "gold", high: true, pop: [600000, 1], name: "auction house barons", detail: function (v) { return gold(v) + " gold from auctions"; } },
+    { id: "repairs", group: "gold", high: false, pop: [1200000, 0.45], name: "careful adventurers", detail: function (v) { return "only " + gold(v) + " gold on repairs"; } },
+    { id: "saved", group: "gold", high: true, pop: [800000, 0.8], name: "savers", detail: function (v) { return gold(v) + " gold kept at 60"; } },
+    { id: "mount", group: "gold", high: false, pop: [40, 0.06], name: "early riders", detail: function (v) { return "first mount at level " + v; } },
+    // Loot
+    { id: "rareLoot", group: "loot", high: true, pop: [45, 0.5], name: "treasure hunters", detail: function (v) { return v + " blue items looted"; } },
+    { id: "firstBlue", group: "loot", high: false, pop: [22, 0.2], name: "early blues", detail: function (v) { return "first blue at level " + v; } },
+    { id: "looted", group: "loot", high: true, pop: [3000, 0.3], name: "looters", detail: function (v) { return num(v) + " items looted"; } },
+    { id: "grays", group: "loot", high: true, pop: [1250, 0.4], name: "vendor trash collectors", detail: function (v) { return num(v) + " gray items picked up"; } },
+    { id: "worn", group: "loot", high: true, pop: [108000, 0.6], name: "gear loyalists", detail: function (v, p) { return p.names.worn + " worn for " + dur(v); } },
+    // Professions
+    { id: "skinned", group: "crafts", high: true, pop: [650, 0.8], name: "skinners", detail: function (v) { return num(v) + " creatures skinned"; } },
+    { id: "fish", group: "crafts", high: true, pop: [80, 1], name: "anglers", detail: function (v) { return num(v) + " fish caught"; } },
+    { id: "crafted", group: "crafts", high: true, pop: [240, 0.7], name: "crafters", detail: function (v) { return num(v) + " items crafted"; } },
+    { id: "skillUps", group: "crafts", high: true, pop: [1100, 0.3], name: "weapon masters", detail: function (v) { return num(v) + " weapon skill-ups"; } },
+    { id: "maxed", group: "crafts", high: true, pop: [1, 0.6], name: "master artisans", detail: function (v) { return v + " professions at 300 by level 60"; } },
+    // Class
+    { id: "cat", group: "class", only: { classToken: "DRUID" }, cohort: "class", high: true, pop: [108000, 0.4], name: "Cat Form loyalists", detail: function (v) { return dur(v) + " in Cat Form"; } },
+    { id: "shifts", group: "class", only: { classToken: "DRUID" }, cohort: "class", high: true, pop: [5000, 0.5], name: "shapeshifters", detail: function (v) { return num(v) + " shapeshifts"; } },
+    { id: "healing", group: "class", only: { classToken: "DRUID" }, cohort: "class", high: true, pop: [900000, 0.6], name: "healers", detail: function (v) { return num(v) + " healing done"; } },
+    { id: "prowl", group: "class", only: { classToken: "DRUID" }, cohort: "class", high: true, pop: [10800, 0.7], name: "prowlers", detail: function (v) { return dur(v) + " in Prowl"; } },
+    { id: "charges", group: "class", only: { classToken: "WARRIOR" }, cohort: "class", high: true, pop: [2500, 0.5], name: "chargers", detail: function (v) { return num(v) + " Charges"; } },
+    { id: "executes", group: "class", only: { classToken: "WARRIOR" }, cohort: "class", high: true, pop: [800, 0.6], name: "executioners", detail: function (v) { return num(v) + " Executes"; } },
+    { id: "polymorphs", group: "class", only: { classToken: "MAGE" }, cohort: "class", high: true, pop: [600, 0.7], name: "sheep makers", detail: function (v) { return num(v) + " Polymorphs"; } },
+    { id: "conjured", group: "class", only: { classToken: "MAGE" }, cohort: "class", high: true, pop: [2500, 0.6], name: "water bakers", detail: function (v) { return num(v) + " drinks conjured"; } },
+    // Social and fun
+    { id: "groupedWith", group: "social", high: true, pop: [120, 0.5], name: "socializers", detail: function (v) { return v + " different players grouped with"; } },
+    { id: "solo", group: "social", high: true, pop: [75, 0.12], name: "lone wolves", detail: function (v) { return Math.round(v) + "% of your time solo"; } },
+    { id: "guild", group: "social", high: false, pop: [18, 0.5], name: "early guild joiners", detail: function (v) { return "joined a guild at level " + v; } },
+    { id: "camps", group: "social", high: true, pop: [10, 0.7], name: "campers", detail: function (v) { return v + " campfires set up"; } },
+    { id: "campTime", family: "camps", group: "social", high: true, pop: [7200, 0.6], name: "fireside regulars", detail: function (v) { return dur(v) + " at campfires"; } },
+    { id: "transmog", group: "social", high: true, pop: [5, 0.9], name: "fashionistas", detail: function (v) { return v + " transmog changes"; } },
+    { id: "hugs", group: "fun", high: true, pop: [15, 1], name: "huggers", detail: function (v) { return v + " hugs given"; } },
+    { id: "lols", group: "fun", high: true, pop: [80, 0.9], name: "laughers", detail: function (v) { return num(v) + " /lols"; } },
+    { id: "jumps", group: "fun", high: true, pop: [20000, 0.45], name: "jumpers", detail: function (v) { return num(v) + " jumps"; } },
+    { id: "jumpRate", family: "jumps", group: "fun", high: true, pop: [140, 0.5], name: "bunny hoppers", detail: function (v) { return "a jump every " + Math.round(3600 / v) + " seconds"; } },
+    { id: "fallen", family: "falls", group: "fun", high: true, pop: [8000, 0.6], name: "free fallers", detail: function (v) { return num(v) + " yards fallen in all"; } },
+    { id: "critters", group: "fun", high: true, pop: [15, 0.8], name: "critter menaces", detail: function (v) { return v + " critters killed"; } },
+    // Iconic moments
+    { id: "vanCleef", group: "iconic", only: { faction: "Alliance" }, cohort: "faction", high: false, pop: [24, 0.1], name: "VanCleef slayers", detail: function (v) { return "killed Edwin VanCleef at level " + v; } },
+    { id: "boat", group: "iconic", only: { faction: "Alliance" }, cohort: "faction", high: true, pop: [6, 0.5], name: "sailors", detail: function (v) { return v + " boat rides between Auberdine and Menethil"; } },
+    { id: "bangalash", group: "iconic", high: false, pop: [43, 0.05], name: "big game hunters", detail: function (v) { return "killed King Bangalash at level " + v; } },
+    { id: "mankrik", group: "iconic", only: { faction: "Horde" }, cohort: "faction", high: false, pop: [18, 0.15], name: "friends of Mankrik", detail: function (v) { return "found Mankrik's wife at level " + v; } },
+    { id: "echeyakee", group: "iconic", only: { faction: "Horde" }, cohort: "faction", high: false, pop: [19, 0.1], name: "Barrens hunters", detail: function (v) { return "killed Echeyakee at level " + v; } },
+    { id: "elevator", group: "iconic", only: { faction: "Horde" }, cohort: "faction", high: true, pop: [0.8, 0.9], name: "elevator jumpers", detail: function (v) { return "fell off the Undercity elevator " + v + " times"; } }
+  ];
 
-  // Share card
-  $("card-who").textContent = S.who.split(" · ")[0];
-  $("card-played").textContent = dur(total) + " /played";
+  // This journey's values for the rankings.
+  var hoursPlayed = total / 3600;
+  var killedBy = {};
+  S.killers.forEach(function (k) { killedBy[k[0]] = k[1]; });
+  var lootCount = {};
+  S.loot.forEach(function (l) { lootCount[l[0]] = l[1]; });
+  var YOU = {
+    label: "You", classToken: "DRUID", className: S.className, race: "Night Elf", faction: "Alliance",
+    names: { topMob: S.topMobs[0][0], deathZone: S.deathZones[0][0], longestQuest: S.longestQuest.title, worn: "[" + S.wornPlayed.name + "]" },
+    values: {
+      played: total, days: S.calendarDays, session: S.longestSession, sessionLevels: S.bestSession.levels,
+      nightOwl: sum(S.hourWeights.slice(0, 5)) / sum(S.hourWeights) * 100,
+      earlyBird: sum(S.hourWeights.slice(5, 9)) / sum(S.hourWeights) * 100, daysPlayed: S.daysPlayed,
+      kills: S.kills, topMob: S.topMobs[0][1], elites: S.elites, rares: S.rares, bosses: S.bosses, honor: S.honorKills,
+      fight: S.longestFight, gap: S.bestKill.mob - S.bestKill.you, killRate: S.kills / hoursPlayed,
+      largestHit: S.pane.largestHit, duelsWon: S.pane.duelsWon,
+      deaths: S.deaths, streak: S.streak.levels, timeDead: S.timeDead, zoneDeaths: S.deathZones[0][1],
+      pvpDeaths: killedBy["Players (PvP)"] || 0, fallDeaths: killedBy.Falling || 0,
+      quests: S.quests.completed, questRate: Math.round(S.quests.completed / hoursPlayed * 10) / 10,
+      abandoned: S.quests.abandoned, questDays: S.longestQuest.days, forever: S.quests.forever,
+      groupQuests: S.quests.group, questXP: S.xpSplit[0][1], rested: S.restedShare,
+      ground: S.travel.groundYards / 1760, air: S.travel.airYards / 1760, flights: S.travel.flights,
+      flightPaths: S.travel.flightPaths, hearths: S.travel.hearths, zones: S.path.length, longestFall: S.travel.longestFall,
+      earned: earned, peakGold: S.peakGold.copper, auctions: S.earned[3][1], repairs: S.spent[3][1],
+      saved: earned - spent, mount: S.firstMountLevel,
+      rareLoot: lootCount.Rare || 0, firstBlue: S.firstBlue.level, looted: sum(S.loot.map(function (l) { return l[1]; })),
+      grays: lootCount.Poor || 0, worn: S.wornPlayed.played,
+      skinned: S.skinned, fish: S.fish, crafted: S.crafted, skillUps: S.skillUps,
+      maxed: S.professions.filter(function (p) { return p[1] >= 300; }).length,
+      cat: S.forms[0][1], shifts: S.shifts, healing: S.healing, prowl: S.prowl,
+      groupedWith: S.groupedWith, solo: (1 - S.grouped / total) * 100, guild: S.guildLevel, camps: S.camps,
+      campTime: S.campTime, transmog: S.transmog, hugs: S.pane.hugs, lols: S.pane.lols, jumps: S.jumps,
+      jumpRate: S.jumps / hoursPlayed, fallen: S.travel.fallen, critters: S.pane.critters,
+      vanCleef: S.iconic.vanCleefLevel, boat: S.iconic.boatTrips, bangalash: S.iconic.bangalashLevel
+    }
+  };
+
+  // Two made-up players, to show that each journey gets its own picks: their
+  // values are drawn at random (but the same every time) around each median.
+  function exampleProfile(label, classToken, className, race, faction, names) {
+    var rnd = seeded(hashText(label)), values = {};
+    RANKINGS.forEach(function (r) {
+      var key = r.key || r.id;
+      if (values[key] !== undefined) return;
+      var z = Math.sqrt(-2 * Math.log(rnd() || 1e-9)) * Math.cos(2 * Math.PI * rnd());
+      var v = r.pop[0] * Math.exp(r.pop[1] * z), step = r.round || 1;
+      values[key] = Math.max(0, Math.round(v * step) / step);
+    });
+    return { label: label, classToken: classToken, className: className, race: race, faction: faction,
+             names: names, values: values, example: true };
+  }
+  var PROFILES = [
+    YOU,
+    exampleProfile("Orc Warrior", "WARRIOR", "Warrior", "Orc", "Horde",
+      { topMob: "Razormane Quilboar", deathZone: "Stranglethorn Vale", longestQuest: "Mankrik's Wife", worn: "[Whirlwind Axe]" }),
+    exampleProfile("Undead Mage", "MAGE", "Mage", "Undead", "Horde",
+      { topMob: "Scarlet Crusader", deathZone: "Hillsbrad Foothills", longestQuest: "The Prodigal Lich", worn: "[Robes of Arugal]" })
+  ];
+
+  // Share of players at or past a value, from the made-up spread (normal on
+  // the log scale). Abramowitz and Stegun's approximation of erf.
+  function shareAbove(r, v) {
+    var z = (Math.log(Math.max(v, 0.5)) - Math.log(r.pop[0])) / r.pop[1];
+    var x = Math.abs(z) / Math.SQRT2, t = 1 / (1 + 0.3275911 * x);
+    var erf = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    var below = z >= 0 ? (1 + erf) / 2 : (1 - erf) / 2;
+    return r.high ? 1 - below : below;
+  }
+  var RACE_PLURAL = { "Night Elf": "Night Elves", Dwarf: "Dwarves", Undead: "Undead", Tauren: "Tauren" };
+  function cohortLabel(r, p) {
+    if (r.cohort === "class") return p.className + "s";
+    if (r.cohort === "race") return RACE_PLURAL[p.race] || (p.race + "s");
+    if (r.cohort === "faction") return p.faction + " players";
+    return "All players";
+  }
+  // Every ranking that applies to a profile, best first.
+  function rankingsFor(p) {
+    return RANKINGS.filter(function (r) {
+      if (!r.only) return true;
+      return Object.keys(r.only).every(function (k) { return p[k] === r.only[k]; });
+    }).map(function (r) {
+      var v = p.values[r.key || r.id], share = shareAbove(r, v);
+      return { r: r, share: share, top: Math.max(1, Math.ceil(share * 100)),
+               name: typeof r.name === "function" ? r.name(p) : r.name, detail: r.detail(v, p), cohort: cohortLabel(r, p) };
+    }).sort(function (a, b) { return a.share - b.share; });
+  }
+  // The ones to show: the best, at most two from any one part of the game and
+  // one from any family.
+  function picksFor(all, count) {
+    var picks = [], perGroup = {}, families = {};
+    all.forEach(function (x) {
+      var family = x.r.family || x.r.key || x.r.id;
+      if (picks.length >= count || (perGroup[x.r.group] || 0) >= 2 || families[family]) return;
+      picks.push(x);
+      perGroup[x.r.group] = (perGroup[x.r.group] || 0) + 1;
+      families[family] = true;
+    });
+    return picks;
+  }
+  function rankCard(x) {
+    return '<div class="rank"><span class="big">Top ' + x.top + "%</span><p>" + esc(x.name) + ": " + esc(x.detail) +
+      '</p><span class="cohort">' + esc(x.cohort) + "</span></div>";
+  }
+  function showRankings(p) {
+    var all = rankingsFor(p), picks = picksFor(all, 9);
+    $("ranks-for").textContent = p.example ? "Where this " + p.label + " stands out (made-up example)" : "Where you stand out";
+    $("ranks").innerHTML = picks.map(rankCard).join("");
+    $("all-ranks-summary").textContent = "See all " + all.length + (p.example ? " of this player's" : " of your") + " rankings, best first";
+    $("all-ranks-list").innerHTML = all.map(function (x) {
+      return "<li><b>Top " + x.top + "%</b><span>" + esc(x.name) + ": " + esc(x.detail) + "</span><small>" + esc(x.cohort) + "</small></li>";
+    }).join("");
+    PROFILES.forEach(function (q, i) { $("profile-" + i).setAttribute("aria-pressed", String(q === p)); });
+  }
+  $("profiles").innerHTML = PROFILES.map(function (p, i) {
+    return '<button type="button" id="profile-' + i + '" aria-pressed="false">' + esc(p.label) +
+      (p.example ? " <small>example</small>" : "") + "</button>";
+  }).join("");
+  PROFILES.forEach(function (p, i) { $("profile-" + i).addEventListener("click", function () { showRankings(p); }); });
+  $("rank-count").textContent = RANKINGS.length;
+
+  var mine = rankingsFor(YOU), myPicks = picksFor(mine, 9), best = myPicks[0];
+  $("ranks-title").textContent = "You're in the top " + best.top + "% of " + best.name +
+    (best.cohort === "All players" ? "" : " among " + best.cohort) + ".";
+  showRankings(YOU);
+  var pace = mine.filter(function (x) { return x.r.id === "played"; })[0];
+  $("hero-rank").textContent = "Faster to 60 than " + (100 - pace.top) + "% of players";
+
+  // Share card: your three best rankings, the headline numbers, and the
+  // highlights of the journey.
+  $("card-who").textContent = YOU.race + " " + YOU.className + " · " + YOU.faction;
+  $("card-played").textContent = dur(total) + " /played over " + S.calendarDays + " days";
+  $("card-ranks").innerHTML = myPicks.slice(0, 3).map(function (x) {
+    var name = x.name.charAt(0).toUpperCase() + x.name.slice(1);
+    return "<li><b>Top " + x.top + "%</b><span>" + esc(name) + "</span><small>" + esc(x.detail) + " · " +
+      esc(x.cohort) + "</small></li>";
+  }).join("");
   stats("card-stats", [
     ["Kills", num(S.kills)],
     ["Deaths", num(S.deaths)],
     ["Quests", num(S.quests.completed)],
-    ["Gold earned", gold(earned)]
+    ["Gold earned", gold(earned)],
+    ["Zones", S.path.length],
+    ["Dungeon bosses", num(S.bosses)],
+    ["Miles traveled", miles(S.travel.groundYards + S.travel.airYards)],
+    ["Jumps", num(S.jumps)]
   ]);
-  $("card-lines").innerHTML = "<span>Most killed: " + esc(S.topMobs[0][0]) + "</span><span>Worn the longest: " +
-    item(S.wornPlayed) + "</span>";
+  var lines = [
+    ["Most killed", esc(S.topMobs[0][0]) + " ×" + num(S.topMobs[0][1])],
+    ["Favorite spot", esc(favorite.spot[0] + ", " + favorite.zone)],
+    ["Deadliest zone", esc(S.deathZones[0][0]) + " (" + S.deathZones[0][1] + " deaths)"],
+    ["Slowest level", "Level " + (slowest + 1) + " in " + dur(perLevel[slowest])],
+    ["Longest session", dur(S.longestSession)],
+    ["Worn the longest", item(S.wornPlayed) + " (" + dur(S.wornPlayed.played) + ")"],
+    ["Best loot", item(S.bestLoot)],
+    ["First mount", "Level " + S.firstMountLevel]
+  ];
+  $("card-lines").innerHTML = lines.map(function (l) { return "<dt>" + l[0] + "</dt><dd>" + l[1] + "</dd>"; }).join("");
 
   // Import (draft): jump to the sample journey.
   $("import-form").addEventListener("submit", function (event) {
