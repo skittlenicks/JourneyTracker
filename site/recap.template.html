@@ -446,7 +446,7 @@ kbd {
 .atlas-frame:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; }
 .atlas-view { position: absolute; inset: 0; transform-origin: 0 0; }
 .atlas-view > img, .atlas-view > canvas, .atlas-view > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.atlas-heat { mix-blend-mode: screen; opacity: 0; pointer-events: none; }
+.atlas-heat { opacity: 0; pointer-events: none; }
 .atlas-view.heat-ready .atlas-heat { opacity: 1; }
 /* The game adds a zone's highlight to the map's light (plus-lighter; screen
    where a browser doesn't have it). */
@@ -459,8 +459,8 @@ kbd {
 .atlas-route path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .atlas-route .halo { stroke: rgba(255, 238, 190, 0.5); stroke-width: 5; }
 .atlas-route .line { stroke: #2a1406; stroke-width: 2.2; stroke-dasharray: 0.5 6.5; }
-.atlas-route .death { stroke: #2a1406; stroke-width: 4.5; opacity: 0.55; }
-.atlas-route .death-x { stroke: #e0391c; stroke-width: 2; }
+.atlas-route .death { stroke: #2a1406; stroke-width: 5; opacity: 0.85; }
+.atlas-route .death-x { stroke: #fff1d6; stroke-width: 2; }
 .atlas-pin {
   position: absolute;
   z-index: 1;
@@ -773,7 +773,7 @@ kbd {
       <div class="atlas-frame" id="atlas-frame" role="region" aria-label="Map of Azeroth with your route and where you spent your time">
         <p class="atlas-name" id="atlas-name" aria-live="polite"></p>
       </div>
-      <figcaption id="map-caption">Point at a zone to light it up and click it to open its map, as in the game. The dotted line is your route, numbered in the order you reached each zone; the brighter a zone glows, the more time you spent there (made up for this sample, with hotspots in four zones). Map art: World of Warcraft &copy; Blizzard Entertainment.</figcaption>
+      <figcaption id="map-caption">Point at a zone to light it up and click it to open its map, as in the game. The dotted line is your route, numbered in the order you reached each zone; the redder a zone, the more time you spent there (made up for this sample, with hotspots in four zones). Map art: World of Warcraft &copy; Blizzard Entertainment.</figcaption>
     </figure>
     <div class="heat-info">
       <p class="zone-total" id="zone-total"></p>
@@ -1491,7 +1491,7 @@ kbd {
   $("heat-lede").textContent = lede.charAt(0).toUpperCase() + lede.slice(1);
   if (S.imported) {
     $("map-caption").textContent = "Point at a zone to light it up and click it to open its map, as in the game. " +
-      "The dotted line joins the zones in the order you first reached them; the brighter a zone glows, the more time you spent there" +
+      "The dotted line joins the zones in the order you first reached them; the redder a zone, the more time you spent there" +
       (deathSpots.length ? ", and each × is where you died." : ".") + " Map art: World of Warcraft © Blizzard Entertainment.";
   }
 
@@ -1529,16 +1529,23 @@ kbd {
     return points;
   }
 
-  // Ember red (a little time) through orange and gold to white-hot (the most).
-  var RAMP = [[0, [190, 45, 20]], [0.45, [236, 112, 28]], [0.75, [255, 196, 70]], [1, [255, 248, 220]]];
-  function ramp(t) {
-    for (var i = 1; i < RAMP.length; i++) {
-      if (t <= RAMP[i][0]) {
-        var a = RAMP[i - 1], b = RAMP[i], f = (t - a[0]) / (b[0] - a[0]);
+  // The heat is red ink, a color the map's golds, browns and blues don't
+  // have: a light orange-red wash for a little time, deep crimson for the most.
+  var INK = [[0, [236, 98, 56]], [0.5, [208, 36, 32]], [1, [146, 10, 24]]];
+  function inkOf(h) {
+    for (var i = 1; i < INK.length; i++) {
+      if (h <= INK[i][0]) {
+        var a = INK[i - 1], b = INK[i], f = (h - a[0]) / (b[0] - a[0]);
         return [0, 1, 2].map(function (k) { return Math.round(a[1][k] + (b[1][k] - a[1][k]) * f); });
       }
     }
-    return RAMP[RAMP.length - 1][1];
+    return INK[INK.length - 1][1];
+  }
+  // How much ink: none below a trace, then up to most of the art's color,
+  // so the map still shows through the deepest red.
+  function inkAlpha(h) {
+    var e = Math.min(1, Math.max(0, (h - 0.03) / 0.97));
+    return Math.round((e * e * (3 - 2 * e) * 0.62 + (h > 0.03 ? 0.08 : 0)) * 255);
   }
 
   // Each zone's glow (the game's highlight for it on its continent), loaded
@@ -1582,15 +1589,17 @@ kbd {
     return best;
   }
 
-  // The heat, as light added to the map (black adds nothing): each zone of
-  // your route glows in its own shape, brighter and whiter the more time you
-  // spent there. A zone the sample has hotspots for shows them when opened.
+  // The heat: each zone of your route washed in red in its own shape, deeper
+  // the more time you spent there. A zone the sample has hotspots for shows
+  // them when opened, in the same reds.
   var mostSeconds = Math.max.apply(null, route.map(function (r) { return r.seconds; }).concat([1]));
   function paintHeat(canvas, view) {
-    var W = canvas.width = AW, H = canvas.height = AH, light = new Float32Array(W * H * 3);
-    function add(i, c, a) { light[i * 3] += c[0] * a; light[i * 3 + 1] += c[1] * a; light[i * 3 + 2] += c[2] * a; }
-    // A glow stretched over a rectangle of the view, at strength a in color c.
-    function glow(g, rect, c, a) {
+    var W = canvas.width = AW, H = canvas.height = AH, heat = new Float32Array(W * H);
+    function mark(i, v) { if (v > heat[i]) heat[i] = v; }
+    // A zone's shape, from its glow stretched over its rectangle of the view,
+    // filled at strength a. (Glows are dimmer in places inside a zone, so
+    // anything past a faint edge counts as all the way in.)
+    function glow(g, rect, a) {
       var x0 = Math.max(0, Math.floor(rect[0] * W)), x1 = Math.min(W, Math.ceil(rect[2] * W));
       var y0 = Math.max(0, Math.floor(rect[1] * H)), y1 = Math.min(H, Math.ceil(rect[3] * H));
       var rw = (rect[2] - rect[0]) * W, rh = (rect[3] - rect[1]) * H;
@@ -1598,17 +1607,16 @@ kbd {
         var gy = Math.min(g.h - 1, Math.max(0, Math.floor((y + 0.5 - rect[1] * H) / rh * g.h)));
         for (var x = x0; x < x1; x++) {
           var gx = Math.min(g.w - 1, Math.max(0, Math.floor((x + 0.5 - rect[0] * W) / rw * g.w)));
-          var v = g.lum[gy * g.w + gx] / g.peak;
-          if (v > 0.02) add(y * W + x, c, a * v);
+          var e = Math.min(1, Math.max(0, (g.lum[gy * g.w + gx] / g.peak - 0.08) / 0.22));
+          mark(y * W + x, a * e * e * (3 - 2 * e));
         }
       }
     }
-    // A soft round glow (for cities, which have none of their own).
-    function blob(cx, cy, radius, c, a) {
+    // A soft round wash (for cities, which have no glow of their own).
+    function blob(cx, cy, radius, a) {
       for (var y = Math.max(0, Math.floor(cy - radius * 3)); y < Math.min(H, cy + radius * 3); y++) {
         for (var x = Math.max(0, Math.floor(cx - radius * 3)); x < Math.min(W, cx + radius * 3); x++) {
-          var d2 = (x - cx) * (x - cx) + (y - cy) * (y - cy), v = Math.exp(-d2 / (2 * radius * radius));
-          if (v > 0.01) add(y * W + x, c, a * v);
+          mark(y * W + x, a * Math.exp(-((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (2 * radius * radius)));
         }
       }
     }
@@ -1620,34 +1628,32 @@ kbd {
         var cx = p.x / 100 * W, cy = p.y / 100 * H, s = Math.max(2, p.r / 100 * W), reach = 3 * s;
         for (var y = Math.max(0, Math.floor(cy - reach)); y < Math.min(H, cy + reach); y++) {
           for (var x = Math.max(0, Math.floor(cx - reach)); x < Math.min(W, cx + reach); x++) {
-            var d2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
-            field[y * W + x] += p.m * Math.exp(-d2 / (2 * s * s));
+            field[y * W + x] += p.m * Math.exp(-((x - cx) * (x - cx) + (y - cy) * (y - cy)) / (2 * s * s));
           }
         }
       });
       for (var i = 0; i < field.length; i++) if (field[i] > peak) peak = field[i];
-      for (i = 0; i < field.length; i++) {
-        var t = Math.sqrt(field[i] / (peak || 1));
-        if (t > 0.03) add(i, ramp(0.92 * t), Math.min(0.95, t * 1.1));
-      }
+      for (i = 0; i < field.length; i++) heat[i] = Math.sqrt(field[i] / (peak || 1));
     } else {
-      // Ember to gold, never white, so the art still reads under the glow.
       route.forEach(function (r) {
         if (!(r.seconds > 0)) return;
-        var t = Math.sqrt(r.seconds / mostSeconds), c = ramp(0.1 + 0.72 * t), a = 0.32 + 0.62 * t;
+        var a = 0.3 + 0.7 * Math.sqrt(r.seconds / mostSeconds);
         var g = GLOWS[r.map.uiMapID], rect = rectOnView(view, r.map);
         if (!rect || rect[2] < 0 || rect[0] > 1 || rect[3] < 0 || rect[1] > 1) return;
-        if (g) { glow(g, rect, c, view.kind === "zone" ? a * 0.55 : a); return; }
+        // A zone you opened is all of the view: a lighter wash, so its map reads.
+        if (g) { glow(g, rect, view.kind === "zone" ? a * 0.45 : a); return; }
         var at = onView(view, r.at);
-        if (at) blob(at[0] * W, at[1] * H, Math.max(5, (rect[2] - rect[0]) * W * 0.3), c, a);
+        if (at) blob(at[0] * W, at[1] * H, Math.max(5, (rect[2] - rect[0]) * W * 0.3), a);
       });
     }
     var ctx = canvas.getContext("2d"), img = ctx.createImageData(W, H), d = img.data;
     for (var n = 0; n < W * H; n++) {
-      d[n * 4] = Math.min(255, light[n * 3]);
-      d[n * 4 + 1] = Math.min(255, light[n * 3 + 1]);
-      d[n * 4 + 2] = Math.min(255, light[n * 3 + 2]);
-      d[n * 4 + 3] = 255;
+      if (heat[n] <= 0.03) continue;
+      var h = Math.min(1, heat[n]), c = inkOf(h);
+      d[n * 4] = c[0];
+      d[n * 4 + 1] = c[1];
+      d[n * 4 + 2] = c[2];
+      d[n * 4 + 3] = inkAlpha(h);
     }
     ctx.putImageData(img, 0, 0);
   }
