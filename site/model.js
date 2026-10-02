@@ -1,0 +1,671 @@
+// Journey Tracker's journey model, shared by the recap page and the website's
+// functions: an export as the journey the page shows (journeyFromExport), the
+// numbers it's ranked on (profileOf) and where it places among everyone
+// else's (placesFor). site/build.ps1 puts this file into the page;
+// site/deploy.ps1 gives each function that needs it a copy.
+var JourneyModel = (function () {
+  "use strict";
+
+  // Bump when a ranked value changes meaning or the rankings gain keys:
+  // profiles saved under an older model get worked out again (site/api/ranks.js).
+  var MODEL = 1;
+  // A place needs this many players on the ranking, you included: being 1st
+  // of 2 says nothing.
+  var MIN_PLAYERS = 3;
+  // From this many players up, a place reads as a share ("Top 3%") instead
+  // of a place ("2nd of 9").
+  var SHARE_FROM = 100;
+
+  function sum(list) { return list.reduce(function (t, v) { return t + v; }, 0); }
+  function num(n) { return Math.round(n).toLocaleString("en-US"); }
+  // The addon's own duration format: 6d 12h 40m, 2h 51m, 9m 36s.
+  function dur(seconds) {
+    var s = Math.round(seconds);
+    var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    if (d) return d + "d " + h + "h " + m + "m";
+    if (h) return h + "h " + m + "m";
+    return m + "m " + (s % 60) + "s";
+  }
+  function coins(copper) {
+    if (copper >= 10000) return num(Math.floor(copper / 10000)) + " gold";
+    if (copper >= 100) return Math.floor(copper / 100) + " silver";
+    return Math.round(copper) + " copper";
+  }
+
+  // Lua tables arrive as JSON objects, or as arrays when their keys run 1..n
+  // (and an empty table is []). Exports are pasted by anyone and shared
+  // pages show them to everyone, so every number read from one goes
+  // through number() (it ends up in the page's HTML), and tables keyed by
+  // names from an export have no prototype ("__proto__" is just a name).
+  function named(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
+  function number(v) { v = Number(v); return isFinite(v) ? v : 0; }
+  function numbered(x) {
+    var out = Object.create(null);
+    if (Array.isArray(x)) x.forEach(function (v, i) { out[i + 1] = v; });
+    else Object.keys(named(x)).forEach(function (k) { out[k] = x[k]; });
+    return out;
+  }
+  function listOf(x) { return Array.isArray(x) ? x : Object.keys(named(x)).map(function (k) { return x[k]; }); }
+  // The sum of a map's numbers (or of one field of each entry).
+  function addUp(map, field) {
+    return listOf(map).reduce(function (t, v) { var n = number(field ? named(v)[field] : v); return t + (n > 0 ? n : 0); }, 0);
+  }
+  // A { name: count } map as [name, count] rows, biggest first.
+  function topRows(map, n) {
+    var m = named(map);
+    return Object.keys(m).map(function (k) { return [k, number(m[k])]; })
+      .filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, n || 5);
+  }
+  function tally(records, field) {
+    var out = Object.create(null);
+    records.forEach(function (r) { if (r && typeof r[field] === "string") out[r[field]] = (out[r[field]] || 0) + 1; });
+    return out;
+  }
+  function capFirst(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
+  function dayOf(t) { return new Date(t * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric" }); }
+  function own(map, key) { return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined; }
+  var QUALITY = ["poor", "common", "uncommon", "rare", "epic", "legendary"];
+  var QUALITY_BY_COLOR = { "9d9d9d": 0, ffffff: 1, "1eff00": 2, "0070dd": 3, a335ee: 4, ff8000: 5 };
+  // An item link ("|cnIQ3:|Hitem:...|h[Name]|h|r") as { name, q }.
+  function itemOf(link) {
+    var s = String(link || ""), name = (s.match(/\[([^\]]+)\]/) || [])[1];
+    if (!name) return null;
+    var q = s.match(/\|cnIQ(\d):/);
+    q = q ? Number(q[1]) : QUALITY_BY_COLOR[((s.match(/\|cff([0-9a-f]{6})/i) || [])[1] || "").toLowerCase()];
+    return { name: name, q: QUALITY[q] || "common" };
+  }
+  // A Statistics pane value as a number: "--" is none, money is in copper.
+  function paneNumber(value) {
+    var s = String(value == null ? "" : value).trim(), copper = 0;
+    if (s === "--" || s === "") return 0;
+    if (s.indexOf("|T") >= 0) {
+      s.replace(/([\d,]+)\s*\|T[^|]*?(Gold|Silver|Copper)Icon[^|]*\|t/gi, function (all, n, coin) {
+        copper += Number(n.replace(/,/g, "")) * { gold: 10000, silver: 100, copper: 1 }[coin.toLowerCase()];
+      });
+      return copper;
+    }
+    var n = Number(s.replace(/,/g, ""));
+    return isFinite(n) ? n : null;
+  }
+  var CLASS_NAMES = { WARRIOR: "Warrior", PALADIN: "Paladin", HUNTER: "Hunter", ROGUE: "Rogue", PRIEST: "Priest",
+                      SHAMAN: "Shaman", MAGE: "Mage", WARLOCK: "Warlock", DRUID: "Druid" };
+  var RACE_NAMES = { NightElf: "Night Elf", Scourge: "Undead" };
+  var PRIMARY = ["Alchemy", "Blacksmithing", "Enchanting", "Engineering", "Herbalism", "Leatherworking", "Mining",
+                 "Skinning", "Tailoring"];
+  var SLOTS = { 1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet",
+                9: "Wrist", 10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back",
+                16: "Main hand", 17: "Off hand", 18: "Ranged", 19: "Tabard" };
+
+  // A decoded export as a journey for the page: the sample's fields, from
+  // what the addon saved (JourneyTracker.lua's DEFAULTS describe the stats).
+  // Anything the export doesn't have stays empty, and the page leaves it out.
+  function journeyFromExport(data) {
+    var st = named(data.stats), ch = named(data.character), lv = named(data.levels), wr = named(data.wrapped);
+    var classToken = String(ch.class || ""), classes = named(data.class);
+    var cls = named(own(classes, classToken)), all = named(classes.ALL);
+    var now = number(data.exportedAt) || Math.floor(Date.now() / 1000), since = number(st.firstSeen) || now;
+    var reachedMax = number(st.reachedMax);
+    var level = number(ch.level), className = own(CLASS_NAMES, classToken) || capFirst(classToken.toLowerCase());
+    var race = own(RACE_NAMES, ch.race) || String(ch.race || "").replace(/([a-z])([A-Z])/g, "$1 $2");
+    var J = { imported: true, level: level, played: number(ch.played), className: className, classToken: classToken,
+              race: race, faction: String(ch.faction || ""), ruleset: String(ch.ruleset || "Normal"), hoursAreSeconds: true };
+    J.who = [race + " " + className, J.faction, J.ruleset + " realm"].filter(Boolean).join(" · ");
+    // The Statistics pane, by statistic ID. It has counted since before the
+    // tracker was installed, so where both count the same thing the page
+    // shows the bigger of the two, as the addon's own window does.
+    var paneValues = named(named(named(data.statistics).latest).values), pane = Object.create(null);
+    Object.keys(paneValues).forEach(function (id) {
+      var n = paneNumber(paneValues[id]);
+      if (n !== null) pane[id] = n;
+    });
+    function best(tracked, id) { return Math.max(number(tracked), pane[id] || 0); }
+    J.pane = pane;
+    J.firstLogin = dayOf(since);
+    J.reached60 = reachedMax ? dayOf(reachedMax) : null;
+    J.calendarDays = Math.max(1, Math.ceil(((reachedMax || now) - since) / 86400));
+    J.daysPlayed = Object.keys(named(st.days)).length;
+
+    // Each level's time: from the level's own counters, or the /played at
+    // the level-ups on either side. Levels before the tracker stay empty.
+    var levelStats = numbered(lv.stats), dings = numbered(lv.snapshots), L;
+    J.perLevel = [];
+    for (L = 1; L <= 59; L++) {
+      var took = number(named(levelStats[L]).played);
+      var a = number(named(dings[L]).played), b = number(named(dings[L + 1]).played);
+      if (!(took > 0) && a > 0 && b > a) took = b - a;
+      J.perLevel.push(took > 0 ? took : null);
+    }
+    var path = listOf(st.path);
+    var pathLevels = path.map(function (p) { return number(named(p).level); }).filter(function (l) { return l > 0; });
+    J.firstLevel = pathLevels.length ? Math.min.apply(null, pathLevels) : level;
+    J.complete = J.firstLevel <= 2 && level >= 60;   // tracked from the start to 60
+    function mostIn(field) {
+      return Object.keys(levelStats).reduce(function (m, k) { return Math.max(m, number(named(levelStats[k])[field])); }, 0);
+    }
+
+    // Time
+    var T = named(st.time);
+    J.trackedTime = number(T.solo) + number(T.grouped) || J.played;
+    J.timeSpent = [["Mounted", T.mounted], ["In combat", T.combat], ["Resting in inns and cities", T.resting],
+                   ["On flight paths", T.taxi], ["AFK", T.afk], ["Dead", T.dead]]
+      .map(function (r) { return [r[0], number(r[1])]; })
+      .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
+    var hours = numbered(st.hours);
+    J.hourWeights = [];
+    for (var h = 0; h < 24; h++) J.hourWeights.push(number(hours[h]));
+    var sessions = named(st.sessions), runs = listOf(sessions.list).concat(sessions.current ? [sessions.current] : []);
+    var lengths = runs.map(function (r) { return number(named(r).last) - number(named(r).start); })
+      .filter(function (s) { return s > 0; });
+    J.sessions = runs.length;
+    J.longestSession = lengths.length ? Math.max.apply(null, lengths) : 0;
+    J.avgSession = lengths.length ? sum(lengths) / lengths.length : 0;
+    J.bestSession = null;
+    runs.forEach(function (r) {
+      var gained = number(named(r).levels), from = number(named(r).startLevel);
+      if (gained > 0 && (!J.bestSession || gained > J.bestSession.levels)) J.bestSession = { levels: gained, from: from, to: from + gained };
+    });
+
+    // Milestones the tracker saw happen
+    var loot = named(st.loot), social = named(st.social), professions = named(st.professions), marks = [];
+    function mark(when, text) { when = number(when); if (when > 0) marks.push([when, text]); }
+    Object.keys(professions).forEach(function (name) {
+      if (number(named(professions[name]).t) - since > 60) mark(professions[name].level, "Took up " + name);
+    });
+    mark(named(loot.firstBlue).level, "First blue");
+    mark(named(loot.firstEpic).level, "First epic");
+    mark(social.guildJoinLevel, "Joined a guild");
+    mark(named(st.firstMount).level, "First mount");
+    mark(named(wr["W-001"]).level, "Left Zephras Isle");
+    mark(named(wr["W-006"]).level, "Reached Mount Hyjal");
+    if (reachedMax) mark(60, "Level 60");
+    J.milestones = marks.sort(function (x, y) { return x[0] - y[0]; });
+
+    // Combat
+    var kills = named(st.kills), byClass = named(kills.byClass), combat = named(st.combat);
+    J.kills = Math.max(number(kills.total), (pane[1198] || 0) - (pane[588] || 0));   // kills that give XP
+    J.topMobs = topRows(kills.byName, 5);
+    J.mobKinds = Object.keys(named(kills.byName)).length;
+    J.killTypes = Object.create(null);
+    topRows(kills.byType, 50).forEach(function (r) { J.killTypes[r[0]] = r[1]; });
+    J.elites = number(byClass.elite) + number(byClass.rareelite) + number(byClass.worldboss);
+    J.rares = number(byClass.rare) + number(byClass.rareelite);
+    J.bosses = addUp(st.bosses, "kills");
+    J.wipes = addUp(st.bosses, "wipes");
+    J.honorKills = best(named(st.pvp).honorableKills, 588);
+    J.fights = number(combat.fights);
+    J.longestFight = number(combat.longest);
+    J.ambushes = number(combat.ambushMobs);
+    J.multiPulls = number(combat.multiPulls);
+    J.maxMobs = number(combat.maxMobs);
+    var gap = named(kills.maxLevelDiff);
+    J.bestKill = number(gap.diff) > 0 ? { mob: number(gap.mobLevel), you: number(gap.level) } : null;
+    J.levelKills = mostIn("kills");
+
+    // Deaths
+    var deaths = listOf(st.deaths), rez = named(st.rez);
+    J.deaths = best(deaths.length, 60);
+    J.deathZones = topRows(tally(deaths, "zone"), 4);
+    J.killers = topRows(tally(deaths, "killer"), 4);
+    J.rez = { corpse: number(rez["corpse run"]), spirit: number(rez["spirit healer"]), player: number(rez["player rez"]) };
+    J.dungeonDeaths = deaths.filter(function (d) { return d && d.dungeon; }).length;
+    J.groupDeaths = deaths.filter(function (d) { return d && d.grouped; }).length;
+    J.timeDead = number(T.dead);
+    J.corpseTime = number(T.corpseRuns);
+    J.graveyards = Object.keys(named(st.graveyards)).length;
+    J.levelDeaths = mostIn("deaths");
+    J.streak = null;
+    for (var run = null, lvl = 1; lvl <= 60; lvl++) {
+      var s = levelStats[lvl];
+      if (!s || number(named(s).deaths) > 0) { run = null; continue; }
+      run = run ? { levels: run.levels + 1, from: run.from, to: lvl } : { levels: 1, from: lvl, to: lvl };
+      if (!J.streak || run.levels > J.streak.levels) J.streak = run;
+    }
+
+    // Quests and XP
+    var quests = named(st.quests), tags = named(quests.byTag), forever = named(wr["W-007"]);
+    J.quests = { completed: best(quests.completed, 98), accepted: number(quests.accepted), abandoned: best(quests.abandoned, 94),
+                 group: addUp(tags) - number(tags.Dungeon), dungeon: number(tags.Dungeon),
+                 forever: number(forever.forever), classic: number(forever.classic) };
+    var heldFor = number(named(quests.longest).seconds);
+    J.longestQuest = heldFor > 0 ? { days: Math.round(heldFor / 86400), seconds: heldFor } : null;
+    J.questZones = topRows(quests.byZone, 5);
+    J.questGold = best(quests.money, 326);
+    J.levelQuests = mostIn("quests");
+    var xp = named(st.xp), xpTotal = number(xp.total);
+    J.xpTotal = xpTotal;
+    function xpShare(v) { return xpTotal ? Math.round(number(v) / xpTotal * 100) : 0; }
+    J.xpSplit = [["Quests", xpShare(xp.quest), "var(--gold)"], ["Kills", xpShare(xp.kill), "var(--gold-deep)"],
+                 ["Exploration", xpShare(xp.explore), "var(--gold-pale)"], ["Other", xpShare(xp.other), "var(--ink-soft)"]]
+      .filter(function (p) { return p[1] > 0; });
+    J.restedShare = xpShare(xp.restedUsed);
+    J.groupXP = xpShare(xp.grouped);
+
+    // The road: zones in the order you first reached them, the levels you
+    // were while there, and the time spent in each.
+    var zones = named(st.zones), stops = [], stopOf = Object.create(null);
+    path.forEach(function (p, i) {
+      p = named(p);
+      if (typeof p.zone !== "string" || !p.zone || p.zone === "Unknown") return;
+      var at = number(p.level), stop = stopOf[p.zone];
+      if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, at, at, number(named(own(zones, p.zone)).seconds)]);
+      var next = named(path[i + 1]), left = number(next.level) || (i === path.length - 1 ? level : at);
+      stop[2] = Math.max(stop[2], at, left);
+    });
+    J.path = stops;
+    J.heat = [];
+    J.zoneHeat = true;
+    J.zonesVisited = Object.keys(zones).filter(function (z) { return z !== "Unknown"; }).length;
+    J.subzones = Object.keys(named(st.subzones)).length;
+    J.zoneChanges = path.length;
+    var travel = named(st.travel), falls = named(st.falls);
+    J.travel = { groundYards: number(travel.ground), airYards: number(travel.taxi), flights: best(travel.flights, 349),
+                 flightPaths: listOf(travel.flightPaths).length, hearths: best(travel.hearths, 353),
+                 longestFall: Math.round(number(named(falls.longestSurvived).yards)), fallen: Math.round(number(falls.total)) };
+    J.fallDeaths = best(falls.fatal, 114);
+
+    // Gold, with what the tracker couldn't place as "Other"
+    var money = named(st.money);
+    function withOther(rows, whole) {
+      rows = rows.map(function (r) { return [r[0], number(r[1])]; })
+        .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
+      var rest = number(whole) - sum(rows.map(function (r) { return r[1]; }));
+      return rest > 0 ? rows.concat([["Other", rest]]) : rows;
+    }
+    J.earned = withOther([["Quest rewards", J.questGold], ["Selling to vendors", best(money.vendor, 921)],
+                          ["Looting", best(money.loot, 333)], ["Auction house sales", best(money.auctionIncome, 919)],
+                          ["Mail", money.mail]], best(money.earned, 328));
+    J.spent = withOther([["Vendor purchases", money.vendorSpent], ["Auction house", money.auctionSpent],
+                         ["Class training", money.training], ["Repairs", money.repairs], ["Flights", best(money.flights, 1146)]],
+                        money.spent);
+    J.earnedTotal = sum(J.earned.map(function (r) { return r[1]; }));
+    J.spentTotal = sum(J.spent.map(function (r) { return r[1]; }));
+    J.peakGold = best(money.peak, 334) > 0 ? { copper: best(money.peak, 334) } : null;
+    J.auctionsSold = number(money.auctionsSold);
+    J.firstMountLevel = number(named(st.firstMount).level) || null;
+    J.firstMountPlayed = number(named(st.firstMount).played) || null;
+
+    // Gear and loot
+    var worn = listOf(st.worn).filter(function (w) { return w && itemOf(w.link); });
+    function wornItem(w) {
+      var it = itemOf(w.link);
+      it.slot = own(SLOTS, w.slot) || "Gear";
+      it.levels = number(w.levels);
+      it.played = number(w.played);
+      it.from = number(w.first);
+      it.to = number(w.last);
+      return it;
+    }
+    var mostLevels = worn.slice().sort(function (x, y) { return number(y.levels) - number(x.levels); })[0];
+    var mostPlayed = worn.slice().sort(function (x, y) { return number(y.played) - number(x.played); })[0];
+    J.wornLevels = mostLevels && number(mostLevels.levels) >= 1 ? wornItem(mostLevels) : null;
+    J.wornPlayed = mostPlayed && number(mostPlayed.played) > 0 ? wornItem(mostPlayed) : null;
+    function found(record) {
+      var it = record && itemOf(record.link);
+      if (it) { it.level = number(record.level); it.where = String(record.zone || "somewhere"); it.ilvl = number(record.ilvl); }
+      return it;
+    }
+    J.bestLoot = found(loot.best);
+    J.firstBlue = found(loot.firstBlue);
+    J.firstEpic = found(loot.firstEpic);
+    J.looted = number(loot.items);
+    var byQuality = numbered(loot.byQuality);
+    J.loot = QUALITY.map(function (q, i) { return [capFirst(q), number(byQuality[i]), "var(--q-" + q + ")"]; })
+      .filter(function (r) { return r[1] > 0; });
+
+    // Professions
+    J.professions = Object.keys(professions).map(function (name) { return [name, number(named(professions[name]).rank)]; })
+      .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
+    J.trades = Object.keys(professions).filter(function (name) { return PRIMARY.indexOf(name) >= 0; });
+    var gathering = named(st.gathering);
+    J.skinned = number(named(gathering.skinning).nodes);
+    J.herbs = number(named(gathering.herb).nodes);
+    J.ore = number(named(gathering.mining).nodes);
+    J.fish = best(st.fish, 1518);
+    J.crafted = number(st.crafted);
+    J.skillUps = number(st.skillUps);
+
+    // Class: what the class tracker saved (spells cast, time in each form,
+    // stance or aspect, healing, power spent), plus what every class shares
+    J.casts = named(cls.casts);
+    J.classTime = named(cls.time);
+    J.swaps = named(cls.swaps);
+    J.targets = named(cls.targets);
+    J.powerSpent = named(cls.powerSpent);
+    J.healing = addUp(cls.healing);
+    J.classAll = all;
+
+    // WoW Forever and friends
+    J.camps = addUp(wr["W-008"]);
+    J.campTime = number(named(wr["W-009"]).Camp);
+    J.campShops = number(named(wr["W-010"]).vendor);
+    J.campBuffs = addUp(wr["W-011"]);
+    J.campCrafts = addUp(wr["W-012"]);
+    J.valthalak = listOf(wr["W-016"]).length;
+    J.transmog = number(named(wr["W-019"]).changes);
+    J.autoFlagged = number(wr["W-021"]);
+    J.zephras = number(named(wr["W-001"]).level) || null;
+    J.hyjal = wr["W-006"] ? number(named(wr["W-006"]).daysAfter60) : undefined;
+    J.grouped = number(T.grouped);
+    J.groupedWith = number(social.unique);
+    J.guildLevel = number(social.guildJoinLevel) || null;
+    J.guildBefore = !!social.guildBeforeTracking;
+    J.jumps = number(social.jumps);
+    return J;
+  }
+
+  // ---- What a journey is ranked on ----
+  // Class rankings an export can answer, from what the class tracker saved:
+  // spells cast, time in each state, buffs cast on others, swaps and power
+  // spent. "Teleport: *" counts every spell starting so, "*Totem" every one
+  // ending so.
+  var CLASS_CASTS = {
+    charges: ["Charge", "Intercept"], overpowers: ["Overpower"], executes: ["Execute"],
+    shouts: ["Battle Shout", "Demoralizing Shout", "Intimidating Shout", "Challenging Shout"],
+    sunders: ["Sunder Armor", "Rend"], hamstrings: ["Hamstring", "Piercing Howl"],
+    panicButtons: ["Shield Wall", "Last Stand", "Retaliation", "Recklessness", "Berserker Rage"],
+    warriorInterrupts: ["Pummel", "Shield Bash"], cleaves: ["Thunder Clap", "Cleave", "Whirlwind"],
+    judgements: ["Judgement"], layOnHands: ["Lay on Hands"], bubbles: ["Divine Shield", "Divine Protection"],
+    hammers: ["Hammer of Justice"], paladinHeals: ["Holy Light", "Flash of Light"], redemptions: ["Redemption"],
+    exorcisms: ["Exorcism", "Turn Undead"], consecrations: ["Consecration"], cleanses: ["Cleanse", "Purify"],
+    warhorse: ["Summon Warhorse", "Summon Charger"],
+    feeds: ["Feed Pet"], mends: ["Mend Pet"], feigns: ["Feign Death"],
+    traps: ["Freezing Trap", "Immolation Trap", "Frost Trap", "Explosive Trap"],
+    shots: ["Arcane Shot", "Aimed Shot", "Multi-Shot", "Concussive Shot", "Scatter Shot", "Serpent Sting"],
+    marks: ["Hunter's Mark"],
+    openers: ["Cheap Shot", "Ambush", "Garrote", "Sap"], pickPockets: ["Pick Pocket"], locks: ["Pick Lock"],
+    finishers: ["Eviscerate", "Slice and Dice", "Kidney Shot", "Rupture", "Expose Armor"],
+    escapes: ["Vanish", "Sprint", "Evasion"], kicks: ["Kick"], blinds: ["Gouge", "Blind"],
+    stabs: ["Sinister Strike", "Backstab", "Hemorrhage"],
+    shields: ["Power Word: Shield"], priestHeals: ["Renew", "Lesser Heal", "Heal", "Flash Heal", "Greater Heal"],
+    resurrections: ["Resurrection"], shadowSpells: ["Shadow Word: Pain", "Mind Blast", "Mind Flay"],
+    screams: ["Psychic Scream", "Fade"], mindControls: ["Mind Control"], levitates: ["Levitate"],
+    wandShots: ["Shoot"], holyNovas: ["Holy Nova"],
+    totems: ["*Totem"], reincarnations: ["Reincarnation"],
+    imbues: ["Rockbiter Weapon", "Flametongue Weapon", "Frostbrand Weapon", "Windfury Weapon"],
+    shocks: ["Earth Shock", "Flame Shock", "Frost Shock"], lightning: ["Lightning Bolt", "Chain Lightning"],
+    shamanHeals: ["Healing Wave", "Lesser Healing Wave", "Chain Heal"], lightningShields: ["Lightning Shield"],
+    astralRecalls: ["Astral Recall"], ancestralSpirits: ["Ancestral Spirit"],
+    waterWalks: ["Water Walking", "Water Breathing"],
+    teleports: ["Teleport: *"], portals: ["Portal: *"], polymorphs: ["Polymorph*"],
+    novas: ["Frost Nova", "Blink", "Ice Block", "Ice Barrier"], counterspells: ["Counterspell"],
+    evocations: ["Evocation"], fireballs: ["Fireball"], frostbolts: ["Frostbolt"],
+    mageAoE: ["Arcane Explosion", "Blizzard"], slowFalls: ["Slow Fall"],
+    summonings: ["Ritual of Summoning"], lifeTaps: ["Life Tap"], fears: ["Fear", "Howl of Terror", "Death Coil"],
+    dots: ["Corruption", "Curse of Agony", "Immolate", "Siphon Life"], felsteed: ["Summon Felsteed"],
+    demonsSummoned: ["Summon Imp", "Summon Voidwalker", "Summon Succubus", "Summon Felhunter", "Inferno", "Ritual of Doom"],
+    rebirths: ["Rebirth", "Innervate"], moonfires: ["Wrath", "Moonfire", "Starfire", "Insect Swarm"],
+    catAbilities: ["Claw", "Shred", "Rake", "Rip", "Ferocious Bite", "Ravage", "Pounce"],
+    bearAbilities: ["Maul", "Swipe", "Growl", "Demoralizing Roar", "Bash", "Feral Charge"],
+    roots: ["Entangling Roots", "Hibernate"], moonglade: ["Teleport: Moonglade"], faerieFires: ["Faerie Fire*"]
+  };
+  var CLASS_TIMES = {   // [state group, state names...]; no names = the whole group
+    battleStance: ["stance", "Battle Stance"], defensiveStance: ["stance", "Defensive Stance"],
+    berserkerStance: ["stance", "Berserker Stance"], sealTime: ["seal"], auraTime: ["aura", "Devotion Aura"],
+    hawk: ["aspect", "Aspect of the Hawk"], cheetah: ["aspect", "Aspect of the Cheetah"],
+    stealth: ["stealth", "Stealth"], prowl: ["stealth", "Prowl"], shadowform: ["shadowform"], ghostWolf: ["ghostwolf"],
+    cat: ["form", "Cat Form"], bear: ["form", "Bear Form", "Dire Bear Form"], travelForm: ["form", "Travel Form"],
+    aquatic: ["form", "Aquatic Form"], casterForm: ["form", "Caster Form"]
+  };
+  var CLASS_BUFFS = { blessings: ["Blessing of*", "Greater Blessing of*"],
+    fortitudes: ["Power Word: Fortitude", "Prayer of Fortitude", "Divine Spirit"],
+    intellects: ["Arcane Intellect", "Arcane Brilliance"], wildMarks: ["Mark of the Wild", "Gift of the Wild", "Thorns"] };
+  function spellIn(name, patterns) {
+    return patterns.some(function (p) {
+      if (p.charAt(p.length - 1) === "*") return name.indexOf(p.slice(0, -1)) === 0;
+      if (p.charAt(0) === "*") return name.slice(1 - p.length) === p.slice(1);
+      return name === p;
+    });
+  }
+  function classValues(J, v) {
+    function spells(map, patterns, read) {
+      return Object.keys(map).reduce(function (t, name) { return t + (spellIn(name, patterns) ? number(read(map[name])) : 0); }, 0);
+    }
+    Object.keys(CLASS_CASTS).forEach(function (key) { v[key] = spells(J.casts, CLASS_CASTS[key], Number); });
+    Object.keys(CLASS_TIMES).forEach(function (key) {
+      var spec = CLASS_TIMES[key], group = named(own(J.classTime, spec[0]));
+      v[key] = spec.length > 1 ? spec.slice(1).reduce(function (t, name) { return t + number(own(group, name)); }, 0) : addUp(group);
+    });
+    Object.keys(CLASS_BUFFS).forEach(function (key) {
+      v[key] = spells(J.targets, CLASS_BUFFS[key], function (t) { return named(t).other; });
+    });
+    v.stanceSwaps = number(named(own(J.swaps, "stance")).total);
+    v.shifts = number(named(own(J.swaps, "form")).total);
+    v.rage = number(own(J.powerSpent, "RAGE"));
+    v.priestMana = number(own(J.powerSpent, "MANA"));
+    var all = J.classAll, potions = named(all.potions);
+    v.bandages = addUp(all.bandages);
+    v.healPotions = Math.max(addUp(potions.healing), J.pane[345] || 0);
+    v.manaPotions = Math.max(addUp(potions.mana), J.pane[922] || 0);
+    v.cookies = addUp(all.healthstones);
+    v.mageFood = addUp(all.conjured);
+    v.food = addUp(all.food);
+    v.buffs = addUp(named(all.buffs).bySpell);
+    v.summoned = typeof all.summons === "number" ? number(all.summons) : listOf(all.summons).length;
+    v.trainerVisits = listOf(all.trainerVisits).length;
+    v.classQuests = listOf(all.classQuests).length;
+  }
+  var PROFESSION_KEYS = { Alchemy: "alchemy", Blacksmithing: "blacksmithing", Enchanting: "enchanting",
+    Engineering: "engineering", Herbalism: "herbalism", Leatherworking: "leatherworking", Mining: "mining",
+    Skinning: "skinning", Tailoring: "tailoring", Cooking: "cooking", "First Aid": "firstAid", Fishing: "fishing" };
+
+  // A journey's values, keyed like the rankings, and who it is (class, race,
+  // faction, realm type, primary professions) for the rankings that only
+  // apply to some. The sample journey has about a third of the values; the
+  // page makes up the rest. An export is ranked only on what it has. Rates
+  // are per hour of /played, since an export's counts include the game's
+  // lifetime statistics. A share (of XP, of playtime) needs enough behind it
+  // first: 100% of 200 XP from exploring isn't a ranking.
+  function profileOf(J, rankings) {
+    var total = J.played, rateTime = total / 3600, trackedTime = J.trackedTime || total, perLevel = J.perLevel;
+    var slowest = -1;
+    perLevel.forEach(function (sec, i) { if (sec > 0 && (slowest < 0 || sec > perLevel[slowest])) slowest = i; });
+    // The zone you spent longest in (from an export's own zone times).
+    var home = J.path.reduce(function (best, p) { return p[3] > 0 && (!best || p[3] > best[3]) ? p : best; }, null);
+    var earned = J.earnedTotal !== undefined ? J.earnedTotal : sum(J.earned.map(function (r) { return r[1]; }));
+    var spent = J.spentTotal !== undefined ? J.spentTotal : sum(J.spent.map(function (r) { return r[1]; }));
+    function part(rows, name) {
+      var row = rows.filter(function (r) { return r[0] === name; })[0];
+      return row ? row[1] : 0;
+    }
+    function first(rows) { return rows.length ? rows[0][1] : undefined; }
+    var hourSum = sum(J.hourWeights);
+    var enoughXP = !J.imported || J.xpTotal >= 10000;
+    var enoughHours = !J.imported || hourSum >= 5 * 3600;
+    var enoughTime = !J.imported || trackedTime >= 5 * 3600;
+    function when(enough, value) { return enough ? value : undefined; }
+    var p = {
+      label: "You", classToken: J.classToken, className: J.className, race: J.race, faction: J.faction,
+      ruleset: J.ruleset, trades: J.trades, partial: !J.complete,
+      names: { mob: J.topMobs.length ? J.topMobs[0][0] : "", zone: J.deathZones.length ? J.deathZones[0][0] : "",
+               quest: J.longestQuest && J.longestQuest.title || "Your longest quest",
+               item: J.wornPlayed ? "[" + J.wornPlayed.name + "]" : "", kept: J.wornLevels ? "[" + J.wornLevels.name + "]" : "",
+               fav: home ? home[0] : "" },
+      values: {
+        played: total, days: J.calendarDays, sessions: J.sessions, avgSession: J.avgSession || total / J.sessions,
+        session: J.longestSession, sessionLevels: J.bestSession && J.bestSession.levels, daysPlayed: J.daysPlayed,
+        afk: part(J.timeSpent, "AFK"), resting: part(J.timeSpent, "Resting in inns and cities"),
+        taxiTime: part(J.timeSpent, "On flight paths"), mounted: part(J.timeSpent, "Mounted"),
+        combatTime: part(J.timeSpent, "In combat"), timeDead: J.timeDead, slowestLevel: perLevel[slowest],
+        nightOwl: when(hourSum && enoughHours, sum(J.hourWeights.slice(0, 5)) / hourSum * 100),
+        earlyBird: when(hourSum && enoughHours, sum(J.hourWeights.slice(5, 9)) / hourSum * 100),
+        rested: when(enoughXP, J.restedShare), questXP: when(enoughXP, part(J.xpSplit, "Quests")),
+        killXP: when(enoughXP, part(J.xpSplit, "Kills")), exploreXP: when(enoughXP, part(J.xpSplit, "Exploration")),
+        kills: J.kills, killRate: J.kills / rateTime, topMob: first(J.topMobs), elites: J.elites, rares: J.rares,
+        gap: J.bestKill ? J.bestKill.mob - J.bestKill.you : undefined, fight: J.longestFight, bosses: J.bosses,
+        honor: J.honorKills, deaths: J.deaths, zoneDeaths: first(J.deathZones), dungeonDeaths: J.dungeonDeaths,
+        corpseRuns: J.rez.corpse, spiritRez: J.rez.spirit, playerRez: J.rez.player, streak: J.streak && J.streak.levels,
+        pvpDeaths: part(J.killers, "Players (PvP)") || part(J.killers, "Player (PvP)"),
+        fallDeaths: J.fallDeaths !== undefined ? J.fallDeaths : part(J.killers, "Falling"),
+        quests: J.quests.completed, questRate: J.quests.completed / rateTime, zoneQuests: first(J.questZones),
+        questGold: part(J.earned, "Quest rewards"), accepted: J.quests.accepted, abandoned: J.quests.abandoned,
+        questDays: J.longestQuest && J.longestQuest.days, groupQuests: J.quests.group, forever: J.quests.forever,
+        zoneTime: home ? home[3] : undefined, hearths: J.travel.hearths, flightPaths: J.travel.flightPaths,
+        flights: J.travel.flights, ground: J.travel.groundYards / 1760, air: J.travel.airYards / 1760,
+        fallen: J.travel.fallen, longestFall: J.travel.longestFall,
+        earned: earned, spent: spent, saved: earned - spent, peakGold: J.peakGold && J.peakGold.copper,
+        lootGold: part(J.earned, "Looting"), vendorGold: part(J.earned, "Selling to vendors"),
+        auctions: part(J.earned, "Auction house sales"), auctionSpend: part(J.spent, "Auction house"),
+        training: part(J.spent, "Class training"), repairs: part(J.spent, "Repairs"),
+        flightGold: part(J.spent, "Flights"), mount: J.firstMountLevel || undefined,
+        looted: J.looted !== undefined ? J.looted : sum(J.loot.map(function (l) { return l[1]; })),
+        grays: part(J.loot, "Poor"), greens: part(J.loot, "Uncommon"), rareLoot: part(J.loot, "Rare"),
+        epics: part(J.loot, "Epic"), firstBlue: J.firstBlue && J.firstBlue.level,
+        worn: J.wornPlayed && J.wornPlayed.played, wornLevels: J.wornLevels && J.wornLevels.levels,
+        crafted: J.crafted, fish: J.fish, skillUps: J.skillUps, skinned: J.skinned,
+        maxed: J.professions.filter(function (r) { return r[1] >= 300; }).length,
+        grouped: when(enoughTime, J.grouped / trackedTime * 100), solo: when(enoughTime, (1 - J.grouped / trackedTime) * 100),
+        groupedWith: J.groupedWith,
+        guild: J.guildLevel || undefined, jumps: J.jumps, jumpEvery: J.jumps ? trackedTime / J.jumps : undefined,
+        camps: J.camps, campTime: J.campTime, campBuffs: J.campBuffs, transmog: J.transmog, healing: J.healing
+      }
+    };
+    J.professions.forEach(function (r) { if (own(PROFESSION_KEYS, r[0])) p.values[PROFESSION_KEYS[r[0]]] = r[1]; });
+    if (J.imported) {
+      var types = J.killTypes;
+      Object.assign(p.values, {
+        beasts: types.Beast || 0, humanoids: types.Humanoid || 0, undead: types.Undead || 0, demons: types.Demon || 0,
+        elementals: types.Elemental || 0, dragonkin: types.Dragonkin || 0, mobTypes: J.mobKinds,
+        levelKills: J.levelKills, levelDeaths: J.levelDeaths, levelQuests: J.levelQuests, fights: J.fights,
+        avgFight: J.fights ? part(J.timeSpent, "In combat") / J.fights : undefined, ambushes: J.ambushes,
+        multiPulls: J.multiPulls, maxMobs: J.maxMobs, wipes: J.wipes, groupDeaths: J.groupDeaths,
+        corpseTime: J.corpseTime, graveyards: J.graveyards, zonesVisited: J.zonesVisited, subzones: J.subzones,
+        zoneChanges: J.zoneChanges, dungeonQuests: J.quests.dungeon, groupXP: when(enoughXP, J.groupXP),
+        auctionsSold: J.auctionsSold,
+        mountPlayed: J.firstMountPlayed || undefined, firstEpic: J.firstEpic && J.firstEpic.level,
+        bestItem: J.bestLoot && J.bestLoot.ilvl, herbs: J.herbs, ore: J.ore, campShops: J.campShops,
+        campCrafts: J.campCrafts, valthalak: J.valthalak, autoFlagged: J.autoFlagged, zephras: J.zephras || undefined,
+        hyjal: J.hyjal
+      });
+      classValues(J, p.values);
+    }
+    // Every ranking from the game's Statistics pane, by statistic ID.
+    rankings.forEach(function (r) {
+      var id = /^P-(\d+)$/.exec(r.source);
+      if (id && J.pane[id[1]] !== undefined) p.values[r.key] = J.pane[id[1]];
+    });
+    return p;
+  }
+
+  // A profile as saved with its upload, for ranking others against: who it
+  // is and its ranked values (to three decimals, the same for everyone).
+  function rounded(v) { return Math.round(v * 1000) / 1000; }
+  function saved(p, rankings) {
+    var values = {};
+    rankings.forEach(function (r) {
+      var v = p.values[r.key];
+      if (typeof v === "number" && isFinite(v)) values[r.key] = rounded(v);
+    });
+    return { model: MODEL, classToken: p.classToken, race: p.race, faction: p.faction, ruleset: p.ruleset,
+             trades: p.trades.slice(), partial: p.partial, values: values };
+  }
+
+  // Whether a ranking applies: a number to rank, the right class, race,
+  // faction or realm, the profession it's about, and (where more is notable)
+  // something to count. Where less is notable (fewest deaths, fastest to
+  // 60), only a journey tracked from level 1 to 60 counts.
+  function applies(r, p) {
+    var v = p.values[r.key];
+    if (typeof v !== "number" || !isFinite(v)) return false;
+    if (r.trade && p.trades.indexOf(r.trade) < 0) return false;
+    if (r.high ? !(v > 0) : p.partial) return false;
+    return !r.only || Object.keys(r.only).every(function (k) { return [].concat(r.only[k]).indexOf(p[k]) >= 0; });
+  }
+  var COHORT_FIELDS = { class: "classToken", race: "race", faction: "faction", ruleset: "ruleset" };
+  var RACE_PLURAL = { "Night Elf": "Night Elves", Dwarf: "Dwarves", Undead: "Undead", Tauren: "Tauren", Skyborne: "Skyborne" };
+  function cohortLabel(r, p) {
+    if (r.cohort === "class") return p.className + "s";
+    if (r.cohort === "race") return RACE_PLURAL[p.race] || (p.race + "s");
+    if (r.cohort === "faction") return p.faction + " players";
+    if (r.cohort === "ruleset") return p.ruleset + " realm players";
+    return "All players";
+  }
+
+  // Where a saved profile places on each ranking that applies to it, against
+  // the others in its cohort (its class, race, faction, realm type or
+  // everyone) that the ranking applies to: { ranking id: [place, players] },
+  // 1 the best and ties sharing the better place. Rankings with fewer than
+  // MIN_PLAYERS players are left out.
+  function placesFor(me, others, rankings) {
+    var out = {};
+    rankings.forEach(function (r) {
+      if (!applies(r, me)) return;
+      var field = COHORT_FIELDS[r.cohort], mine = me.values[r.key], place = 1, players = 1;
+      others.forEach(function (q) {
+        if ((field && q[field] !== me[field]) || !applies(r, q)) return;
+        players++;
+        if (r.high ? q.values[r.key] > mine : q.values[r.key] < mine) place++;
+      });
+      if (players >= MIN_PLAYERS) out[r.id] = [place, players];
+    });
+    return out;
+  }
+  function ordinal(n) {
+    var ends = ["th", "st", "nd", "rd"], v = n % 100;
+    return n + (ends[(v - 20) % 10] || ends[v] || ends[0]);
+  }
+
+  // A ranking's text, with the player's number and names filled in ("1
+  // deaths" reads "1 death").
+  function fill(text, v, p) {
+    if (Math.round(v) === 1) {
+      text = text.replace(/\{n\} ([a-z\/]*[^su\W]s)\b(?!,| and | [a-z]+s\b)/gi, function (all, word) { return "{n} " + word.slice(0, -1); });
+    }
+    return text.replace(/\{(\w+)\}/g, function (all, k) {
+      if (k === "n") return num(v);
+      if (k === "t") return dur(v);
+      if (k === "g") return coins(v);
+      if (k === "p") return String(Math.round(v));
+      if (k === "d") return (Math.round(v * 10) / 10).toFixed(1);
+      return p.names[k] !== undefined ? p.names[k] : all;
+    });
+  }
+  // One ranking for a profile, ready to show. `place` is [place, players]
+  // from placesFor; without one, `share` (the made-up share of players at or
+  // past the value) says where it stands. big + who read as "Top 3%" "of
+  // monster slayers" or "2nd" "of 9 monster slayers".
+  function standing(r, p, place, share) {
+    var v = p.values[r.key], name = fill(r.name, v, p), x;
+    if (place && place[1] < SHARE_FROM) {
+      x = { place: place[0], players: place[1], big: ordinal(place[0]), who: "of " + place[1] + " " + name };
+    } else {
+      if (place) share = place[0] / place[1];
+      x = { share: share, top: Math.max(1, Math.ceil(share * 100)), who: "of " + name };
+      x.big = "Top " + x.top + "%";
+      if (place) { x.place = place[0]; x.players = place[1]; }
+    }
+    // Best first: the share of players ahead, counting from the middle of a
+    // place (1st of 3 comes after 1st of 50).
+    x.score = place ? (place[0] - 0.5) / place[1] : share;
+    x.r = r;
+    x.name = name;
+    x.detail = fill(r.detail, v, p);
+    x.line = fill(r.line, v, p);
+    x.cohort = cohortLabel(r, p);
+    return x;
+  }
+  // The ones to show: the best, at most two from any one part of the game and
+  // one from any family.
+  function picksFor(all, count) {
+    var picks = [], perGroup = {}, families = {};
+    all.forEach(function (x) {
+      var family = x.r.family || x.r.key;
+      if (picks.length >= count || (perGroup[x.r.group] || 0) >= 2 || families[family]) return;
+      picks.push(x);
+      perGroup[x.r.group] = (perGroup[x.r.group] || 0) + 1;
+      families[family] = true;
+    });
+    return picks;
+  }
+  function bestFirst(a, b) { return a.score - b.score || (b.players || 0) - (a.players || 0); }
+
+  return {
+    MODEL: MODEL, MIN_PLAYERS: MIN_PLAYERS, SHARE_FROM: SHARE_FROM,
+    sum: sum, num: num, dur: dur, coins: coins, named: named, number: number, numbered: numbered, listOf: listOf,
+    addUp: addUp, topRows: topRows, tally: tally, capFirst: capFirst, dayOf: dayOf, own: own, itemOf: itemOf,
+    paneNumber: paneNumber, CLASS_NAMES: CLASS_NAMES, RACE_NAMES: RACE_NAMES,
+    journeyFromExport: journeyFromExport, profileOf: profileOf, saved: saved, applies: applies,
+    cohortLabel: cohortLabel, placesFor: placesFor, ordinal: ordinal, fill: fill, standing: standing,
+    picksFor: picksFor, bestFirst: bestFirst
+  };
+})();
+if (typeof module === "object" && module.exports) module.exports = JourneyModel;

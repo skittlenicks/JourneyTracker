@@ -3,7 +3,8 @@
 // "uploads" table, the same way tools/import does: decoded and validated by
 // tools/import/decode.js (site/deploy.ps1 puts a copy next to this file),
 // skipped as a duplicate when that character's export from the same moment
-// is already there. The secret key comes from the Vercel project's
+// is already there. The journey's ranking profile goes with it, in
+// payload.ranked (ranks.js). The secret key comes from the Vercel project's
 // environment (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) and never leaves
 // the server.
 //
@@ -19,6 +20,7 @@
 // recap page at /j/<share>.
 
 const { parseExport, shareIdOf } = require('./decode');
+const { profileOf } = require('./ranks');
 
 const MAX_BODY = 1024 * 1024; // characters; real exports are well under 200,000
 const PER_DAY = Number(process.env.UPLOADS_PER_DAY) || 500;
@@ -86,6 +88,12 @@ module.exports = async function upload(req, res) {
     }
     if (await uploadsToday() >= PER_DAY) {
       return reply(res, 429, 'busy', 'Journey Tracker has taken all the uploads it can for today. Try again tomorrow.');
+    }
+    // The numbers the journey is ranked on, saved with it (see ranks.js).
+    try {
+      row.payload.ranked = profileOf(row.payload);
+    } catch (err) {
+      console.error('profile failed:', err.message);
     }
     const saved = await (await supabase('uploads?select=id', {
       method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row),

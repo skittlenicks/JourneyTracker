@@ -36,6 +36,12 @@ Each line is reported as `inserted`, `duplicate` (same character and export
 time already in the table, or pasted twice in the file) or `rejected` with
 the reason. A bad line never stops the rest of the batch.
 
+The website ranks every character's latest upload by the numbers in
+`payload.ranked`, which it works out itself (`site/api/ranks.js`). Rows this
+tool inserts don't have them yet; the website adds them the next time it
+loads the rankings. An export can't bring its own: `decode.js` drops any
+`ranked` it finds.
+
 ## Code layout
 
 - `decode.js`: decoding (`JT1:` + base64 + raw deflate + JSON), validation,

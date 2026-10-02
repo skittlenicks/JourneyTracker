@@ -1,7 +1,8 @@
 # Store text with LF line endings; Git converts them on checkout as needed.
 * text=auto
 
-# Images: never convert.
+# Images and fonts: never convert.
 *.tga binary
 *.blp binary
 *.png binary
+*.ttf binary

@@ -1,0 +1,9 @@
+{
+  "name": "journeytracker-site",
+  "private": true,
+  "description": "Journey Tracker's website: build.ps1 and deploy.ps1 use these to draw the link preview images.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@resvg/resvg-wasm": "2.6.2"
+  }
+}

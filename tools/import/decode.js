@@ -110,6 +110,9 @@ function parseExport(text) {
   if (!decoded.ok) return decoded;
   const errors = validate(decoded.data);
   if (errors.length) return fail(errors.join('; '), decoded.data);
+  // A payload's "ranked" is the website's own: the numbers the journey is
+  // ranked on, which site/api/upload.js works out. An export can't bring one.
+  delete decoded.data.ranked;
   return { ok: true, data: decoded.data, row: toRow(decoded.data) };
 }
 

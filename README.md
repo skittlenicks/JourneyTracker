@@ -2,8 +2,11 @@
 
 A World of Warcraft: Forever addon that records a character's journey from
 level 1 to 60 (time played, kills, deaths, quests, gold, travel, class
-stats and more) for a "Wrapped"-style recap. Players export their data with
-`/journey export`; the import tool loads the exports into Supabase.
+stats and more) for a "Wrapped"-style recap. Players export their data from
+the addon's window (or `/journey export`) and paste it at
+www.journeytracker.dev, which saves it to Supabase, shows the recap with a
+link to share and ranks it against every other saved journey. The import
+tool loads exports sent by hand.
 
 ## Layout
 
@@ -16,7 +19,7 @@ stats and more) for a "Wrapped"-style recap. Players export their data with
 | `art/` | The JT logo and zone maps. `make-logo.ps1` draws both the in-game icon (`JourneyTracker/JT.tga`) and the CurseForge logo (`curseforge-logo.png`). `build-maps.ps1` turns a wow.export export of the Forever client (kept in the git-ignored `art/export/`) into web maps (parchment and terrain zone maps, plus map tiles of both continents cut from the minimap, zoom 3 to 9) and `maps.json`, every map's ID, continent, world rectangle and place on the web map. |
 | `curseforge/` | The CurseForge page text: `summary.txt` and `description.md` (paste with the description editor set to Markdown). |
 | `tools/import/` | Node tool that decodes exports and inserts them into Supabase. |
-| `site/` | Draft of the recap website with sample data. `build.ps1` assembles it into `dist/road-to-60.html` (run `art/build-maps.ps1` first), carrying as many map tiles as fit in about 13 MB. |
+| `site/` | The recap website, www.journeytracker.dev (run `art/build-maps.ps1` first). `build.ps1 -Site` builds it into `dist/site` with the addon zip to download and the link preview image; `deploy.ps1` puts it on Vercel with its functions in `api/` (saving pasted exports, share pages, card images). `model.js` turns an export into a journey and ranks it on `rankings.js`; the page and the functions share both. Without `-Site`, `build.ps1` makes the one-file draft `dist/road-to-60.html`. |
 
 ## Common tasks
 

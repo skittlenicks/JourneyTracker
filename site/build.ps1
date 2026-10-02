@@ -11,11 +11,14 @@ param(
 # self-contained page for Claude's artifact viewer:
 #   dist\road-to-60.html
 # With -Site it's the website:
-#   dist\site\index.html, favicon.png and tiles\<zoom>\<x>\<y>.jpg
+#   dist\site\index.html, favicon.png, og.png (its link preview),
+#   download\JourneyTracker-<version>.zip (the addon) and
+#   tiles\<zoom>\<x>\<y>.jpg
 # It fills recap.template.html with the logo, the map art the sample uses,
-# art\maps.json, the rankings catalog and the web map tiles. The maps come from
-# art\export\web (run art\build-maps.ps1 first); they're Blizzard's art, so the
-# build goes to the git-ignored dist\ folder, not the repo.
+# art\maps.json, the rankings catalog, the journey model and the web map
+# tiles. The maps come from art\export\web (run art\build-maps.ps1 first);
+# they're Blizzard's art, so the build goes to the git-ignored dist\ folder,
+# not the repo. The website build needs Node.js, for og.png.
 #
 #   powershell -ExecutionPolicy Bypass -File site\build.ps1 [-Site]
 Add-Type -AssemblyName System.Drawing
@@ -138,21 +141,46 @@ $html = $html.Replace("__MAPS_JSON__", (Get-Content (Join-Path $root "art\maps.j
 # Leaflet's stylesheet has to be inside the page (its script loads from cdnjs).
 $leaflet = Get-Content (Join-Path $PSScriptRoot "vendor\leaflet-1.9.4.css") -Raw -Encoding UTF8
 $html = $html.Replace("/*__LEAFLET_CSS__*/", "/* Leaflet 1.9.4, https://leafletjs.com, (c) 2010-2023 Vladimir Agafonkin, (c) 2010-2011 CloudMade. BSD-2-Clause. */`n" + $leaflet.Trim())
-# The rankings catalog, shared with the finished site.
+# The rankings catalog and the journey model, shared with the site's functions.
 $rankings = Get-Content (Join-Path $PSScriptRoot "rankings.js") -Raw -Encoding UTF8
 $html = $html.Replace("/*__RANKINGS__*/", $rankings.Trim())
+$model = Get-Content (Join-Path $PSScriptRoot "model.js") -Raw -Encoding UTF8
+$html = $html.Replace("/*__MODEL__*/", $model.Trim())
 
 $utf8 = New-Object System.Text.UTF8Encoding $false
 New-Item -ItemType Directory -Force $OutDir | Out-Null
 if ($Site) {
     $siteDir = Join-Path (Resolve-Path $OutDir) "site"
     New-Item -ItemType Directory -Force $siteDir | Out-Null
+
+    # The addon to download: the JourneyTracker folder as it goes in AddOns,
+    # zipped with forward slashes so every unzipper makes the folders.
+    Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+    $addon = Join-Path $root "JourneyTracker"
+    $version = [regex]::Match((Get-Content (Join-Path $addon "JourneyTracker.toc") -Raw), "(?m)^## Version:\s*(\S+)").Groups[1].Value
+    if (-not $version) { throw "No ## Version line in JourneyTracker.toc." }
+    $zipName = "JourneyTracker-$version.zip"
+    $downloadDir = Join-Path $siteDir "download"
+    New-Item -ItemType Directory -Force $downloadDir | Out-Null
+    Get-ChildItem $downloadDir -File | Where-Object { $_.Name -ne $zipName } | ForEach-Object { $_.Delete() }
+    $stream = [System.IO.File]::Open((Join-Path $downloadDir $zipName), [System.IO.FileMode]::Create)
+    $zip = New-Object System.IO.Compression.ZipArchive($stream, [System.IO.Compression.ZipArchiveMode]::Create)
+    foreach ($file in Get-ChildItem $addon -Recurse -File) {
+        $entry = "JourneyTracker/" + $file.FullName.Substring($addon.Length + 1).Replace("\", "/")
+        [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $file.FullName, $entry,
+            [System.IO.Compression.CompressionLevel]::Optimal)
+    }
+    $zip.Dispose(); $stream.Dispose()
+    $zipKB = [math]::Ceiling((Get-Item (Join-Path $downloadDir $zipName)).Length / 1KB)
+    $html = $html.Replace("<!--DOWNLOAD-->", "").Replace("<!--/DOWNLOAD-->", "").Replace("__DOWNLOAD_HREF__", "/download/$zipName")
+    $html = $html.Replace("__ADDON_VERSION__", "v$version").Replace("__DOWNLOAD_SIZE__", "$zipKB KB")
+
     # What Claude's artifact viewer puts around the template, the website
     # puts there itself: the document, its metadata and a small reset. A
-    # share page (site\api\share.js) swaps in its own title and description
-    # and puts its journey where the JT_SHARED marker is.
-    $about = "A sample WoW Forever journey from level 1 to 60, as Journey Tracker records it: " +
-        "the route across Azeroth, every death and quest, and where it ranks."
+    # share page (site\api\share.js) swaps in its own title, description and
+    # preview image and puts its journey where the JT_SHARED marker is.
+    $about = "Journey Tracker is a free WoW Forever addon that records your climb from level 1 to 60. " +
+        "Paste its export for a recap: the route across Azeroth, every death and quest, and where you place."
     $page = "<!doctype html>`n<html lang=`"en`">`n<meta charset=`"utf-8`">`n" +
         "<meta name=`"viewport`" content=`"width=device-width, initial-scale=1`">`n" +
         "<meta name=`"description`" content=`"$about`">`n" +
@@ -160,19 +188,35 @@ if ($Site) {
         "<meta property=`"og:site_name`" content=`"Journey Tracker`">`n" +
         "<meta property=`"og:title`" content=`"Road to 60 &middot; Journey Tracker`">`n" +
         "<meta property=`"og:description`" content=`"$about`">`n" +
-        "<meta name=`"twitter:card`" content=`"summary`">`n" +
+        "<meta property=`"og:image`" content=`"https://www.journeytracker.dev/og.png`">`n" +
+        "<meta property=`"og:image:width`" content=`"1200`">`n" +
+        "<meta property=`"og:image:height`" content=`"630`">`n" +
+        "<meta property=`"og:image:alt`" content=`"Journey Tracker: your road to 60, recorded by a WoW Forever addon.`">`n" +
+        "<meta name=`"twitter:card`" content=`"summary_large_image`">`n" +
         "<meta name=`"theme-color`" content=`"#120e09`">`n" +
         "<link rel=`"icon`" type=`"image/png`" href=`"/favicon.png`">`n" +
         "<style>body { margin: 0; } img { max-width: 100%; } [hidden] { display: none !important; }</style>`n" +
         "<!--JT_SHARED-->`n" + $html
     [System.IO.File]::WriteAllText((Join-Path $siteDir "index.html"), $page, $utf8)
     [System.IO.File]::WriteAllBytes((Join-Path $siteDir "favicon.png"), $ms.ToArray())
+    # The site's own link preview (site\api\preview.js draws it).
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw "The website build needs Node.js (for og.png)." }
+    if (-not (Test-Path (Join-Path $PSScriptRoot "node_modules\@resvg\resvg-wasm"))) {
+        npm install --prefix $PSScriptRoot --no-audit --no-fund
+        if ($LASTEXITCODE) { throw "npm install in $PSScriptRoot failed." }
+    }
+    node (Join-Path $PSScriptRoot "api\preview.js") (Join-Path $siteDir "og.png") (Join-Path $siteDir "favicon.png")
+    if ($LASTEXITCODE) { throw "Drawing og.png failed." }
     # The tiles, copied as they are (robocopy skips ones already there).
     robocopy $tileRoot (Join-Path $siteDir "tiles") *.jpg /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "Copying the map tiles to $siteDir\tiles failed (robocopy exit $LASTEXITCODE)." }
     $global:LASTEXITCODE = 0
-    Write-Host ("Built {0} ({1:N0} KB page, {2:N0} map tiles)" -f $siteDir, ((Get-Item (Join-Path $siteDir "index.html")).Length / 1KB), $tileCount)
+    Write-Host ("Built {0} ({1:N0} KB page, {2:N0} map tiles, download\{3} {4} KB)" -f $siteDir,
+        ((Get-Item (Join-Path $siteDir "index.html")).Length / 1KB), $tileCount, $zipName, $zipKB)
 } else {
+    # The viewer can't download files, so the one-file page names the site instead.
+    $html = [regex]::Replace($html, "<!--DOWNLOAD-->.*?<!--/DOWNLOAD-->",
+        { '<p class="download-note">Download it at <b>www.journeytracker.dev</b>.</p>' }, "Singleline")
     $out = Join-Path (Resolve-Path $OutDir) "road-to-60.html"
     [System.IO.File]::WriteAllText($out, $html, $utf8)
     Write-Host ("Built {0} ({1:N0} KB, {2:N0} map tiles)" -f $out, ((Get-Item $out).Length / 1KB), $tileCount)

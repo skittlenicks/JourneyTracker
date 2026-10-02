@@ -2,11 +2,12 @@ param(
     # Make a preview deployment (its own URL) instead of updating the live site.
     [switch]$Preview
 )
-# Puts the website draft online with Vercel (project "journeytracker"): builds
-# it (build.ps1 -Site), stages it and its two functions as Vercel's prebuilt
+# Puts the website online with Vercel (project "journeytracker"): builds it
+# (build.ps1 -Site), stages it and its three functions as Vercel's prebuilt
 # output and uploads it with the Vercel CLI:
-#   /api/upload  saves a pasted export to Supabase (api\upload.js)
-#   /j/<id>      a shared journey's recap page (api\share.js)
+#   /api/upload          saves a pasted export to Supabase (api\upload.js)
+#   /j/<id>              a shared journey's recap page (api\share.js)
+#   /j/<id>/card.png     its link preview image (api\card.js)
 # The map art is Blizzard's and stays out of git, so Vercel gets the built
 # site from this machine, and vercel.json at the repo root stops deploys on
 # git push (they would replace the site with the bare repo, which has no page).
@@ -23,8 +24,9 @@ param(
 #     --condition '{"type":"method","op":"eq","value":"POST"}' --action rate_limit
 #     --rate-limit-requests 10 --rate-limit-window 3600 --rate-limit-keys ip --yes
 #   npx vercel firewall publish --yes
-# Share pages need no rule: Vercel's CDN keeps each one for a day, and their
-# IDs are 122 random bits, so there's nothing to find by guessing.
+# Share pages and their images need no rule: Vercel's CDN keeps each one
+# (a page for an hour, an image for a day), and their IDs are 122 random
+# bits, so there's nothing to find by guessing.
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 $dist = Join-Path $root "dist"
@@ -38,28 +40,38 @@ $output = Join-Path $stage ".vercel\output"
 robocopy (Join-Path $dist "site") (Join-Path $output "static") /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "Staging the site in $output failed (robocopy exit $LASTEXITCODE)." }
 
-# The functions, each with a copy of the importer's decoder (and the share
-# page with a copy of the page it fills in). They read SUPABASE_URL and
+# The functions, each with copies of what it shares with the rest of the
+# site: the importer's decoder, the rankings and the journey model, and
+# ranks.js, which ranks a journey against every saved one. The share page
+# also gets the page it fills in; the preview image its drawing code, the
+# fonts, resvg and the logo. They read SUPABASE_URL and
 # SUPABASE_SERVICE_ROLE_KEY from the project's environment variables.
 function Stage-Function([string]$name, [string[]]$extra) {
     $func = Join-Path $output "functions\api\$name.func"
     if (Test-Path $func) { Remove-Item -Recurse -Force $func }
     New-Item -ItemType Directory -Force $func | Out-Null
     Copy-Item (Join-Path $PSScriptRoot "api\$name.js") (Join-Path $func "index.js")
-    Copy-Item (Join-Path $root "tools\import\decode.js") (Join-Path $func "decode.js")
-    foreach ($file in $extra) { Copy-Item $file $func }
+    $shared = @((Join-Path $root "tools\import\decode.js"), (Join-Path $PSScriptRoot "api\ranks.js"),
+        (Join-Path $PSScriptRoot "model.js"), (Join-Path $PSScriptRoot "rankings.js"))
+    foreach ($file in $shared + $extra) { Copy-Item $file $func -Recurse }
     [System.IO.File]::WriteAllText((Join-Path $func ".vc-config.json"),
         '{ "runtime": "nodejs22.x", "handler": "index.js", "launcherType": "Nodejs", "shouldAddHelpers": true }', $utf8)
+    return $func
 }
-Stage-Function "upload" @()
-Stage-Function "share" @((Join-Path $dist "site\index.html"))
+Stage-Function "upload" @() | Out-Null
+Stage-Function "share" @((Join-Path $dist "site\index.html")) | Out-Null
+$card = Stage-Function "card" @((Join-Path $PSScriptRoot "api\preview.js"), (Join-Path $PSScriptRoot "fonts"),
+    (Join-Path $PSScriptRoot "node_modules"))
+Copy-Item (Join-Path $dist "site\favicon.png") (Join-Path $card "logo.png")
 
 # Tiles only change when the maps are rebuilt, so browsers may keep them a
-# day. /j/<id> is a shared journey's page, made by the share function.
+# day. /j/<id> is a shared journey's page, made by the share function, and
+# /j/<id>/card.png its preview image, made by the card function.
 $config = [ordered]@{
     version = 3
     routes = @(
         [ordered]@{ src = "^/tiles/(.*)$"; headers = @{ "Cache-Control" = "public, max-age=86400" }; continue = $true },
+        [ordered]@{ src = "^/j/([^/]*)/card\.png$"; dest = "/api/card?id=`$1" },
         [ordered]@{ src = "^/j/([^/]*)/?$"; dest = "/api/share?id=`$1" },
         @{ handle = "filesystem" }
     )

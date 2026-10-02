@@ -88,6 +88,15 @@ test('exports with Statistics pane data import and summarize', () => {
   assert.strictEqual(describeStatistics(expected), 'no statistics');
 });
 
+test("an export can't bring its own ranking profile", () => {
+  const data = JSON.parse(JSON.stringify(expected));
+  data.ranked = { model: 1, values: { kills: 1e9 } };
+  const line = 'JT1:' + zlib.deflateRawSync(Buffer.from(JSON.stringify(data))).toString('base64');
+  const result = parseExport(line);
+  assert.ok(result.ok, result.error);
+  assert.strictEqual(result.row.payload.ranked, undefined);
+});
+
 test('validation catches bad fields', () => {
   const bad = JSON.parse(JSON.stringify(expected));
   bad.characterId = 'not-a-uuid';

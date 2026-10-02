@@ -1,6 +1,7 @@
 // Journey Tracker rankings: every stat the addon tracks that a player can
 // stand out in, each with who the top players are and a line to go with it.
-// site/build.ps1 puts this file into the recap page.
+// site/build.ps1 puts this file into the recap page. A journey's values for
+// them come from site/model.js (profileOf).
 //
 // R(key, source, group, who, detail, direction, median, spread, line, extra)
 //   key        the value it ranks, from the export (same key = same number)
@@ -15,7 +16,8 @@
 //              ranking skips players at 0: nobody is top 1% of Onyxia
 //              slayers without killing her.
 //   median, spread  how players spread out: the median, and sigma of the
-//              log. Made up until real imports exist.
+//              log. Made up: only the sample journey and the example players
+//              are ranked on them. A saved journey gets its real place.
 //   line       a line to go with it (it can use the names too)
 //   extra      { id, family, only, cohort, trade, min, max }: `id` when two
 //              rankings share a key, `family` for rankings that measure the
@@ -530,3 +532,5 @@ var RANKINGS = (function () {
     R("elevator", "W-095", "iconic", "elevator jumpers", "died falling off the Undercity elevator {n} times", "+", 0.8, 0.9, "Wait for the platform. Next time. Maybe.", F("Horde"))
   ];
 })();
+// The site's functions load it too (site/api/ranks.js).
+if (typeof module === "object" && module.exports) module.exports = RANKINGS;
