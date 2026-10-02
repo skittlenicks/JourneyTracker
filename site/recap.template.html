@@ -1131,10 +1131,12 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     MAP_BY_ID[m.uiMapID] = m;
     if (m.type === 3 && !MAP_BY_NAME[m.name]) MAP_BY_NAME[m.name] = m;
   });
-  // Map tiles cut from the client's minimap, as "zoom/x/y": image. The real
-  // site will serve every tile; this draft carries the whole map as far in as
-  // a zone fills the screen, and the closest zooms only around the route.
+  // Map tiles cut from the client's minimap, as "zoom/x/y". The website
+  // serves every one from TILE_ROOT; the one-file draft carries them in
+  // TILES instead ("zoom/x/y": image), the whole map as far in as a zone
+  // fills the screen and the closest zooms only around the route.
   var TILES = __TILES__;
+  var TILE_ROOT = __TILE_ROOT__;
   var tokens = getComputedStyle(document.documentElement);
   function token(name) { return tokens.getPropertyValue(name).trim(); }
   function zoneSeconds(from, to) { return 0.82 * sum(perLevel.slice(from - 1, to - 1)); }
@@ -1334,10 +1336,11 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     ctx.putImageData(img, 0, 0);
   }
 
-  // The terrain, from TILES and LAND (every zoom-8 tile of the full map, one
-  // per minimap tile), which tells open sea apart from map this draft doesn't carry.
+  // The terrain, from the tiles and LAND (every zoom-8 tile of the full map,
+  // one per minimap tile), which tells open sea apart from map the one-file
+  // draft doesn't carry.
   var LAND = __TILE_LAND__;
-  var TILE_ZOOMS = Object.keys(TILES).map(function (key) { return Number(key.split("/")[0]); });
+  var TILE_ZOOMS = TILE_ROOT ? [3, 9] : Object.keys(TILES).map(function (key) { return Number(key.split("/")[0]); });
   var TILE_MIN = Math.min.apply(null, TILE_ZOOMS), TILE_MAX = Math.max.apply(null, TILE_ZOOMS);
   var LAND_AT = {};   // zoom (3 to 8) -> { "x/y": true } for tiles with any land
   for (var landZoom = 3; landZoom <= 8; landZoom++) LAND_AT[landZoom] = {};
@@ -1349,19 +1352,28 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     if (z > 8) return !!LAND_AT[8][(x >> (z - 8)) + "/" + (y >> (z - 8))];
     return !!(LAND_AT[z] && LAND_AT[z][x + "/" + y]);
   }
-  // Tile z/x/y's image: the tile, or where this draft doesn't carry it, the
-  // part of the nearest coarser tile that covers it. Nil for open sea.
-  function tileSource(z, x, y) {
+  // Whether tile z/x/y exists: on the website, every land tile does.
+  function hasTile(z, x, y) {
+    if (TILE_ROOT) return z >= TILE_MIN && z <= TILE_MAX && isLand(z, x, y);
+    return !!TILES[z + "/" + x + "/" + y];
+  }
+  var tileImages = {};
+  function loaded(key) { var img = tileImages[key]; return !!(img && img.complete && img.naturalWidth); }
+  // Tile z/x/y's image: the tile, or where there's no such tile, the part of
+  // the nearest coarser tile that covers it. With `ready`, only tiles that
+  // have loaded, so a tile still on its way shows its coarser self meanwhile.
+  // Nil for open sea.
+  function tileSource(z, x, y, ready) {
     for (var d = 0; z - d >= TILE_MIN; d++) {
       var key = (z - d) + "/" + (x >> d) + "/" + (y >> d);
-      if (TILES[key]) {
+      if (hasTile(z - d, x >> d, y >> d) && (!ready || loaded(key))) {
         var span = 256 / (1 << d);
         return { key: key, sx: (x - ((x >> d) << d)) * span, sy: (y - ((y >> d) << d)) * span, size: span };
       }
     }
     return null;
   }
-  // The sharpest tile zoom at which every land tile in sight is carried, so a
+  // The sharpest tile zoom at which every land tile in sight exists, so a
   // view is never part sharp, part soft.
   function tileZoomFor(view) {
     var want = Math.max(TILE_MIN, Math.min(TILE_MAX, Math.round(view.zoom)));
@@ -1371,14 +1383,13 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
       var size = 256 * Math.pow(2, view.zoom - z), complete = true;
       for (var x = Math.floor(x0 / size); complete && x <= Math.floor(x1 / size); x++) {
         for (var y = Math.floor(y0 / size); y <= Math.floor(y1 / size); y++) {
-          if (!TILES[z + "/" + x + "/" + y] && isLand(z, x, y)) { complete = false; break; }
+          if (!hasTile(z, x, y) && isLand(z, x, y)) { complete = false; break; }
         }
       }
       if (complete) return z;
     }
     return TILE_MIN;
   }
-  var tileImages = {};
   function paintTerrain(ctx, view, layer) {
     var z = tileZoomFor(view), size = 256 * Math.pow(2, view.zoom - z), r = view.ratio, o = view.origin;
     ctx.imageSmoothingEnabled = true;
@@ -1387,17 +1398,17 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
       // Whole device pixels, so neighboring tiles meet exactly: no gap, no overlap.
       var left = Math.round((x * size - o.x) * r), right = Math.round(((x + 1) * size - o.x) * r);
       for (var y = Math.floor(o.y / size); y <= Math.floor((o.y + view.height) / size); y++) {
-        var src = tileSource(z, x, y);
-        if (!src) continue;
-        var img = tileImages[src.key];
-        if (!img) {
-          img = tileImages[src.key] = new Image();
+        var want = tileSource(z, x, y);
+        if (!want) continue;
+        if (!tileImages[want.key]) {
+          var img = tileImages[want.key] = new Image();
           img.onload = function () { layer.repaintSoon(); };
-          img.src = TILES[src.key];
+          img.src = TILE_ROOT ? TILE_ROOT + want.key + ".jpg" : TILES[want.key];
         }
-        if (!img.complete || !img.naturalWidth) continue;   // painted once it has loaded
+        var src = tileSource(z, x, y, true);   // painted again once the tile has loaded
+        if (!src) continue;
         var top = Math.round((y * size - o.y) * r), bottom = Math.round(((y + 1) * size - o.y) * r);
-        ctx.drawImage(img, src.sx, src.sy, src.size, src.size, left, top, right - left, bottom - top);
+        ctx.drawImage(tileImages[src.key], src.sx, src.sy, src.size, src.size, left, top, right - left, bottom - top);
       }
     }
   }
