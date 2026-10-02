@@ -5,7 +5,8 @@
 --   * left: dark list of collapsible categories (quest log style)
 --   * right: parchment page with dark ink text, gold-free headings, and
 --     blue skill-style bars
---   * red buttons along the bottom, tabs underneath (Journey / Levels)
+--   * red buttons along the bottom (Export, Print to Chat, Close), tabs
+--     underneath (Journey / Levels)
 --
 -- The UI only reads JourneyTrackerDB, which holds plain (non-secret) values,
 -- so nothing here touches restricted data. Templates and textures are tried
@@ -70,8 +71,13 @@ local function Money(c)
 end
 local function Date(t) return t and date("%b %d, %Y", t) or "-" end
 local function DateTime(t) return t and date("%b %d %Y, %H:%M", t) or "-" end
-local function Num(v) return v and tostring(math.floor(v + 0.5)) or "-" end
-local function Yards(v) return v and string.format("%d yd", math.floor(v + 0.5)) or "-" end
+-- Whole numbers, with the game's thousands separators (12,347).
+local function Num(v)
+    if not v then return "-" end
+    local n = math.floor(v + 0.5)
+    return BreakUpLargeNumbers and BreakUpLargeNumbers(n) or tostring(n)
+end
+local function Yards(v) return v and (Num(v) .. " yd") or "-" end
 
 local function Count(t)
     local n = 0
@@ -196,7 +202,9 @@ local function Place(region, x, y, width)
     end
 end
 
+-- Numbers show as whole numbers with separators, like the game's own.
 local function SetText(fs, text)
+    if type(text) == "number" then text = Num(text) end
     text = text == nil and "-" or tostring(text)
     if fs.jtText ~= text then
         fs:SetText(text)
@@ -399,6 +407,16 @@ local function Played(db)
     return ns.PlayedNow() or db.played.total
 end
 
+-- Zones without "Unknown", the stand-in name the game gives for a moment
+-- while it loads a zone.
+local function Zones(db)
+    local zones = {}
+    for name, z in pairs(db.zones) do
+        if name ~= "Unknown" then zones[name] = z end
+    end
+    return zones
+end
+
 -- The game's Statistics pane (JourneyTrackerStats.lua, W-506). Stat(id) is a
 -- statistic as a number (gold in copper), or nil before the pane is read.
 local function Stat(id) return ns.StatNumber and ns.StatNumber(id) or nil end
@@ -437,8 +455,8 @@ local function PageSummary(B, db)
     B:Row("Monsters slain", Best(db.kills.total, StatXPKills()))
     B:Row("Deaths", Best(#db.deaths, Stat(60)))
     B:Row("Quests completed", Best(db.quests.completed, Stat(98)))
-    B:Row("Zones visited", Count(db.zones))
-    B:Row("Distance on foot", Yards(db.travel.ground))
+    B:Row("Zones visited", Count(Zones(db)))
+    B:Row("Distance on foot and mounted", Yards(db.travel.ground))
     B:Row("Distance fallen", Yards(db.falls.total))
     B:Row("Gold earned", Money(Best(db.money.earned, Stat(328))))
     B:Row("Items looted", db.loot.items)
@@ -521,6 +539,16 @@ local function PageHabits(B, db)
     local days = {}
     for d in pairs(db.days) do days[#days + 1] = d end
     table.sort(days)
+    -- "2026-10-01" as "Oct 01", with the year too once the days span more
+    -- than one.
+    local years = #days > 0 and days[1]:sub(1, 4) ~= days[#days]:sub(1, 4)
+    for i, d in ipairs(days) do
+        local y, m, dd = d:match("^(%d+)-(%d+)-(%d+)$")
+        if y then
+            local t = time({ year = tonumber(y), month = tonumber(m), day = tonumber(dd), hour = 12 })
+            days[i] = date(years and "%b %d %Y" or "%b %d", t)
+        end
+    end
     B:Text(#days > 0 and table.concat(days, ", ") or "None yet.")
 end
 
@@ -679,10 +707,16 @@ local function PageDeaths(B, db)
     end
 end
 
+-- How a death ended, as saved (JourneyTracker.lua's FinishDeath), in words.
+local REZ_NAMES = { ["corpse run"] = "Corpse run", ["spirit healer"] = "Spirit healer",
+    ["player rez"] = "Rezzed by a player", ["self-res/other"] = "Soulstone, Ankh or other", unknown = "Unknown" }
+
 local function PageRez(B, db)
     B:Title("Resurrections")
     B:Heading("How You Came Back")                                           -- #49
-    B:BarList(db.rez)
+    local ways = {}
+    for how, n in pairs(db.rez) do ways[REZ_NAMES[how] or how] = n end
+    B:BarList(ways)
     B:Heading("Time")
     B:Row("Total time dead", Dur(db.time.dead))                              -- #12
     B:Row("Time on corpse runs", Dur(db.time.corpseRuns))                    -- #50
@@ -712,16 +746,22 @@ local function PageQuests(B, db)
     B:Heading("By Zone")                                                     -- #55
     B:BarList(Q.byZone)
     B:Heading("By Level")                                                    -- #54
+    local any = false
     for level = 1, ns.MAX_LEVEL do
         local s = db.levels[level]
-        if s and s.quests > 0 then B:Row("Level " .. level, s.quests) end
+        if s and s.quests > 0 then
+            B:Row("Level " .. level, s.quests)
+            any = true
+        end
     end
+    if not any then B:Note("Nothing yet.") end
 end
 
 local function PageZones(B, db)
     B:Title("Zones")
-    B:Row("Zones visited", Count(db.zones))                                  -- #63
-    local list = Sorted(db.zones, function(z) return z.seconds end)
+    local zones = Zones(db)
+    B:Row("Zones visited", Count(zones))                                     -- #63
+    local list = Sorted(zones, function(z) return z.seconds end)
     local max = list[1] and list[1][2].seconds or 0
     B:Heading("Time Spent in Each Zone")                                     -- #66
     for _, kv in ipairs(list) do
@@ -740,7 +780,7 @@ local function PagePath(B, db)
     B:Cols({ "When", "Level", "Zone" }, widths, INK_DARK)
     for i = #db.path, 1, -1 do
         local p = db.path[i]
-        B:Cols({ DateTime(p.t), p.level, p.zone }, widths)
+        if p.zone ~= "Unknown" then B:Cols({ DateTime(p.t), p.level, p.zone }, widths) end
     end
     B:Heading("Subzones")
     local subs = Sorted(db.subzones, function(t) return -t end) -- oldest first
@@ -839,10 +879,15 @@ local function PageGold(B, db)
         B:Note("Not yet.")
     end
     B:Heading("Gold at Each Level")                                          -- #76
+    local any = false
     for level = 1, ns.MAX_LEVEL do
         local d = db.dings[level]
-        if d and d.gold then B:Row("Level " .. level, Money(d.gold)) end
+        if d and d.gold then
+            B:Row("Level " .. level, Money(d.gold))
+            any = true
+        end
     end
+    if not any then B:Note("Saved at each level-up from now on.") end
 end
 
 local function PageLoot(B, db)
@@ -857,6 +902,7 @@ local function PageLoot(B, db)
             B:Bar(QUALITY_NAMES[q] or ("Quality " .. q), L.byQuality[q], max, nil, QualityColor(q))
         end
     end
+    if max == 0 then B:Note("Nothing yet.") end
     B:Heading("Best Item Looted")                                            -- #88
     if L.best then
         B:ItemLine(L.best.link)
@@ -1346,16 +1392,31 @@ local function CreateWindow()
     pagePane = Panel(f, true)
     pageScroll, pageChild = ScrollArea(pagePane)
 
-    -- Red classic buttons along the bottom.
+    -- Red classic buttons along the bottom: Export and Print to Chat on the
+    -- left, Close on the right.
     local close = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     close:SetSize(110, 22)
     close:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -12, 8)
     close:SetText(CLOSE or "Close")
     close:SetScript("OnClick", function() f:Hide() end)
 
+    local export = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    export:SetSize(110, 22)
+    export:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 8)
+    export:SetText("Export")
+    export:SetScript("OnClick", function() if ns.Export then ns.Export() end end)
+    export:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Export")
+        GameTooltip:AddLine("Copy your journey to paste at " .. (ns.WEBSITE or "the website")
+            .. ", for your recap and a link to share.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    export:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
     local printButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    printButton:SetSize(140, 22)
-    printButton:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 8)
+    printButton:SetSize(120, 22)
+    printButton:SetPoint("LEFT", export, "RIGHT", 6, 0)
     printButton:SetText("Print to Chat")
     printButton:SetScript("OnClick", function() ns.PrintSummary() end)
 
@@ -1436,7 +1497,7 @@ local function CreateMinimapButton()
     b:SetSize(31, 31)
     b:SetFrameStrata("MEDIUM")
     b:SetFrameLevel(8)
-    b:RegisterForClicks("LeftButtonUp")
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:RegisterForDrag("LeftButton")
     b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
@@ -1457,11 +1518,18 @@ local function CreateMinimapButton()
     icon:SetSize(22, 22)
     icon:SetPoint("CENTER", bg, "CENTER", 0, 0)
 
-    b:SetScript("OnClick", function() ns.ToggleUI() end)
+    b:SetScript("OnClick", function(_, mouse)
+        if mouse == "RightButton" and ns.Export then
+            ns.Export()
+        else
+            ns.ToggleUI()
+        end
+    end)
     b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("Journey Tracker", LOGO_GOLD[1], LOGO_GOLD[2], LOGO_GOLD[3])
         GameTooltip:AddLine("Click to open your journey.", 1, 1, 1)
+        GameTooltip:AddLine("Right-click to export it for the website.", 1, 1, 1)
         GameTooltip:AddLine("Drag to move this button.", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)

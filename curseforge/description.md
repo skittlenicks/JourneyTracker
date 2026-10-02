@@ -61,15 +61,16 @@ Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap.
 
 - Time grouped vs solo, how many different players you've grouped with (a count, never names), the level you joined a guild, and how many times you jumped
 
-## Export your journey
+## See your recap
 
-**/journey export** packs your stats into one line of text that you can copy and share. Coming later: a website that turns it into a Wrapped-style recap of your road to 60.
+Click **Export** at the bottom of the window (or right-click the minimap button, or type **/journey export**), press Ctrl+C, and paste it at **www.journeytracker.dev**. You get a Wrapped-style recap of your road to 60: your route across Azeroth, deaths, quests, gold, gear and where you rank, with a link to share it.
 
 ## Privacy
 
 - Exports never include your character's name or realm, other players' names, or chat.
 - Other players' names are never saved, and chat is never stored.
 - Nothing leaves the game by itself. Addons can't reach the internet or the rest of your computer, so your data stays in your saved variables until you choose to share an export.
+- Pasting an export on the website saves it so it counts toward the rankings. Anyone you give your recap's link to can see it, but never your name or realm.
 
 ## Good to know
 
@@ -81,7 +82,7 @@ Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap.
 ## Commands
 
 - **/journey** or **/jt**: open the window
-- **/journey export**: copy your stats as text
+- **/journey export**: copy your stats to paste at www.journeytracker.dev (same as the Export button)
 - **/journey backup**: save a backup copy of your data
 - **/journey stats**: show what's been read from the game's Statistics pane
 - **/journey version**: show which version you have

@@ -13,14 +13,16 @@ INSTALL
 2. Restart WoW. (If you're updating and the game is already open, /reload
    is usually enough, but a restart always works.)
 3. Type /journey to open your stats, or click the gold "JT" button on the
-   minimap.
+   minimap (right-click it to export).
 
 
 SEE YOUR RECAP
 --------------
 Nothing uploads by itself: your data only leaves the game when you paste it.
 
-1. Type /journey export (it won't work in the middle of a fight).
+1. Click Export at the bottom of the Journey Tracker window (or right-click
+   the minimap button, or type /journey export). It won't work in the
+   middle of a fight.
 2. A window opens with a long block of text that's already selected.
    Press Ctrl+C to copy it.
 3. Go to www.journeytracker.dev, paste it into the box at the top and click

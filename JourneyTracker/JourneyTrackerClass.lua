@@ -1637,7 +1637,8 @@ local function DrawItem(B, item)
         local s = data.swaps[item.swaps]
         B:Row("Total", s and s.total or 0)
         local top = s and U.Sorted(s.pairs)[1]
-        B:Row("Most common", top and (top[1] .. " (" .. top[2] .. ")") or "-")
+        -- Saved as "Caster Form > Cat Form"; shown as "Caster Form to Cat Form".
+        B:Row("Most common", top and ((top[1]:gsub(" > ", " to ")) .. " (" .. top[2] .. ")") or "-")
     end
     for _, spell in ipairs(item.learned or {}) do B:Row(spell, LearnedText(spell)) end
     for _, spell in ipairs(item.casts or {}) do

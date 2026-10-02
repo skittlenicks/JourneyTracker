@@ -1,7 +1,9 @@
--- JourneyTracker export: /journey export builds a summary of this
+-- JourneyTracker export: /journey export (or the Export button in the
+-- window, or right-clicking the minimap button) builds a summary of this
 -- character's data, encodes it (JourneyTrackerSerialize.lua) and shows the
--- "JT1:..." string in a window to copy. /journey testexport does the same
--- with fixed fake data, to check the encoder against tools/import.
+-- "JT1:..." string in a window to copy and paste at www.journeytracker.dev.
+-- /journey testexport does the same with fixed fake data, to check the
+-- encoder against tools/import.
 --
 -- The summary is the saved stats, not a raw event log, and leaves out
 -- anything that could identify a person: the character's name and realm,
@@ -92,14 +94,38 @@ local function BuildSummary(db)
 end
 
 ---------------------------------------------------------------------------
--- Export window: a movable dialog with the string pre-selected
+-- Export window: a classic dialog with the steps to follow, the export
+-- (already selected, ready for Ctrl+C) and the website's address. WoW can't
+-- open links, so the address is in a box of its own to copy.
 ---------------------------------------------------------------------------
+
+ns.WEBSITE = "www.journeytracker.dev"
+local GOLD = "|cffffd100"   -- the game's own highlight gold
+local GREEN = "|cff20ff20"
 
 local window, exportText
 
+-- Read-only: anything typed puts the text back, selected.
+local function ReadOnly(box, text)
+    box:SetScript("OnTextChanged", function(self, userInput)
+        if userInput then
+            self:SetText(text())
+            self:HighlightText()
+        end
+    end)
+end
+
+-- Ctrl+C (Cmd+C on a Mac) in `box` calls copied(). The key is read as it's
+-- released, so the box has already copied the text.
+local function OnCopy(box, copied)
+    box:SetScript("OnKeyUp", function(_, key)
+        if key == "C" and (IsControlKeyDown() or (IsMetaKeyDown and IsMetaKeyDown())) then copied() end
+    end)
+end
+
 local function CreateWindow()
     local f = CreateFrame("Frame", "JourneyTrackerExportFrame", UIParent, "BackdropTemplate")
-    f:SetSize(600, 400)
+    f:SetSize(560, 440)
     f:SetPoint("CENTER")
     f:SetFrameStrata("DIALOG")
     f:SetToplevel(true)
@@ -118,30 +144,57 @@ local function CreateWindow()
     table.insert(UISpecialFrames, "JourneyTrackerExportFrame") -- Escape closes it
 
     f.title = f:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    f.title:SetPoint("TOP", 0, -18)
-    local hint = f:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    hint:SetPoint("TOP", f.title, "BOTTOM", 0, -6)
-    hint:SetText("The text is selected: press Ctrl+C to copy it, then paste it to me in Discord.")
+    f.title:SetPoint("TOP", 0, -20)
 
     local closeX = CreateFrame("Button", nil, f, "UIPanelCloseButton")
     closeX:SetPoint("TOPRIGHT", -6, -6)
 
-    local scroll = CreateFrame("ScrollFrame", "JourneyTrackerExportScroll", f, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 22, -60)
-    scroll:SetPoint("BOTTOMRIGHT", -40, 52)
+    -- The three steps: white text with what to press or type in gold, like
+    -- the game's own help.
+    local steps = {
+        "Press " .. GOLD .. "Ctrl+C|r to copy your journey. It's already selected below.",
+        "Go to " .. GOLD .. ns.WEBSITE .. "|r and paste it into the box at the top.",
+        "Click " .. GOLD .. "Show my journey|r to see your recap and get a link to share.",
+    }
+    local above
+    for i, text in ipairs(steps) do
+        local line = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        line:SetJustifyH("LEFT")
+        if above then
+            line:SetPoint("TOPLEFT", above, "BOTTOMLEFT", 0, -6)
+        else
+            line:SetPoint("TOPLEFT", f, "TOPLEFT", 28, -52)
+        end
+        line:SetWidth(504)
+        line:SetText(GOLD .. i .. ".|r  " .. text)
+        above = line
+    end
+
+    -- The export, in a dark inset like a chat box.
+    local inset = CreateFrame("Frame", nil, f, "BackdropTemplate")
+    inset:SetPoint("TOPLEFT", 22, -126)
+    inset:SetPoint("BOTTOMRIGHT", -22, 112)
+    inset:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    inset:SetBackdropColor(0, 0, 0, 0.6)
+    inset:SetBackdropBorderColor(0.6, 0.55, 0.45)
+
+    local scroll = CreateFrame("ScrollFrame", "JourneyTrackerExportScroll", inset, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", 8, -8)
+    scroll:SetPoint("BOTTOMRIGHT", -28, 8)
 
     local box = CreateFrame("EditBox", nil, scroll)
     box:SetMultiLine(true)
     box:SetAutoFocus(false)
     box:SetFontObject(ChatFontNormal)
-    box:SetWidth(530)
+    box:SetWidth(470)
     box:SetScript("OnEscapePressed", function() f:Hide() end)
-    -- Read-only: typing puts the export back.
-    box:SetScript("OnTextChanged", function(self, userInput)
-        if userInput then
-            self:SetText(exportText or "")
-            self:HighlightText()
-        end
+    ReadOnly(box, function() return exportText or "" end)
+    OnCopy(box, function()
+        f.status:SetText(GREEN .. "Copied.|r Now paste it at " .. GOLD .. ns.WEBSITE .. "|r")
     end)
     if ScrollingEdit_OnCursorChanged then box:SetScript("OnCursorChanged", ScrollingEdit_OnCursorChanged) end
     if ScrollingEdit_OnUpdate then
@@ -149,6 +202,29 @@ local function CreateWindow()
     end
     scroll:SetScrollChild(box)
     f.box = box
+
+    -- Under the inset: how long the export is, or that it's been copied.
+    f.status = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+    f.status:SetPoint("TOP", inset, "BOTTOM", 0, -8)
+
+    -- The website's address, to copy into a browser.
+    local label = f:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    label:SetPoint("BOTTOMLEFT", 28, 64)
+    label:SetText("Website")
+    local site = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+    site:SetSize(190, 20)
+    site:SetPoint("LEFT", label, "RIGHT", 14, 0)
+    site:SetAutoFocus(false)
+    site:SetFontObject(ChatFontNormal)
+    site:SetText(ns.WEBSITE)
+    site:SetCursorPosition(0)
+    ReadOnly(site, function() return ns.WEBSITE end)
+    site:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+    site:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    OnCopy(site, function() f.status:SetText(GREEN .. "Copied the address.|r Paste it into your browser.") end)
+    local siteHint = f:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    siteHint:SetPoint("LEFT", site, "RIGHT", 10, 0)
+    siteHint:SetText("Click it, then Ctrl+C to copy.")
 
     local selectAll = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     selectAll:SetSize(120, 22)
@@ -164,9 +240,6 @@ local function CreateWindow()
     close:SetPoint("BOTTOMRIGHT", -20, 20)
     close:SetText(CLOSE or "Close")
     close:SetScript("OnClick", function() f:Hide() end)
-
-    f.length = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    f.length:SetPoint("BOTTOM", 0, 25)
     return f
 end
 
@@ -175,7 +248,7 @@ local function Show(text, title)
     exportText = text
     window.title:SetText(title)
     local count = BreakUpLargeNumbers and BreakUpLargeNumbers(#text) or tostring(#text)
-    window.length:SetText(count .. " characters")
+    window.status:SetText(count .. " characters")
     window.box:SetText(text)
     window:Show()
     window.box:SetFocus()
@@ -201,7 +274,7 @@ function ns.Export()
         print(PREFIX, "Export failed: " .. tostring(problem))
         return
     end
-    Show(text, "Journey Export")
+    Show(text, "Export Your Journey")
     if #text > WARN_LENGTH then
         print(PREFIX, string.format("Heads up: this export is %d characters, which is very large. Biggest sections:", #text))
         for i, section in ipairs(Serialize.SectionSizes(summary)) do
