@@ -298,7 +298,9 @@ end
 local LOGIN_DELAY = 10      -- seconds after login, once statistics and /played have loaded
 local DING_DELAY = 2        -- seconds after a ding, so it's counted
 local REFRESH_SECONDS = 300 -- keeps `latest` current while you play
+local REFRESH_GAP = 20      -- the window asks for a read at most this often (seconds)
 local FRAME_BUDGET_MS = 4   -- longest a read runs in one frame before it waits for the next
+local lastRead = -math.huge -- GetTime() of the last read stored
 
 local Num, Str, Safe, Call = ns.Num, ns.Str, ns.Safe, ns.Call
 
@@ -440,6 +442,7 @@ local function Store(read, reason)
         S.levels[snap.level] = { t = snap.t, played = snap.played, changed = changed }
     end
     S.latest = snap
+    lastRead = GetTime()
     return snap
 end
 
@@ -537,8 +540,109 @@ if C_Timer and C_Timer.NewTicker then
 end
 
 ---------------------------------------------------------------------------
--- Lifetime numbers in the window (W-506) and /journey stats (W-507)
+-- In the window (W-506) and /journey stats (W-507)
+--
+-- Every statistic shows on the window page it fits, in its category. Where
+-- a page already has a row for the same thing, that row shows the bigger
+-- of our count and the game's (each starts partway through a character's
+-- life, so the bigger is closest to the real total), and the page leaves
+-- the statistic out of its list.
 ---------------------------------------------------------------------------
+
+-- The window page each of the pane's categories goes on, by category ID.
+-- One not listed goes where its parent goes, or else on the Summary.
+local PAGE_OF = {
+    [133] = "quests",
+    [122] = "deaths", [126] = "deaths", [125] = "deaths", [124] = "deaths", [21] = "deaths",
+    [127] = "rez",
+    [141] = "fights",
+    [128] = "kills", [135] = "kills",
+    [136] = "pvp", [137] = "pvp", [154] = "pvp", [153] = "pvp",
+    [14821] = "bosses", [14807] = "dungeons",
+    [140] = "gold", [191] = "loot", [145] = "consumables",
+    [132] = "skills", [130] = "skills", [173] = "professions", [178] = "professions",
+    [134] = "travel", [147] = "social", [131] = "social",
+}
+-- Their headings in the window; any other category uses the pane's names.
+local TITLES = {
+    [133] = "Quest Pace", [126] = "Deaths in the World", [125] = "Deaths in Dungeons and Raids",
+    [124] = "Deaths in Battlegrounds", [21] = "Deaths to Other Players", [127] = "Resurrected By",
+    [141] = "Damage and Healing", [128] = "All Kills", [135] = "Creatures", [136] = "Honorable Kills",
+    [137] = "Killing Blows", [154] = "Duels", [153] = "Battlegrounds", [14821] = "Boss Kills by Dungeon",
+    [14807] = "Dungeons and Raids Entered", [140] = "Wealth", [191] = "Gear and Collections",
+    [145] = "Consumables Used", [132] = "Skill Totals", [130] = "Talents", [173] = "Profession Records",
+    [178] = "Cooking, First Aid and Fishing", [134] = "Summons and Portals", [147] = "Reputation",
+    [131] = "Emotes",
+}
+
+local function PageOf(S, catID)
+    if PAGE_OF[catID] then return PAGE_OF[catID] end
+    local cat = S.categories[catID]
+    return cat and cat.parent and PAGE_OF[cat.parent] or "summary"
+end
+
+local function Title(S, catID)
+    if TITLES[catID] then return TITLES[catID] end
+    local cat = S.categories[catID] or {}
+    local parent = cat.parent and S.categories[cat.parent]
+    local name = cat.name or ("Category " .. catID)
+    return parent and parent.name and (parent.name .. ": " .. name) or name
+end
+
+-- Every statistic the pane puts on this page, under its category's heading,
+-- exactly as the game shows it. `skip` is a set of statistic IDs the page
+-- already shows in rows of its own.
+function ns.DrawStatistics(B, page, skip)
+    local db = ns.GetDB()
+    local S = db and db.statistics
+    if not (S and S.latest) then return end
+    for _, catID in ipairs(S.order) do
+        local cat = S.categories[catID]
+        if cat and PageOf(S, catID) == page then
+            local list = {}
+            for _, id in ipairs(cat.stats or {}) do
+                if not (skip and skip[id]) then list[#list + 1] = id end
+            end
+            if #list > 0 then
+                B:Heading(Title(S, catID))
+                for _, id in ipairs(list) do
+                    local v = S.latest.values[id]
+                    B:Row(S.names[id] or ("Statistic " .. id), v ~= nil and tostring(v) or (S.skipped[id] and "Hidden" or "--"))
+                end
+            end
+        end
+    end
+end
+
+-- A raw value as a number: counts ("1,204" is 1204, "--" is 0) and gold
+-- (the amounts beside the coin icons, in copper). Nil for text like "3 (Beasts)".
+local COIN = { Gold = 10000, Silver = 100, Copper = 1 }
+local function AsNumber(v)
+    if type(v) == "number" then return v end
+    if type(v) ~= "string" then return nil end
+    if v == "--" or v == "" then return 0 end
+    local copper, coins = 0, false
+    for amount, coin in v:gmatch("([%d,]+)%s*|T[^|]-UI%-(%a+)Icon[^|]*|t") do
+        local n, unit = tonumber((amount:gsub(",", ""))), COIN[coin]
+        if n and unit then copper, coins = copper + n * unit, true end
+    end
+    if coins then return copper end
+    return tonumber((v:gsub(",", "")))
+end
+
+-- A statistic's latest value as a number (as above), or nil.
+function ns.StatNumber(id)
+    local db = ns.GetDB()
+    local S = db and db.statistics
+    local v = S and S.latest and S.latest.values[id]
+    if v == nil then return nil end
+    return AsNumber(v)
+end
+
+-- Read the pane again for the window, unless it was read moments ago.
+function ns.RefreshStatistics()
+    if not reading and GetTime() - lastRead >= REFRESH_GAP then Request("refresh") end
+end
 
 -- Statistic ID by name (any case), first in the pane's order.
 local byName, byNameFor
@@ -554,64 +658,6 @@ local function StatID(S, name)
         end
     end
     return byName[name:lower()]
-end
-
--- The latest value of the first of these statistics the pane has, exactly
--- as the game shows it, or nil.
-function ns.Lifetime(...)
-    local db = ns.GetDB()
-    local S = db and db.statistics
-    if not (S and S.latest) then return nil end
-    for i = 1, select("#", ...) do
-        local id = StatID(S, (select(i, ...)))
-        if id and S.latest.values[id] ~= nil then return S.latest.values[id] end
-    end
-end
-
--- A row with the pane's lifetime number, when it has one.
-function ns.LifetimeRow(B, label, ...)
-    local v = ns.Lifetime(...)
-    if v ~= nil then B:Row(label, tostring(v)) end
-end
-
-local function PageStatistics(B, db)
-    local S = db.statistics
-    B:Title("Statistics Pane")
-    if not S.latest then
-        B:Note("Journey Tracker reads the game's Statistics pane about ten seconds after you log in, then at every level-up and export. It hasn't been read yet.")
-        return
-    end
-    B:Note(string.format("Lifetime totals from the game's Statistics pane, as of %s at level %d. They include everything from before you installed Journey Tracker.",
-        When(S.latest.t), S.latest.level or 0))
-    for _, catID in ipairs(S.order) do
-        local cat = S.categories[catID]
-        if cat and #cat.stats > 0 then
-            local parent = cat.parent and S.categories[cat.parent]
-            local title = cat.name or ("Category " .. catID)
-            if parent and parent.name then title = parent.name .. ": " .. title end
-            B:Heading(title)
-            for _, id in ipairs(cat.stats) do
-                local v = S.latest.values[id]
-                B:Row(S.names[id] or ("Statistic " .. id), v ~= nil and tostring(v) or (S.skipped[id] and "Hidden" or "-"))
-            end
-        end
-    end
-    if S.baseline then
-        B:Footnote(string.format("First read %s at level %d. The website uses it to split your totals into before and after Journey Tracker.",
-            When(S.baseline.t), S.baseline.level or 0))
-    end
-end
-
-function ns.StatsSections()
-    return { { name = "Lifetime", pages = { { "Statistics Pane", PageStatistics } } } }
-end
-
--- A raw value as a number, for the cross-check only ("1,204" is 1204, "--" is 0).
-local function AsNumber(v)
-    if type(v) == "number" then return v end
-    if type(v) ~= "string" then return nil end
-    if v == "--" or v == "" then return 0 end
-    return tonumber((v:gsub(",", "")))
 end
 
 -- A statistic as a number in one snapshot: the first of `names` the pane

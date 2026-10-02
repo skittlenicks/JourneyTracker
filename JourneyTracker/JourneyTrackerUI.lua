@@ -399,11 +399,28 @@ local function Played(db)
     return ns.PlayedNow() or db.played.total
 end
 
--- W-506 the game's own lifetime number (Statistics pane) under ours, when
--- it has one: the first of the statistic names given that it knows.
-local function Lifetime(B, label, ...)
-    if ns.LifetimeRow then ns.LifetimeRow(B, label, ...) end
+-- The game's Statistics pane (JourneyTrackerStats.lua, W-506). Stat(id) is a
+-- statistic as a number (gold in copper), or nil before the pane is read.
+local function Stat(id) return ns.StatNumber and ns.StatNumber(id) or nil end
+-- For a row both sides count, the bigger of ours and the game's: each
+-- starts partway through a character's life, so the bigger is closer to the
+-- real total.
+local function Best(ours, theirs)
+    if theirs and (not ours or theirs > ours) then return theirs end
+    return ours
 end
+-- The rest of the pane's statistics that belong on a page; `skip` is a set
+-- of the ones the page already shows in its own rows.
+local function Block(B, page, skip)
+    if ns.DrawStatistics then ns.DrawStatistics(B, page, skip) end
+end
+-- The game's XP-granting kills: its "kills that grant experience or honor"
+-- less honorable kills.
+local function StatXPKills()
+    local all, honor = Stat(1198), Stat(588)
+    if all then return all - (honor or 0) end
+end
+ns.UI.Stat, ns.UI.Best, ns.UI.Block = Stat, Best, Block
 
 local function PageSummary(B, db)
     local c = db.char
@@ -417,21 +434,19 @@ local function PageSummary(B, db)
     B:Row("Reached " .. ns.MAX_LEVEL, db.reachedMax and Date(db.reachedMax) or "Not yet")
     B:Row("Play sessions", #AllSessions(db))
     B:Row("Experience earned", Num(db.xp.total))
-    B:Row("Monsters slain", db.kills.total)
-    Lifetime(B, "Monsters slain, all time", "Creatures killed")
-    B:Row("Deaths", #db.deaths)
-    Lifetime(B, "Deaths, all time", "Total deaths")
-    B:Row("Quests completed", db.quests.completed)
-    Lifetime(B, "Quests completed, all time", "Quests completed")
+    B:Row("Monsters slain", Best(db.kills.total, StatXPKills()))
+    B:Row("Deaths", Best(#db.deaths, Stat(60)))
+    B:Row("Quests completed", Best(db.quests.completed, Stat(98)))
     B:Row("Zones visited", Count(db.zones))
     B:Row("Distance on foot", Yards(db.travel.ground))
     B:Row("Distance fallen", Yards(db.falls.total))
-    B:Row("Gold earned", Money(db.money.earned))
+    B:Row("Gold earned", Money(Best(db.money.earned, Stat(328))))
     B:Row("Items looted", db.loot.items)
     local G = db.gathering
     B:Row("Nodes gathered", G.herb.nodes + G.mining.nodes + G.skinning.nodes)
-    if ns.Lifetime and ns.Lifetime("Quests completed", "Total deaths") ~= nil then
-        B:Footnote("\"All time\" numbers come from the game's own Statistics pane, so they include everything from before you installed Journey Tracker. The rest count from when you installed it.")
+    Block(B, "summary") -- anything in the pane with no page of its own
+    if Stat(98) then
+        B:Footnote("Where the game's own Statistics pane has a bigger number than Journey Tracker, that's the one shown: it counts play from before you installed Journey Tracker.")
     end
 end
 
@@ -578,14 +593,13 @@ local function PageFights(B, db)
     B:Row("Most mobs at once", C.maxMobs)
     B:Row("Mobs that jumped you", C.ambushMobs)                              -- #39
     B:Note("Multi-mob pulls and ambushes are read from enemy nameplates, so keep them turned on.")
+    Block(B, "fights")
 end
 
 local function PageKills(B, db)
     local K = db.kills
     B:Title("Kills")
-    B:Row("XP-granting kills", K.total)                                      -- #26
-    -- The game's "kills that grant experience or honor" counts players too.
-    Lifetime(B, "Creatures killed, all time", "Creatures killed")
+    B:Row("XP-granting kills", Best(K.total, StatXPKills()))                 -- #26
     local top = Sorted(K.byName)[1]
     B:Row("Most killed", top and (top[1] .. " x" .. top[2]) or "-")          -- #29
     local m = K.maxLevelDiff
@@ -597,6 +611,7 @@ local function PageKills(B, db)
     B:BarList(K.byType)
     B:Heading("By Monster")                                                  -- #28
     B:BarList(K.byName)
+    Block(B, "kills")
 end
 
 local function PageBosses(B, db)
@@ -608,9 +623,10 @@ local function PageBosses(B, db)
         local b = kv[2]
         B:Row(kv[1], string.format("%d kills, %d wipes, %d pulls", b.kills, b.wipes, b.attempts))
     end
+    Block(B, "bosses")
     B:Heading("Player vs. Player")                                           -- #43
-    B:Row("Honorable kills", db.pvp.honorableKills or 0)
-    Lifetime(B, "Honorable kills, all time", "Total Honorable Kills")
+    B:Row("Honorable kills", Best(db.pvp.honorableKills or 0, Stat(588)))
+    Block(B, "pvp", { [588] = true })
 end
 
 local function PageDeaths(B, db)
@@ -631,12 +647,12 @@ local function PageDeaths(B, db)
         if s and s.deaths > 0 then streak = 0 else streak = streak + 1 end
         best = math.max(best, streak)
     end
-    B:Row("Total deaths", #db.deaths)                                        -- #44
-    Lifetime(B, "Total deaths, all time", "Total deaths")
+    B:Row("Total deaths", Best(#db.deaths, Stat(60)))                        -- #44
     B:Row("Deadliest zone", worst and (worst[1] .. " (" .. worst[2] .. ")") or "-") -- #51
     B:Row("Solo / grouped / in dungeons", solo .. " / " .. grouped .. " / " .. dungeon) -- #48
     B:Row("Fights that ended in death", db.combat.died)                      -- #38
     B:Row("Longest death-free streak", best .. " levels")                    -- #52
+    Block(B, "deaths", { [60] = true, [114] = true }) -- deaths from falling are on the Falls page
     B:Heading("Deaths by Level")                                             -- #45
     local any = false
     for level = 1, ns.MAX_LEVEL do
@@ -674,23 +690,23 @@ local function PageRez(B, db)
     B:Row("Average corpse run", Dur(runs > 0 and db.time.corpseRuns / runs or 0))
     B:Heading("Graveyards Used")                                             -- #72
     B:BarList(db.graveyards)
+    Block(B, "rez")
 end
 
 local function PageQuests(B, db)
     local Q = db.quests
     B:Title("Quests")
-    B:Row("Completed", Q.completed)                                          -- #53
-    Lifetime(B, "Completed, all time", "Quests completed")
+    B:Row("Completed", Best(Q.completed, Stat(98)))                          -- #53
     B:Row("Accepted", Q.accepted)                                            -- #58
-    B:Row("Abandoned", Q.abandoned)                                          -- #59
-    Lifetime(B, "Abandoned, all time", "Quests abandoned")
+    B:Row("Abandoned", Best(Q.abandoned, Stat(94)))                          -- #59
     B:Row("XP from quests", Num(Q.xp))                                       -- #56
-    B:Row("Gold from quests", Money(Q.money))                                -- #57
+    B:Row("Gold from quests", Money(Best(Q.money, Stat(326))))               -- #57
     B:Row("In your log (tracked)", Count(Q.open))
     if Q.longest then                                                        -- #60
         B:Row("Longest held", QuestTitle(Q.longest.questID))
         B:Note("Accepted to turn-in: " .. Dur(Q.longest.seconds))
     end
+    Block(B, "quests", { [98] = true, [94] = true })
     B:Heading("By Type")                                                     -- #61-62
     B:BarList(Q.byTag)
     B:Heading("By Zone")                                                     -- #55
@@ -740,10 +756,9 @@ local function PageTravel(B, db)
     B:Row("Distance by flight", Yards(T.taxi))
     B:Row("Time on flight paths", Dur(db.time.taxi))                         -- #13
     B:Row("Time mounted", Dur(db.time.mounted))                              -- #14
-    B:Row("Hearthstone uses", T.hearths)                                     -- #68
-    Lifetime(B, "Hearthstone uses, all time", "Number of times hearthed")
-    B:Row("Flights taken", T.flights)                                        -- #70
-    Lifetime(B, "Flights taken, all time", "Flight paths taken")
+    B:Row("Hearthstone uses", Best(T.hearths, Stat(353)))                    -- #68
+    B:Row("Flights taken", Best(T.flights, Stat(349)))                       -- #70
+    Block(B, "travel", { [353] = true, [349] = true })
     B:Heading("Flight Paths Discovered")                                     -- #69
     if #T.flightPaths == 0 then B:Note("None yet.") end
     for _, fp in ipairs(T.flightPaths) do
@@ -765,7 +780,7 @@ local function PageFalls(B, db)
     B:Row("Falls", F.count)
     B:Row("Longest fall survived", F.longestSurvived and Yards(F.longestSurvived.yards) or "-") -- #102
     if F.longestSurvived then B:Note(FallPlace(F.longestSurvived)) end
-    B:Row("Deaths from falling", F.fatal)
+    B:Row("Deaths from falling", Best(F.fatal, Stat(114)))
     if F.longestFatal then
         B:Row("Longest fatal fall", Yards(F.longestFatal.yards))
         B:Note(FallPlace(F.longestFatal))
@@ -778,6 +793,7 @@ local function PageDungeons(B, db)
     B:Title("Dungeons")
     B:Heading("Times Entered")                                               -- #73
     B:BarList(D.entered)
+    Block(B, "dungeons")
     if D.current then
         B:Heading("Current Run")
         B:Row(D.current.name, Dur(time() - D.current.start))
@@ -796,22 +812,24 @@ local function PageGold(B, db)
     local M = db.money
     B:Title("Gold")
     B:Row("On hand", Money(ns.Num(ns.Call("GetMoney"))))
-    B:Row("Most ever held", Money(M.peak))                                   -- #85
-    B:Row("Total earned", Money(M.earned))                                   -- #77
+    B:Row("Most ever held", Money(Best(M.peak, Stat(334))))                  -- #85
+    B:Row("Total earned", Money(Best(M.earned, Stat(328))))                  -- #77
     B:Row("Total spent", Money(M.spent))
     B:Heading("Earned From")
-    B:Row("Quest rewards", Money(db.quests.money))                           -- #57
-    B:Row("Looting", Money(M.loot))                                          -- #78
-    B:Row("Selling to vendors", Money(M.vendor))                             -- #79
-    B:Row("Auction house sales", Money(M.auctionIncome))                     -- #83
+    B:Row("Quest rewards", Money(Best(db.quests.money, Stat(326))))          -- #57
+    B:Row("Looting", Money(Best(M.loot, Stat(333))))                         -- #78
+    B:Row("Selling to vendors", Money(Best(M.vendor, Stat(921))))            -- #79
+    B:Row("Auction house sales", Money(Best(M.auctionIncome, Stat(919))))    -- #83
     B:Row("Other mail", Money(math.max(M.mail - M.auctionIncome, 0)))
     B:Row("Auctions sold", M.auctionsSold)
     B:Heading("Spent On")
     B:Row("Class training", Money(M.training))                               -- #80
     B:Row("Repairs", Money(M.repairs))                                       -- #81
-    B:Row("Flights", Money(M.flights))                                       -- #82
+    B:Row("Flights", Money(Best(M.flights, Stat(1146))))                     -- #82
     B:Row("Auction house", Money(M.auctionSpent))                            -- #83
     B:Row("Vendor purchases", Money(M.vendorSpent))
+    Block(B, "gold", { [334] = true, [328] = true, [326] = true, [333] = true, [921] = true,
+                       [919] = true, [1146] = true })
     B:Heading("First Mount")                                                 -- #84
     if db.firstMount then
         B:Row("Level", db.firstMount.level)
@@ -852,6 +870,7 @@ local function PageLoot(B, db)
     if L.firstBlue then B:ItemLine(L.firstBlue.link) end
     B:Row("First epic", L.firstEpic and ("Level " .. L.firstEpic.level) or "Not yet")
     if L.firstEpic then B:ItemLine(L.firstEpic.link) end
+    Block(B, "loot")
 end
 
 -- #104 the gear worn the longest: the most levels gained while equipped,
@@ -938,21 +957,31 @@ local function PageSkills(B, db)
         end
         if #steps > 0 then B:Note("Rank by " .. table.concat(steps, ", ")) end
     end
+    Block(B, "skills")
 end
+
+-- The game's "highest skill" statistic for each profession.
+local SKILL_STATS = { Alchemy = 1527, Blacksmithing = 1532, Enchanting = 1535, Engineering = 1544,
+    Herbalism = 1538, Inscription = 1539, Leatherworking = 1536, Mining = 1537, Skinning = 1541,
+    Tailoring = 1542, Cooking = 1524, ["First Aid"] = 281, Fishing = 1519 }
 
 local function PageProfs(B, db)
     B:Title("Professions & Spells")
     B:Heading("Professions")                                                 -- #91
     local profs = Sorted(db.professions, function(p) return p.rank or 0 end)
     if #profs == 0 then B:Note("None yet.") end
+    local shown = { [1518] = true } -- fish caught is on the Gathering page
     for _, kv in ipairs(profs) do
         local name, p = kv[1], kv[2]
         local skill = db.skills[name]
-        local rank = p.rank or (skill and skill.rank) or 0
-        local max = p.maxRank or ProfessionCap(rank)
+        local statID = SKILL_STATS[name]
+        local rank = Best(p.rank or (skill and skill.rank) or 0, statID and Stat(statID))
+        local max = math.max(p.maxRank or ProfessionCap(rank), rank)
         B:Bar(name, rank, max, rank .. " / " .. max)
+        if statID then shown[statID] = true end
     end
     B:Row("Items crafted", db.crafted)                                       -- #93
+    Block(B, "professions", shown)
     B:Heading("Spells and Abilities Learned")                                -- #95
     local spells = Sorted(db.spells, function(s) return -(s.level or 0) end)
     if #spells == 0 then B:Note("New spells appear here as you learn them.") end
@@ -973,7 +1002,7 @@ local function PageGathering(B, db)
     B:Heading("Skinning")
     B:BarList(G.skinning.items)
     B:Heading("Fishing")
-    B:Row("Fish caught", db.fish)                                            -- #94
+    B:Row("Fish caught", Best(db.fish, Stat(1518)))                          -- #94
 end
 
 local function PageSocial(B, db)
@@ -991,6 +1020,7 @@ local function PageSocial(B, db)
         B:Row("Joined a guild", "Not yet")
     end
     if ns.DrawCamping then ns.DrawCamping(B) end                             -- W-008..012
+    Block(B, "social")
 end
 
 local SECTIONS = {
@@ -1243,10 +1273,6 @@ local function CreateWindow()
         end
     end
     for i, section in ipairs(extra) do table.insert(SECTIONS, 1 + i, section) end
-    -- The game's Statistics pane goes last.
-    if ns.StatsSections then
-        for _, section in ipairs(ns.StatsSections()) do table.insert(SECTIONS, section) end
-    end
 
     local f, template = TryCreate("Frame", "JourneyTrackerFrame", UIParent,
         { "ButtonFrameTemplate", "PortraitFrameTemplate", "BackdropTemplate" })
@@ -1361,11 +1387,13 @@ local function CreateWindow()
         elapsed = elapsed + dt
         if elapsed >= 1 then
             elapsed = 0
+            if ns.RefreshStatistics then ns.RefreshStatistics() end -- every 20s or so while open
             RenderPage()
             UpdateProgress()
         end
     end)
     f:SetScript("OnShow", function()
+        if ns.RefreshStatistics then ns.RefreshStatistics() end -- the game's statistics, fresh
         UpdateHeader()
         RenderList()
         RenderPage()

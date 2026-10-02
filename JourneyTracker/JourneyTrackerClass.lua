@@ -1708,8 +1708,12 @@ local function DrawConsumables(B)
     local steps = SkillByLevel(firstAid)
     if steps then B:Note(steps) end
     B:Heading("Potions")                                      -- ALL-02
+    -- Health and mana potions: the bigger of ours and the game's Statistics pane.
+    local paneStat = { healing = 345, mana = 922 }
     for _, kind in ipairs({ "healing", "mana", "other" }) do
-        B:Row(kind:sub(1, 1):upper() .. kind:sub(2), Sum(all.potions[kind]))
+        local count = Sum(all.potions[kind])
+        if paneStat[kind] and U.Best then count = U.Best(count, U.Stat(paneStat[kind])) end
+        B:Row(kind:sub(1, 1):upper() .. kind:sub(2), count)
         if next(all.potions[kind]) then B:BarList(all.potions[kind]) end
     end
     if classToken ~= "WARLOCK" then
@@ -1722,6 +1726,7 @@ local function DrawConsumables(B)
     end
     B:Heading("Food and Drink")                               -- ALL-05
     B:BarList(all.food)
+    if U.Block then U.Block(B, "consumables", { [345] = true, [922] = true }) end
 end
 
 local function DrawFromOthers(B)
