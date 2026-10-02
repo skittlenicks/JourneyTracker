@@ -12,7 +12,7 @@ param(
 #   powershell -ExecutionPolicy Bypass -File site\deploy.ps1 [-Preview]
 #
 # Needs Node.js and a logged-in Vercel CLI (npx vercel login). The first run
-# links dist\vercel to the project. Only files that changed get uploaded.
+# links dist\vercel to the project.
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 $dist = Join-Path $root "dist"
@@ -39,7 +39,9 @@ if (-not (Test-Path (Join-Path $stage ".vercel\project.json"))) {
     npx --yes vercel@latest link --yes --project journeytracker --cwd $stage
     if ($LASTEXITCODE) { throw "Linking $stage to the Vercel project failed. Logged in? (npx vercel login)" }
 }
-$deploy = @("--yes", "vercel@latest", "deploy", "--prebuilt", "--yes", "--cwd", $stage)
+# One archive instead of a request per file: thousands of tiles one by one
+# run into Vercel's upload limits.
+$deploy = @("--yes", "vercel@latest", "deploy", "--prebuilt", "--archive=tgz", "--yes", "--cwd", $stage)
 if (-not $Preview) { $deploy += "--prod" }
 npx @deploy
 if ($LASTEXITCODE) { throw "The Vercel deploy failed." }
