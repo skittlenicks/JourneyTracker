@@ -8,10 +8,12 @@ the `latest_uploads` view gives each character's current state.
 
 1. Install Node.js 18 or newer (the LTS download from nodejs.org).
 2. In this folder, run `npm install`.
-3. Copy `.env.example` to `.env` and fill in `SUPABASE_URL` and
-   `SUPABASE_SERVICE_ROLE_KEY` (Supabase dashboard > Project Settings > API).
-   `.env` is git-ignored; never share the service role key.
-4. Create the `uploads` table and `latest_uploads` view in Supabase.
+3. Copy `.env.example` to `.env` and fill in `SUPABASE_URL` (the Project
+   URL) and `SUPABASE_SERVICE_ROLE_KEY` (the secret key; older projects call
+   it `service_role`). Both are in the Supabase dashboard under Project
+   Settings. `.env` is git-ignored; never share the secret key.
+4. Create the `uploads` table and `latest_uploads` view: in the Supabase
+   dashboard, SQL Editor > New query, paste `schema.sql`, Run.
 
 ## Importing
 
