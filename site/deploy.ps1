@@ -83,8 +83,13 @@ if (-not (Test-Path (Join-Path $stage ".vercel\project.json"))) {
     if ($LASTEXITCODE) { throw "Linking $stage to the Vercel project failed. Logged in? (npx vercel login)" }
 }
 # One archive instead of a request per file, which once ran into Vercel's
-# upload limits (with thousands of map tiles).
+# upload limits (with thousands of map tiles). The upload now and then
+# drops partway ("fetch failed"), so it gets three tries.
 $deploy = @("--yes", "vercel@latest", "deploy", "--prebuilt", "--archive=tgz", "--yes", "--cwd", $stage)
 if (-not $Preview) { $deploy += "--prod" }
-npx @deploy
-if ($LASTEXITCODE) { throw "The Vercel deploy failed." }
+for ($try = 1; $try -le 3; $try++) {
+    npx @deploy
+    if (-not $LASTEXITCODE) { break }
+    if ($try -eq 3) { throw "The Vercel deploy failed three times." }
+    Write-Host "The deploy failed; trying again ($($try + 1) of 3)."
+}
