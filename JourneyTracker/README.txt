@@ -16,18 +16,23 @@ INSTALL
    minimap.
 
 
-SEND ME YOUR DATA
------------------
-Nothing uploads by itself, so I only get your data when you send it.
+SEE YOUR RECAP
+--------------
+Nothing uploads by itself: your data only leaves the game when you paste it.
 
 1. Type /journey export (it won't work in the middle of a fight).
 2. A window opens with a long block of text that's already selected.
    Press Ctrl+C to copy it.
-3. Paste it to me in Discord. If it's long, Discord turns it into a file
-   attachment. That's fine, just send it.
+3. Go to www.journeytracker.dev, paste it into the box at the top and click
+   "Show my journey". You get your recap and a link to share it.
 
-How often: every few levels or every few play sessions is plenty.
-Sending the same export twice is fine; I'll only count it once.
+Pasting saves your export so it counts toward the rankings. Anyone you give
+the link to can see your recap, but never your character's name or realm.
+Paste a fresh export every few levels to update it: each one gets its own
+link, and pasting the same export twice only counts once.
+
+You can also paste the export to me in Discord. If it's long, Discord turns
+it into a file attachment. That's fine, just send it.
 
 
 RATHER SEND THE FILE?
@@ -70,7 +75,7 @@ second copy of your data alongside the original.
 COMMANDS
 --------
 /journey           Open your stats (same as clicking the minimap button)
-/journey export    Make a text export to send me
+/journey export    Make a text export for www.journeytracker.dev
 /journey backup    Save a backup copy of your data
 /journey stats     Show what's been read from the game's Statistics pane
 /journey version   Show which version you have
