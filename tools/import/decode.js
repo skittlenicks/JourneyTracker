@@ -127,4 +127,17 @@ function describeStatistics(data) {
   return parts.join(', ');
 }
 
-module.exports = { PREFIX, decode, validate, toRow, parseExport, describeStatistics };
+// Share links (journeytracker.dev/j/<share ID>): an upload's ID, a random
+// UUID, written as 22 URL-safe characters, and back.
+function shareIdOf(uuid) {
+  const hex = String(uuid || '').replace(/-/g, '');
+  return /^[0-9a-f]{32}$/i.test(hex) ? Buffer.from(hex, 'hex').toString('base64url') : null;
+}
+function uuidOfShareId(shareId) {
+  if (!/^[A-Za-z0-9_-]{22}$/.test(String(shareId || ''))) return null;
+  const hex = Buffer.from(shareId, 'base64url').toString('hex');
+  const uuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return shareIdOf(uuid) === shareId ? uuid : null; // one link per upload
+}
+
+module.exports = { PREFIX, decode, validate, toRow, parseExport, describeStatistics, shareIdOf, uuidOfShareId };

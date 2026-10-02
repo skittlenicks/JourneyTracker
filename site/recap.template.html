@@ -293,7 +293,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .card-ranks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .card-ranks li {
   display: grid;
-  grid-template-columns: 4.8rem minmax(0, 1fr);
+  grid-template-columns: 5.8rem minmax(0, 1fr);
   align-items: center;
   gap: 1px 12px;
   padding: 9px 12px;
@@ -301,7 +301,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   border: 1px solid var(--rule);
   border-radius: 6px;
 }
-.card-ranks b { grid-row: 1 / span 3; font-family: var(--font-display); font-size: 1.35rem; font-weight: 400; line-height: 1.1; color: var(--gold); }
+.card-ranks b { grid-row: 1 / span 3; font-family: var(--font-display); font-size: 1.35rem; font-weight: 400; line-height: 1.1; color: var(--gold); white-space: nowrap; }
 .card-ranks span { line-height: 1.3; color: var(--ink); }
 .card-ranks small { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
 .card-ranks i { margin-top: 3px; font-size: var(--step--1); line-height: 1.35; color: var(--gold-pale); }
@@ -321,6 +321,34 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 .card-lines .item-name { font-size: inherit; }
 .card-foot { margin: 0; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: var(--gold-deep); }
 .share-note { margin: 0; font-size: var(--step--1); color: var(--ink-soft); }
+/* A shared journey's link, to copy */
+.share-link { width: min(100%, 34rem); display: grid; gap: 8px; text-align: left; }
+.share-link label { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.link-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.link-row input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: 9px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.copy-link {
+  padding: 9px 16px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ground);
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.copy-link:hover { background: var(--gold-pale); border-color: var(--gold-pale); }
+.import-status .copy-link { padding: 3px 10px; font-size: var(--step--1); }
 .foot { padding-top: 24px; border-top: 1px solid var(--rule); font-size: var(--step--1); color: var(--ink-soft); }
 
 .pill {
@@ -597,7 +625,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
       <input id="export-text" name="export" type="text" spellcheck="false" autocomplete="off" placeholder="JT1:...">
       <button type="submit" id="import-button">Show my journey</button>
     </div>
-    <p class="import-help">In game, type <code>/journey export</code>, copy the text and paste it here. Pasting also saves your export to Journey Tracker so it counts toward the rankings. Exports never include your character's name or realm.</p>
+    <p class="import-help">In game, type <code>/journey export</code>, copy the text and paste it here. Your export is saved to Journey Tracker, where it counts toward the rankings and gets a link you can share. Exports never include your character's name or realm.</p>
     <p class="import-status" id="import-status" role="status" aria-live="polite"></p>
   </form>
 
@@ -813,7 +841,14 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
       <dl class="card-lines" id="card-lines"></dl>
       <p class="card-foot">Journey Tracker · WoW Forever</p>
     </div>
-    <p class="share-note">The finished site will let you save this card as an image.</p>
+    <div class="share-link" id="share-link" hidden>
+      <label for="share-url">This recap's link</label>
+      <div class="link-row">
+        <input id="share-url" type="text" readonly>
+        <button type="button" class="copy-link" id="copy-link">Copy link</button>
+      </div>
+    </div>
+    <p class="share-note" id="share-note">The finished site will let you save this card as an image.</p>
   </section>
 </main>
 
@@ -994,10 +1029,14 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   }
 
   // Lua tables arrive as JSON objects, or as arrays when their keys run 1..n
-  // (and an empty table is []).
+  // (and an empty table is []). Exports are pasted by anyone and shared
+  // pages show them to everyone, so every number read from one goes
+  // through number() (it ends up in the page's HTML), and tables keyed by
+  // names from an export have no prototype ("__proto__" is just a name).
   function named(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
+  function number(v) { v = Number(v); return isFinite(v) ? v : 0; }
   function numbered(x) {
-    var out = {};
+    var out = Object.create(null);
     if (Array.isArray(x)) x.forEach(function (v, i) { out[i + 1] = v; });
     else Object.keys(named(x)).forEach(function (k) { out[k] = x[k]; });
     return out;
@@ -1005,17 +1044,17 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   function listOf(x) { return Array.isArray(x) ? x : Object.keys(named(x)).map(function (k) { return x[k]; }); }
   // The sum of a map's numbers (or of one field of each entry).
   function addUp(map, field) {
-    return listOf(map).reduce(function (t, v) { var n = field ? named(v)[field] : v; return t + (n > 0 ? n : 0); }, 0);
+    return listOf(map).reduce(function (t, v) { var n = number(field ? named(v)[field] : v); return t + (n > 0 ? n : 0); }, 0);
   }
   // A { name: count } map as [name, count] rows, biggest first.
   function topRows(map, n) {
     var m = named(map);
-    return Object.keys(m).map(function (k) { return [k, Number(m[k]) || 0]; })
+    return Object.keys(m).map(function (k) { return [k, number(m[k])]; })
       .filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, n || 5);
   }
   function tally(records, field) {
-    var out = {};
-    records.forEach(function (r) { if (r && r[field]) out[r[field]] = (out[r[field]] || 0) + 1; });
+    var out = Object.create(null);
+    records.forEach(function (r) { if (r && typeof r[field] === "string") out[r[field]] = (out[r[field]] || 0) + 1; });
     return out;
   }
   function capFirst(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
@@ -1051,32 +1090,35 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   var SLOTS = { 1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet",
                 9: "Wrist", 10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back",
                 16: "Main hand", 17: "Off hand", 18: "Ranged", 19: "Tabard" };
+  function own(map, key) { return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined; }
 
   // A decoded export as a journey for this page: the sample's fields, from
   // what the addon saved (JourneyTracker.lua's DEFAULTS describe the stats).
   // Anything the export doesn't have stays empty, and the page leaves it out.
   function journeyFromExport(data) {
     var st = named(data.stats), ch = named(data.character), lv = named(data.levels), wr = named(data.wrapped);
-    var classes = named(data.class), cls = named(classes[ch.class]), all = named(classes.ALL);
-    var now = data.exportedAt || Math.floor(Date.now() / 1000), since = st.firstSeen || now;
-    var className = CLASS_NAMES[ch.class] || capFirst(String(ch.class || "").toLowerCase());
-    var race = RACE_NAMES[ch.race] || String(ch.race || "").replace(/([a-z])([A-Z])/g, "$1 $2");
-    var J = { imported: true, level: ch.level, played: ch.played || 0, className: className, classToken: ch.class,
-              race: race, faction: ch.faction || "", ruleset: ch.ruleset || "Normal", hoursAreSeconds: true };
+    var classToken = String(ch.class || ""), classes = named(data.class);
+    var cls = named(own(classes, classToken)), all = named(classes.ALL);
+    var now = number(data.exportedAt) || Math.floor(Date.now() / 1000), since = number(st.firstSeen) || now;
+    var reachedMax = number(st.reachedMax);
+    var level = number(ch.level), className = own(CLASS_NAMES, classToken) || capFirst(classToken.toLowerCase());
+    var race = own(RACE_NAMES, ch.race) || String(ch.race || "").replace(/([a-z])([A-Z])/g, "$1 $2");
+    var J = { imported: true, level: level, played: number(ch.played), className: className, classToken: classToken,
+              race: race, faction: String(ch.faction || ""), ruleset: String(ch.ruleset || "Normal"), hoursAreSeconds: true };
     J.who = [race + " " + className, J.faction, J.ruleset + " realm"].filter(Boolean).join(" · ");
     // The Statistics pane, by statistic ID. It has counted since before the
     // tracker was installed, so where both count the same thing the page
     // shows the bigger of the two, as the addon's own window does.
-    var paneValues = named(named(named(data.statistics).latest).values), pane = {};
+    var paneValues = named(named(named(data.statistics).latest).values), pane = Object.create(null);
     Object.keys(paneValues).forEach(function (id) {
       var n = paneNumber(paneValues[id]);
       if (n !== null) pane[id] = n;
     });
-    function best(tracked, id) { return Math.max(tracked || 0, pane[id] || 0); }
+    function best(tracked, id) { return Math.max(number(tracked), pane[id] || 0); }
     J.pane = pane;
     J.firstLogin = dayOf(since);
-    J.reached60 = st.reachedMax ? dayOf(st.reachedMax) : null;
-    J.calendarDays = Math.max(1, Math.ceil(((st.reachedMax || now) - since) / 86400));
+    J.reached60 = reachedMax ? dayOf(reachedMax) : null;
+    J.calendarDays = Math.max(1, Math.ceil(((reachedMax || now) - since) / 86400));
     J.daysPlayed = Object.keys(named(st.days)).length;
 
     // Each level's time: from the level's own counters, or the /played at
@@ -1084,45 +1126,46 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     var levelStats = numbered(lv.stats), dings = numbered(lv.snapshots), L;
     J.perLevel = [];
     for (L = 1; L <= 59; L++) {
-      var took = named(levelStats[L]).played, a = named(dings[L]).played, b = named(dings[L + 1]).played;
+      var took = number(named(levelStats[L]).played);
+      var a = number(named(dings[L]).played), b = number(named(dings[L + 1]).played);
       if (!(took > 0) && a > 0 && b > a) took = b - a;
       J.perLevel.push(took > 0 ? took : null);
     }
     var path = listOf(st.path);
-    var pathLevels = path.map(function (p) { return named(p).level; }).filter(function (l) { return l > 0; });
-    J.firstLevel = pathLevels.length ? Math.min.apply(null, pathLevels) : ch.level;
-    J.complete = J.firstLevel <= 2 && ch.level >= 60;   // tracked from the start to 60
+    var pathLevels = path.map(function (p) { return number(named(p).level); }).filter(function (l) { return l > 0; });
+    J.firstLevel = pathLevels.length ? Math.min.apply(null, pathLevels) : level;
+    J.complete = J.firstLevel <= 2 && level >= 60;   // tracked from the start to 60
     function mostIn(field) {
-      return Object.keys(levelStats).reduce(function (m, k) { return Math.max(m, named(levelStats[k])[field] || 0); }, 0);
+      return Object.keys(levelStats).reduce(function (m, k) { return Math.max(m, number(named(levelStats[k])[field])); }, 0);
     }
 
     // Time
     var T = named(st.time);
-    J.trackedTime = (T.solo || 0) + (T.grouped || 0) || J.played;
+    J.trackedTime = number(T.solo) + number(T.grouped) || J.played;
     J.timeSpent = [["Mounted", T.mounted], ["In combat", T.combat], ["Resting in inns and cities", T.resting],
                    ["On flight paths", T.taxi], ["AFK", T.afk], ["Dead", T.dead]]
+      .map(function (r) { return [r[0], number(r[1])]; })
       .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
     var hours = numbered(st.hours);
     J.hourWeights = [];
-    for (var h = 0; h < 24; h++) J.hourWeights.push(Number(hours[h]) || 0);
+    for (var h = 0; h < 24; h++) J.hourWeights.push(number(hours[h]));
     var sessions = named(st.sessions), runs = listOf(sessions.list).concat(sessions.current ? [sessions.current] : []);
-    var lengths = runs.map(function (r) { return (named(r).last || 0) - (named(r).start || 0); })
+    var lengths = runs.map(function (r) { return number(named(r).last) - number(named(r).start); })
       .filter(function (s) { return s > 0; });
     J.sessions = runs.length;
     J.longestSession = lengths.length ? Math.max.apply(null, lengths) : 0;
     J.avgSession = lengths.length ? sum(lengths) / lengths.length : 0;
     J.bestSession = null;
     runs.forEach(function (r) {
-      if (r && r.levels > 0 && (!J.bestSession || r.levels > J.bestSession.levels)) {
-        J.bestSession = { levels: r.levels, from: r.startLevel, to: r.startLevel + r.levels };
-      }
+      var gained = number(named(r).levels), from = number(named(r).startLevel);
+      if (gained > 0 && (!J.bestSession || gained > J.bestSession.levels)) J.bestSession = { levels: gained, from: from, to: from + gained };
     });
 
     // Milestones the tracker saw happen
     var loot = named(st.loot), social = named(st.social), professions = named(st.professions), marks = [];
-    function mark(level, text) { if (level > 0) marks.push([level, text]); }
+    function mark(when, text) { when = number(when); if (when > 0) marks.push([when, text]); }
     Object.keys(professions).forEach(function (name) {
-      if (named(professions[name]).t - since > 60) mark(professions[name].level, "Took up " + name);
+      if (number(named(professions[name]).t) - since > 60) mark(professions[name].level, "Took up " + name);
     });
     mark(named(loot.firstBlue).level, "First blue");
     mark(named(loot.firstEpic).level, "First epic");
@@ -1130,27 +1173,28 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     mark(named(st.firstMount).level, "First mount");
     mark(named(wr["W-001"]).level, "Left Zephras Isle");
     mark(named(wr["W-006"]).level, "Reached Mount Hyjal");
-    if (st.reachedMax) mark(60, "Level 60");
+    if (reachedMax) mark(60, "Level 60");
     J.milestones = marks.sort(function (x, y) { return x[0] - y[0]; });
 
     // Combat
     var kills = named(st.kills), byClass = named(kills.byClass), combat = named(st.combat);
-    J.kills = Math.max(kills.total || 0, (pane[1198] || 0) - (pane[588] || 0));   // kills that give XP
+    J.kills = Math.max(number(kills.total), (pane[1198] || 0) - (pane[588] || 0));   // kills that give XP
     J.topMobs = topRows(kills.byName, 5);
     J.mobKinds = Object.keys(named(kills.byName)).length;
-    J.killTypes = named(kills.byType);
-    J.elites = (byClass.elite || 0) + (byClass.rareelite || 0) + (byClass.worldboss || 0);
-    J.rares = (byClass.rare || 0) + (byClass.rareelite || 0);
+    J.killTypes = Object.create(null);
+    topRows(kills.byType, 50).forEach(function (r) { J.killTypes[r[0]] = r[1]; });
+    J.elites = number(byClass.elite) + number(byClass.rareelite) + number(byClass.worldboss);
+    J.rares = number(byClass.rare) + number(byClass.rareelite);
     J.bosses = addUp(st.bosses, "kills");
     J.wipes = addUp(st.bosses, "wipes");
     J.honorKills = best(named(st.pvp).honorableKills, 588);
-    J.fights = combat.fights || 0;
-    J.longestFight = combat.longest || 0;
-    J.ambushes = combat.ambushMobs || 0;
-    J.multiPulls = combat.multiPulls || 0;
-    J.maxMobs = combat.maxMobs || 0;
+    J.fights = number(combat.fights);
+    J.longestFight = number(combat.longest);
+    J.ambushes = number(combat.ambushMobs);
+    J.multiPulls = number(combat.multiPulls);
+    J.maxMobs = number(combat.maxMobs);
     var gap = named(kills.maxLevelDiff);
-    J.bestKill = gap.diff > 0 ? { mob: gap.mobLevel, you: gap.level } : null;
+    J.bestKill = number(gap.diff) > 0 ? { mob: number(gap.mobLevel), you: number(gap.level) } : null;
     J.levelKills = mostIn("kills");
 
     // Deaths
@@ -1158,34 +1202,34 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     J.deaths = best(deaths.length, 60);
     J.deathZones = topRows(tally(deaths, "zone"), 4);
     J.killers = topRows(tally(deaths, "killer"), 4);
-    J.rez = { corpse: rez["corpse run"] || 0, spirit: rez["spirit healer"] || 0, player: rez["player rez"] || 0 };
+    J.rez = { corpse: number(rez["corpse run"]), spirit: number(rez["spirit healer"]), player: number(rez["player rez"]) };
     J.dungeonDeaths = deaths.filter(function (d) { return d && d.dungeon; }).length;
     J.groupDeaths = deaths.filter(function (d) { return d && d.grouped; }).length;
-    J.timeDead = T.dead || 0;
-    J.corpseTime = T.corpseRuns || 0;
+    J.timeDead = number(T.dead);
+    J.corpseTime = number(T.corpseRuns);
     J.graveyards = Object.keys(named(st.graveyards)).length;
     J.levelDeaths = mostIn("deaths");
     J.streak = null;
     for (var run = null, lvl = 1; lvl <= 60; lvl++) {
       var s = levelStats[lvl];
-      if (!s || s.deaths > 0) { run = null; continue; }
+      if (!s || number(named(s).deaths) > 0) { run = null; continue; }
       run = run ? { levels: run.levels + 1, from: run.from, to: lvl } : { levels: 1, from: lvl, to: lvl };
       if (!J.streak || run.levels > J.streak.levels) J.streak = run;
     }
 
     // Quests and XP
     var quests = named(st.quests), tags = named(quests.byTag), forever = named(wr["W-007"]);
-    J.quests = { completed: best(quests.completed, 98), accepted: quests.accepted || 0, abandoned: best(quests.abandoned, 94),
-                 group: addUp(tags) - (tags.Dungeon || 0), dungeon: tags.Dungeon || 0,
-                 forever: forever.forever || 0, classic: forever.classic || 0 };
-    var longest = named(quests.longest);
-    J.longestQuest = longest.seconds > 0 ? { days: Math.round(longest.seconds / 86400), seconds: longest.seconds } : null;
+    J.quests = { completed: best(quests.completed, 98), accepted: number(quests.accepted), abandoned: best(quests.abandoned, 94),
+                 group: addUp(tags) - number(tags.Dungeon), dungeon: number(tags.Dungeon),
+                 forever: number(forever.forever), classic: number(forever.classic) };
+    var heldFor = number(named(quests.longest).seconds);
+    J.longestQuest = heldFor > 0 ? { days: Math.round(heldFor / 86400), seconds: heldFor } : null;
     J.questZones = topRows(quests.byZone, 5);
     J.questGold = best(quests.money, 326);
     J.levelQuests = mostIn("quests");
-    var xp = named(st.xp), xpTotal = xp.total || 0;
+    var xp = named(st.xp), xpTotal = number(xp.total);
     J.xpTotal = xpTotal;
-    function xpShare(v) { return xpTotal ? Math.round((v || 0) / xpTotal * 100) : 0; }
+    function xpShare(v) { return xpTotal ? Math.round(number(v) / xpTotal * 100) : 0; }
     J.xpSplit = [["Quests", xpShare(xp.quest), "var(--gold)"], ["Kills", xpShare(xp.kill), "var(--gold-deep)"],
                  ["Exploration", xpShare(xp.explore), "var(--gold-pale)"], ["Other", xpShare(xp.other), "var(--ink-soft)"]]
       .filter(function (p) { return p[1] > 0; });
@@ -1194,14 +1238,14 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 
     // The road: zones in the order you first reached them, the levels you
     // were while there, and the time spent in each.
-    var zones = named(st.zones), stops = [], stopOf = {};
+    var zones = named(st.zones), stops = [], stopOf = Object.create(null);
     path.forEach(function (p, i) {
       p = named(p);
-      if (!p.zone || p.zone === "Unknown") return;
-      var stop = stopOf[p.zone];
-      if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, p.level, p.level, named(zones[p.zone]).seconds || 0]);
-      var next = named(path[i + 1]), left = next.level || (i === path.length - 1 ? ch.level : p.level);
-      stop[2] = Math.max(stop[2], p.level || 0, left || 0);
+      if (typeof p.zone !== "string" || !p.zone || p.zone === "Unknown") return;
+      var at = number(p.level), stop = stopOf[p.zone];
+      if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, at, at, number(named(own(zones, p.zone)).seconds)]);
+      var next = named(path[i + 1]), left = number(next.level) || (i === path.length - 1 ? level : at);
+      stop[2] = Math.max(stop[2], at, left);
     });
     J.path = stops;
     J.heat = [];
@@ -1210,16 +1254,17 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     J.subzones = Object.keys(named(st.subzones)).length;
     J.zoneChanges = path.length;
     var travel = named(st.travel), falls = named(st.falls);
-    J.travel = { groundYards: travel.ground || 0, airYards: travel.taxi || 0, flights: best(travel.flights, 349),
+    J.travel = { groundYards: number(travel.ground), airYards: number(travel.taxi), flights: best(travel.flights, 349),
                  flightPaths: listOf(travel.flightPaths).length, hearths: best(travel.hearths, 353),
-                 longestFall: Math.round(named(falls.longestSurvived).yards || 0), fallen: Math.round(falls.total || 0) };
+                 longestFall: Math.round(number(named(falls.longestSurvived).yards)), fallen: Math.round(number(falls.total)) };
     J.fallDeaths = best(falls.fatal, 114);
 
     // Gold, with what the tracker couldn't place as "Other"
     var money = named(st.money);
     function withOther(rows, whole) {
-      rows = rows.filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
-      var rest = (whole || 0) - sum(rows.map(function (r) { return r[1]; }));
+      rows = rows.map(function (r) { return [r[0], number(r[1])]; })
+        .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
+      var rest = number(whole) - sum(rows.map(function (r) { return r[1]; }));
       return rest > 0 ? rows.concat([["Other", rest]]) : rows;
     }
     J.earned = withOther([["Quest rewards", J.questGold], ["Selling to vendors", best(money.vendor, 921)],
@@ -1231,49 +1276,49 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     J.earnedTotal = sum(J.earned.map(function (r) { return r[1]; }));
     J.spentTotal = sum(J.spent.map(function (r) { return r[1]; }));
     J.peakGold = best(money.peak, 334) > 0 ? { copper: best(money.peak, 334) } : null;
-    J.auctionsSold = money.auctionsSold || 0;
-    J.firstMountLevel = named(st.firstMount).level || null;
-    J.firstMountPlayed = named(st.firstMount).played || null;
+    J.auctionsSold = number(money.auctionsSold);
+    J.firstMountLevel = number(named(st.firstMount).level) || null;
+    J.firstMountPlayed = number(named(st.firstMount).played) || null;
 
     // Gear and loot
     var worn = listOf(st.worn).filter(function (w) { return w && itemOf(w.link); });
     function wornItem(w) {
       var it = itemOf(w.link);
-      it.slot = SLOTS[w.slot] || "Gear";
-      it.levels = w.levels || 0;
-      it.played = w.played || 0;
-      it.from = w.first;
-      it.to = w.last;
+      it.slot = own(SLOTS, w.slot) || "Gear";
+      it.levels = number(w.levels);
+      it.played = number(w.played);
+      it.from = number(w.first);
+      it.to = number(w.last);
       return it;
     }
-    var mostLevels = worn.slice().sort(function (x, y) { return (y.levels || 0) - (x.levels || 0); })[0];
-    var mostPlayed = worn.slice().sort(function (x, y) { return (y.played || 0) - (x.played || 0); })[0];
-    J.wornLevels = mostLevels && mostLevels.levels >= 1 ? wornItem(mostLevels) : null;
-    J.wornPlayed = mostPlayed && mostPlayed.played > 0 ? wornItem(mostPlayed) : null;
+    var mostLevels = worn.slice().sort(function (x, y) { return number(y.levels) - number(x.levels); })[0];
+    var mostPlayed = worn.slice().sort(function (x, y) { return number(y.played) - number(x.played); })[0];
+    J.wornLevels = mostLevels && number(mostLevels.levels) >= 1 ? wornItem(mostLevels) : null;
+    J.wornPlayed = mostPlayed && number(mostPlayed.played) > 0 ? wornItem(mostPlayed) : null;
     function found(record) {
       var it = record && itemOf(record.link);
-      if (it) { it.level = record.level; it.where = record.zone; it.ilvl = record.ilvl; }
+      if (it) { it.level = number(record.level); it.where = String(record.zone || "somewhere"); it.ilvl = number(record.ilvl); }
       return it;
     }
     J.bestLoot = found(loot.best);
     J.firstBlue = found(loot.firstBlue);
     J.firstEpic = found(loot.firstEpic);
-    J.looted = loot.items || 0;
+    J.looted = number(loot.items);
     var byQuality = numbered(loot.byQuality);
-    J.loot = QUALITY.map(function (q, i) { return [capFirst(q), byQuality[i] || 0, "var(--q-" + q + ")"]; })
+    J.loot = QUALITY.map(function (q, i) { return [capFirst(q), number(byQuality[i]), "var(--q-" + q + ")"]; })
       .filter(function (r) { return r[1] > 0; });
 
     // Professions
-    J.professions = Object.keys(professions).map(function (name) { return [name, named(professions[name]).rank || 0]; })
+    J.professions = Object.keys(professions).map(function (name) { return [name, number(named(professions[name]).rank)]; })
       .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
     J.trades = Object.keys(professions).filter(function (name) { return PRIMARY.indexOf(name) >= 0; });
     var gathering = named(st.gathering);
-    J.skinned = named(gathering.skinning).nodes || 0;
-    J.herbs = named(gathering.herb).nodes || 0;
-    J.ore = named(gathering.mining).nodes || 0;
+    J.skinned = number(named(gathering.skinning).nodes);
+    J.herbs = number(named(gathering.herb).nodes);
+    J.ore = number(named(gathering.mining).nodes);
     J.fish = best(st.fish, 1518);
-    J.crafted = st.crafted || 0;
-    J.skillUps = st.skillUps || 0;
+    J.crafted = number(st.crafted);
+    J.skillUps = number(st.skillUps);
 
     // Class: what the class tracker saved (spells cast, time in each form,
     // stance or aspect, healing, power spent), plus what every class shares
@@ -1287,32 +1332,42 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
 
     // WoW Forever and friends
     J.camps = addUp(wr["W-008"]);
-    J.campTime = named(wr["W-009"]).Camp || 0;
-    J.campShops = named(wr["W-010"]).vendor || 0;
+    J.campTime = number(named(wr["W-009"]).Camp);
+    J.campShops = number(named(wr["W-010"]).vendor);
     J.campBuffs = addUp(wr["W-011"]);
     J.campCrafts = addUp(wr["W-012"]);
     J.valthalak = listOf(wr["W-016"]).length;
-    J.transmog = named(wr["W-019"]).changes || 0;
-    J.autoFlagged = typeof wr["W-021"] === "number" ? wr["W-021"] : 0;
-    J.zephras = named(wr["W-001"]).level || null;
-    J.hyjal = named(wr["W-006"]).daysAfter60;
-    J.grouped = T.grouped || 0;
-    J.groupedWith = social.unique || 0;
-    J.guildLevel = social.guildJoinLevel || null;
+    J.transmog = number(named(wr["W-019"]).changes);
+    J.autoFlagged = number(wr["W-021"]);
+    J.zephras = number(named(wr["W-001"]).level) || null;
+    J.hyjal = wr["W-006"] ? number(named(wr["W-006"]).daysAfter60) : undefined;
+    J.grouped = number(T.grouped);
+    J.groupedWith = number(social.unique);
+    J.guildLevel = number(social.guildJoinLevel) || null;
     J.guildBefore = !!social.guildBeforeTracking;
-    J.jumps = social.jumps || 0;
+    J.jumps = number(social.jumps);
     return J;
   }
-
   // A pasted export stays in this tab (sessionStorage) until "Show the
   // sample" or the tab closes.
   function remembered(key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } }
   function remember(key, value) { try { sessionStorage.setItem(key, value); return true; } catch (e) { return false; } }
   function forget() { try { sessionStorage.removeItem("jt-export"); sessionStorage.removeItem("jt-save"); } catch (e) { /* nothing kept */ } }
 
-  // The journey this page shows: the one pasted in this tab, or the sample.
+  // The journey this page shows: a shared one (a /j/<id> page comes with its
+  // journey as window.JT_SHARED, from site/api/share.js), one pasted in this
+  // tab that couldn't be saved, or the sample.
   var S = SAMPLE, pastedSave = null, pasted = remembered("jt-export");
-  if (pasted) {
+  var shared = window.JT_SHARED || null;
+  if (shared && shared.payload) {
+    try {
+      if (checkExport(shared.payload).length) throw new Error("not a valid export");
+      S = journeyFromExport(shared.payload);
+      S.shareId = shared.id;
+    } catch (err) {
+      shared = { error: true };
+    }
+  } else if (!shared && pasted) {
     try {
       var pastedData = await decodeExport(pasted);
       if (checkExport(pastedData).length) throw new Error("not a valid export");
@@ -1569,14 +1624,14 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     // aspects...), its most cast spells, healing and power spent.
     var STATE_WORDS = { form: "form", stance: "stance", aura: "aura", seal: "seal", aspect: "aspect",
                         stealth: "stealth", shadowform: "Shadowform", ghostwolf: "Ghost Wolf" };
-    var groups = Object.keys(S.classTime).filter(function (g) { return STATE_WORDS[g] && addUp(S.classTime[g]) > 0; })
+    var groups = Object.keys(S.classTime).filter(function (g) { return own(STATE_WORDS, g) && addUp(S.classTime[g]) > 0; })
       .sort(function (a, b) { return addUp(S.classTime[b]) - addUp(S.classTime[a]); });
     var main = groups[0], mainRows = main ? topRows(S.classTime[main], 6) : [];
     var casts = topRows(S.casts, 8).filter(function (r) { return r[0] !== "LOGINEFFECT" && r[0] !== "Hearthstone"; }).slice(0, 6);
     var swaps = main ? named(S.swaps[main]) : {}, pair = topRows(swaps.pairs, 1)[0];
     var POWER = { MANA: "Mana", RAGE: "Rage", ENERGY: "Energy", FOCUS: "Focus" };
     $("class-title").textContent = main ? dur(mainRows[0][1]) + " in " + mainRows[0][0] +
-      (swaps.total ? ", and " + num(swaps.total) + (main === "form" ? " shapeshifts." : " swaps.") : ".") :
+      (number(swaps.total) ? ", and " + num(number(swaps.total)) + (main === "form" ? " shapeshifts." : " swaps.") : ".") :
       casts.length ? casts[0][0] + ", cast " + num(casts[0][1]) + " times." : "";
     $("class-bars-label").textContent = main ? "Time in each " + STATE_WORDS[main] : "Most cast spells";
     if (main) bars("forms", mainRows, dur); else bars("forms", casts, num);
@@ -1611,7 +1666,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   // continents, with your route and where you spent your time. Real data will
   // be seconds per map cell from the addon; maps.json places every zone.
   var MAPS = __MAPS_JSON__;
-  var MAP_BY_ID = {}, MAP_BY_NAME = {};
+  var MAP_BY_ID = Object.create(null), MAP_BY_NAME = Object.create(null);   // looked up by names from exports
   MAPS.forEach(function (m) {
     MAP_BY_ID[m.uiMapID] = m;
     if (m.type === 3 && !MAP_BY_NAME[m.name]) MAP_BY_NAME[m.name] = m;
@@ -2249,20 +2304,20 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   }
   function classValues(J, v) {
     function spells(map, patterns, read) {
-      return Object.keys(map).reduce(function (t, name) { return t + (spellIn(name, patterns) ? read(map[name]) || 0 : 0); }, 0);
+      return Object.keys(map).reduce(function (t, name) { return t + (spellIn(name, patterns) ? number(read(map[name])) : 0); }, 0);
     }
     Object.keys(CLASS_CASTS).forEach(function (key) { v[key] = spells(J.casts, CLASS_CASTS[key], Number); });
     Object.keys(CLASS_TIMES).forEach(function (key) {
-      var spec = CLASS_TIMES[key], group = named(J.classTime[spec[0]]);
-      v[key] = spec.length > 1 ? spec.slice(1).reduce(function (t, name) { return t + (group[name] || 0); }, 0) : addUp(group);
+      var spec = CLASS_TIMES[key], group = named(own(J.classTime, spec[0]));
+      v[key] = spec.length > 1 ? spec.slice(1).reduce(function (t, name) { return t + number(own(group, name)); }, 0) : addUp(group);
     });
     Object.keys(CLASS_BUFFS).forEach(function (key) {
       v[key] = spells(J.targets, CLASS_BUFFS[key], function (t) { return named(t).other; });
     });
-    v.stanceSwaps = named(J.swaps.stance).total || 0;
-    v.shifts = named(J.swaps.form).total || 0;
-    v.rage = J.powerSpent.RAGE || 0;
-    v.priestMana = J.powerSpent.MANA || 0;
+    v.stanceSwaps = number(named(own(J.swaps, "stance")).total);
+    v.shifts = number(named(own(J.swaps, "form")).total);
+    v.rage = number(own(J.powerSpent, "RAGE"));
+    v.priestMana = number(own(J.powerSpent, "MANA"));
     var all = J.classAll, potions = named(all.potions);
     v.bandages = addUp(all.bandages);
     v.healPotions = Math.max(addUp(potions.healing), J.pane[345] || 0);
@@ -2271,7 +2326,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     v.mageFood = addUp(all.conjured);
     v.food = addUp(all.food);
     v.buffs = addUp(named(all.buffs).bySpell);
-    v.summoned = typeof all.summons === "number" ? all.summons : listOf(all.summons).length;
+    v.summoned = typeof all.summons === "number" ? number(all.summons) : listOf(all.summons).length;
     v.trainerVisits = listOf(all.trainerVisits).length;
     v.classQuests = listOf(all.classQuests).length;
   }
@@ -2341,7 +2396,7 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   var PROFESSION_KEYS = { Alchemy: "alchemy", Blacksmithing: "blacksmithing", Enchanting: "enchanting",
     Engineering: "engineering", Herbalism: "herbalism", Leatherworking: "leatherworking", Mining: "mining",
     Skinning: "skinning", Tailoring: "tailoring", Cooking: "cooking", "First Aid": "firstAid", Fishing: "fishing" };
-  S.professions.forEach(function (p) { if (PROFESSION_KEYS[p[0]]) YOU.values[PROFESSION_KEYS[p[0]]] = p[1]; });
+  S.professions.forEach(function (p) { if (own(PROFESSION_KEYS, p[0])) YOU.values[PROFESSION_KEYS[p[0]]] = p[1]; });
   if (!S.imported) {
     var formTimes = S.forms;
     Object.assign(YOU.values, {
@@ -2556,8 +2611,10 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
   $("card-lines").innerHTML = lines.map(function (l) { return "<dt>" + l[0] + "</dt><dd>" + l[1] + "</dd>"; }).join("");
   hide("card-lines", !lines.length);
 
-  // Pasting an export: checked here, saved by /api/upload (site/api/upload.js,
-  // the importer's own checks), then the page reloads to show it.
+  // Pasting an export: checked here, then saved by /api/upload
+  // (site/api/upload.js, the importer's own checks). A saved export opens at
+  // its own link, /j/<share ID>; one that couldn't be saved still shows,
+  // from this tab's storage.
   function say(html, kind) {
     var line = $("import-status");
     line.className = "import-status" + (kind ? " " + kind : "");
@@ -2570,7 +2627,10 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
     var request = fetch("/api/upload", { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: text })
       .then(function (response) {
         return response.json().catch(function () {
-          return { status: "error", message: "Saving isn't available here (" + response.status + ")." };
+          // The firewall answers a flood of uploads itself, without JSON.
+          return response.status === 429 ?
+            { status: "busy", message: "Too many uploads from your connection. Try again in an hour." } :
+            { status: "error", message: "Saving isn't available here (" + response.status + ")." };
         });
       }, function () { return { status: "error", message: "Couldn't reach Journey Tracker." }; });
     return Promise.race([request, timeout]);
@@ -2588,24 +2648,65 @@ code { font-family: var(--font-mono); font-size: 0.88em; color: var(--gold-pale)
       }
       say("Saving…");
       return saveExport(text).then(function (result) {
+        if (result.share) {
+          forget();
+          remember("jt-saved", JSON.stringify({ share: result.share, status: result.status }));
+          location.assign("/j/" + result.share);
+          return;
+        }
         if (!remember("jt-export", text)) throw new Error("This browser won't keep the export for the page. Allow this site's data and try again.");
         remember("jt-save", JSON.stringify(result));
         window.scrollTo(0, 0);
-        location.reload();
+        if (shared) location.assign("/"); else location.reload();
       });
     }).catch(function (err) {
       button.disabled = false;
       say(esc(err.message), "bad");
     });
   });
-  if (S.imported) {
+
+  // A shared journey's link, to copy (here and in the share section).
+  var shareUrl = S.shareId ? location.origin + "/j/" + S.shareId : "";
+  function copyLink(button) {
+    function done() { button.textContent = "Copied"; setTimeout(function () { button.textContent = "Copy link"; }, 2000); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareUrl).then(done, function () { $("share-url").select(); });
+    } else {
+      $("share-url").select();
+      if (document.execCommand && document.execCommand("copy")) done();
+    }
+  }
+  if (shareUrl) {
+    $("share-url").value = shareUrl;
+    hide("share-link", false);
+    $("share-note").textContent = "Anyone with the link can see this recap. Saving the card as an image is coming.";
+    $("copy-link").addEventListener("click", function () { copyLink($("copy-link")); });
+    $("share-url").addEventListener("focus", function () { $("share-url").select(); });
+  }
+
+  // What this page is showing, at the top.
+  var COPY = ' <button type="button" class="copy-link" id="status-copy">Copy link</button>';
+  var SAMPLE_LINK = ' <a class="link-button" href="/">Show the sample journey</a>';
+  if (shared && shared.payload) {
+    var justSaved = JSON.parse(remembered("jt-saved") || "null");
+    if (justSaved && justSaved.share === shared.id) {
+      say("<b>" + (justSaved.status === "duplicate" ? "This export was already saved." : "Saved: it counts toward the rankings.") +
+        "</b> This page's link shows your recap to anyone you send it to." + COPY, "good");
+    } else {
+      $("journey-chip").textContent = "Shared journey";
+      $("foot-note").textContent = "Built from a journey shared with Journey Tracker. The rankings' spreads are made up until enough players have imported.";
+      say("<b>A journey shared with Journey Tracker.</b> Paste your own export above to see yours." + COPY + SAMPLE_LINK, "good");
+    }
+    $("status-copy").addEventListener("click", function () { copyLink($("status-copy")); });
+  } else if (shared && shared.missing) {
+    say("<b>That shared journey isn't here.</b> Check the link, or paste an export above. Below is the sample journey.", "bad");
+  } else if (shared && shared.error) {
+    say("<b>Couldn't load that shared journey right now.</b> Try again in a minute. Below is the sample journey.", "bad");
+  } else if (S.imported) {
     var saved = pastedSave || {};
-    var note = saved.status === "saved" ? "Saved: it counts toward the rankings." :
-      saved.status === "duplicate" ? "This export was already saved." :
-      "Not saved: " + esc(saved.message || "something went wrong.") + " The recap below still works.";
-    say("<b>This is the journey you pasted.</b> " + note +
-      ' <button type="button" class="link-button" id="show-sample">Show the sample journey instead</button>',
-      saved.status === "saved" || saved.status === "duplicate" ? "good" : "bad");
+    say("<b>This is the journey you pasted.</b> Not saved: " + esc(saved.message || "something went wrong.") +
+      " The recap below still works, but it has no link to share." +
+      ' <button type="button" class="link-button" id="show-sample">Show the sample journey instead</button>', "bad");
     $("show-sample").addEventListener("click", function () { forget(); window.scrollTo(0, 0); location.reload(); });
   }
 })();

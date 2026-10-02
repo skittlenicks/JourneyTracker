@@ -7,18 +7,27 @@
 // environment (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) and never leaves
 // the server.
 //
+// Limits: the project's firewall lets each address make a few uploads an
+// hour (see site/deploy.ps1), and once UPLOADS_PER_DAY new uploads (500
+// unless the environment says otherwise) have come in over the last day,
+// this stops taking new ones from anyone, so a flood can't fill the
+// database. Duplicates don't count.
+//
 // Request body: the export string ("JT1:..."), as text.
-// Response: { status: "saved" | "duplicate" | "rejected" | "error", message }
+// Response: { status, message, share }: status is "saved", "duplicate",
+// "rejected", "busy" or "error"; share is the upload's share ID, for its
+// recap page at /j/<share>.
 
-const { parseExport } = require('./decode');
+const { parseExport, shareIdOf } = require('./decode');
 
-const MAX_BODY = 2 * 1024 * 1024; // characters; real exports are well under 200,000
+const MAX_BODY = 1024 * 1024; // characters; real exports are well under 200,000
+const PER_DAY = Number(process.env.UPLOADS_PER_DAY) || 500;
 
-function reply(res, code, status, message) {
+function reply(res, code, status, message, share) {
   res.statusCode = code;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
-  res.end(JSON.stringify({ status, message }));
+  res.end(JSON.stringify(share ? { status, message, share } : { status, message }));
 }
 
 async function readBody(req) {
@@ -45,6 +54,14 @@ async function supabase(path, options) {
   return response;
 }
 
+// How many uploads came in over the last day, from everyone.
+async function uploadsToday() {
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const response = await supabase('uploads?select=id&limit=1&created_at=gte.' + encodeURIComponent(since),
+    { headers: { Prefer: 'count=exact' } });
+  return Number((response.headers.get('content-range') || '').split('/')[1]) || 0;
+}
+
 module.exports = async function upload(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -65,10 +82,15 @@ module.exports = async function upload(req, res) {
       (row.exported_at ? '&exported_at=eq.' + encodeURIComponent(row.exported_at) : '&exported_at=is.null');
     const found = await (await supabase(query)).json();
     if (Array.isArray(found) && found.length) {
-      return reply(res, 200, 'duplicate', 'This export was already saved.');
+      return reply(res, 200, 'duplicate', 'This export was already saved.', shareIdOf(found[0].id));
     }
-    await supabase('uploads', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row) });
-    return reply(res, 200, 'saved', 'Saved. It counts toward the rankings.');
+    if (await uploadsToday() >= PER_DAY) {
+      return reply(res, 429, 'busy', 'Journey Tracker has taken all the uploads it can for today. Try again tomorrow.');
+    }
+    const saved = await (await supabase('uploads?select=id', {
+      method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row),
+    })).json();
+    return reply(res, 200, 'saved', 'Saved. It counts toward the rankings.', shareIdOf(saved[0] && saved[0].id));
   } catch (err) {
     console.error('upload failed:', err.message);
     return reply(res, 502, 'error', "Couldn't reach the database. Try again in a minute.");

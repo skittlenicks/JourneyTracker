@@ -12,7 +12,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
-const { decode, validate, parseExport, describeStatistics } = require('../decode');
+const { decode, validate, parseExport, describeStatistics, shareIdOf, uuidOfShareId } = require('../decode');
 
 const FIXTURES = path.join(__dirname, '..', 'fixtures');
 const expected = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'testexport.expected.json'), 'utf8'));
@@ -99,4 +99,20 @@ test('validation catches bad fields', () => {
   assert.ok(errors.some((e) => e.includes('level out of range')));
   assert.ok(errors.some((e) => e.includes('negative number at stats.zero')));
   assert.ok(errors.some((e) => e.includes('addon version')));
+});
+
+test('share IDs turn an upload ID into a short link and back', () => {
+  const uuid = '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b';
+  const id = shareIdOf(uuid);
+  assert.match(id, /^[A-Za-z0-9_-]{22}$/);
+  assert.strictEqual(uuidOfShareId(id), uuid);
+  assert.strictEqual(shareIdOf('nope'), null);
+  for (const bad of ['', 'short', id + 'x', id.slice(0, 21) + '!', '../../etc/passwd']) {
+    assert.strictEqual(uuidOfShareId(bad), null, bad);
+  }
+  // Only one spelling opens each upload: the last character's low 4 bits are
+  // padding, and an ID with any of them set is refused.
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  const padded = id.slice(0, 21) + ALPHABET[ALPHABET.indexOf(id[21]) | 1];
+  assert.strictEqual(uuidOfShareId(padded), null);
 });

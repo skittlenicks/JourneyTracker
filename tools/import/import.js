@@ -8,7 +8,8 @@
 // lines that don't start with "JT" are ignored. Each valid export becomes a
 // new row in "uploads" (a full snapshot); one already imported (same
 // character and export time) is skipped as a duplicate. Statistics pane
-// data rides along in payload like everything else.
+// data rides along in payload like everything else. Each line's output
+// ends with the link to that upload's recap on the website, to send back.
 //
 //   --dry-run  decode and validate only, nothing is inserted (no .env needed)
 //   --print    pretty-print each decoded export
@@ -17,7 +18,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { parseExport, describeStatistics } = require('./decode');
+const { parseExport, describeStatistics, shareIdOf } = require('./decode');
+
+// Where an upload's recap can be seen and shared.
+const SITE = 'https://www.journeytracker.dev';
+function shareLink(id) { return `${SITE}/j/${shareIdOf(id)}`; }
 
 function usage() {
   console.log('Usage: node import.js <file> [--dry-run] [--print] [--stats]');
@@ -50,12 +55,13 @@ function connect() {
   return supabaseJs.createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 }
 
-async function isDuplicate(supabase, row) {
+// The ID of the same export already in the table, if there is one.
+async function findDuplicate(supabase, row) {
   let query = supabase.from('uploads').select('id').eq('character_id', row.character_id).limit(1);
   query = row.exported_at ? query.eq('exported_at', row.exported_at) : query.is('exported_at', null);
   const { data, error } = await query;
   if (error) throw new Error(`checking for duplicates: ${error.message}`);
-  return data.length > 0;
+  return data.length ? data[0].id : null;
 }
 
 async function main() {
@@ -110,15 +116,16 @@ async function main() {
       continue;
     }
     try {
-      if (await isDuplicate(supabase, row)) {
+      const existing = await findDuplicate(supabase, row);
+      if (existing) {
         counts.duplicate++;
-        console.log(`${label} duplicate: ${who} (already imported)`);
+        console.log(`${label} duplicate: ${who} (already imported), ${shareLink(existing)}`);
         continue;
       }
-      const { error } = await supabase.from('uploads').insert(row);
+      const { data, error } = await supabase.from('uploads').insert(row).select('id').single();
       if (error) throw new Error(error.message);
       counts.inserted++;
-      console.log(`${label} inserted: ${who}`);
+      console.log(`${label} inserted: ${who}, ${shareLink(data.id)}`);
     } catch (err) {
       counts.failed++;
       console.log(`${label} failed: ${who}: ${err.message}`);

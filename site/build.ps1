@@ -55,8 +55,9 @@ $land = Get-ChildItem -Path (Join-Path $tileRoot "8") -Recurse -File -Filter "*.
 $html = $html.Replace("__TILE_LAND__", "[" + ($land -join ",") + "]")
 
 if ($Site) {
-    # The website loads each tile from tiles\ as it comes into view.
-    $html = $html.Replace("__TILES__", "{}").Replace("__TILE_ROOT__", '"tiles/"')
+    # The website loads each tile from /tiles as it comes into view (from the
+    # site's root, since share pages live at /j/<id>).
+    $html = $html.Replace("__TILES__", "{}").Replace("__TILE_ROOT__", '"/tiles/"')
     $tileCount = (Get-ChildItem -Path $tileRoot -Recurse -File -Filter "*.jpg").Count
 } else {
     # The one-file page carries its tiles. All ~8,700 won't fit, so it takes
@@ -147,17 +148,23 @@ if ($Site) {
     $siteDir = Join-Path (Resolve-Path $OutDir) "site"
     New-Item -ItemType Directory -Force $siteDir | Out-Null
     # What Claude's artifact viewer puts around the template, the website
-    # puts there itself: the document, its metadata and a small reset.
+    # puts there itself: the document, its metadata and a small reset. A
+    # share page (site\api\share.js) swaps in its own title and description
+    # and puts its journey where the JT_SHARED marker is.
     $about = "A sample WoW Forever journey from level 1 to 60, as Journey Tracker records it: " +
         "the route across Azeroth, every death and quest, and where it ranks."
     $page = "<!doctype html>`n<html lang=`"en`">`n<meta charset=`"utf-8`">`n" +
         "<meta name=`"viewport`" content=`"width=device-width, initial-scale=1`">`n" +
         "<meta name=`"description`" content=`"$about`">`n" +
+        "<meta property=`"og:type`" content=`"website`">`n" +
+        "<meta property=`"og:site_name`" content=`"Journey Tracker`">`n" +
         "<meta property=`"og:title`" content=`"Road to 60 &middot; Journey Tracker`">`n" +
         "<meta property=`"og:description`" content=`"$about`">`n" +
+        "<meta name=`"twitter:card`" content=`"summary`">`n" +
         "<meta name=`"theme-color`" content=`"#120e09`">`n" +
-        "<link rel=`"icon`" type=`"image/png`" href=`"favicon.png`">`n" +
-        "<style>body { margin: 0; } img { max-width: 100%; } [hidden] { display: none !important; }</style>`n" + $html
+        "<link rel=`"icon`" type=`"image/png`" href=`"/favicon.png`">`n" +
+        "<style>body { margin: 0; } img { max-width: 100%; } [hidden] { display: none !important; }</style>`n" +
+        "<!--JT_SHARED-->`n" + $html
     [System.IO.File]::WriteAllText((Join-Path $siteDir "index.html"), $page, $utf8)
     [System.IO.File]::WriteAllBytes((Join-Path $siteDir "favicon.png"), $ms.ToArray())
     # The tiles, copied as they are (robocopy skips ones already there).
