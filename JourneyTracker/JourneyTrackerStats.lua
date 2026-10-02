@@ -22,13 +22,16 @@ local MAX_ERRORS = 50        -- errors kept in the dump; the rest are only count
 
 -- Our own counts, compared with Blizzard's statistic of the same name as a
 -- hint for whether the statistics are per character. First name found wins.
--- `key` is the count's name in a snapshot's `ours` (W-507).
+-- `key` is the count's name in a snapshot's `ours` (W-507); `minus` is a
+-- statistic to take off Blizzard's number for the like-for-like check (on
+-- Forever "kills that grant experience or honor" includes honorable kills).
 local COMPARE = {
     { label = "deaths", key = "deaths", names = { "Total deaths" },
       ours = function(db) return #db.deaths end },
     { label = "quests completed", key = "quests", names = { "Quests completed" },
       ours = function(db) return db.quests.completed end },
     { label = "XP kills", key = "kills", names = { "Total kills that grant experience or honor", "Total kills" },
+      minus = { "Total Honorable Kills" },
       ours = function(db) return db.kills.total end },
     { label = "flights", key = "flights", names = { "Flight paths taken" },
       ours = function(db) return db.travel.flights end },
@@ -611,21 +614,30 @@ local function AsNumber(v)
     return tonumber((v:gsub(",", "")))
 end
 
+-- A statistic as a number in one snapshot: the first of `names` the pane
+-- has, less the first of `minus` it has.
+local function NumberIn(S, snap, names, minus)
+    local value
+    for _, name in ipairs(names) do
+        local id = StatID(S, name)
+        if id then
+            value = AsNumber(snap.values[id])
+            break
+        end
+    end
+    if value and minus then value = value - (NumberIn(S, snap, minus) or 0) end
+    return value
+end
+
 -- W-507 Blizzard's change since the baseline, next to ours over the same time.
 local function CrossCheck(S)
     local parts, base, latest = {}, S.baseline, S.latest
     if not (base and latest and base.ours and latest.ours) then return parts end
     for _, c in ipairs(COMPARE) do
-        for _, name in ipairs(c.names) do
-            local id = StatID(S, name)
-            if id then
-                local from, to = AsNumber(base.values[id]), AsNumber(latest.values[id])
-                if from and to then
-                    parts[#parts + 1] = string.format("%s %d vs %d", c.label, math.floor(to - from),
-                        math.floor((latest.ours[c.key] or 0) - (base.ours[c.key] or 0)))
-                end
-                break
-            end
+        local from, to = NumberIn(S, base, c.names, c.minus), NumberIn(S, latest, c.names, c.minus)
+        if from and to then
+            parts[#parts + 1] = string.format("%s %d vs %d", c.label, math.floor(to - from),
+                math.floor((latest.ours[c.key] or 0) - (base.ours[c.key] or 0)))
         end
     end
     return parts

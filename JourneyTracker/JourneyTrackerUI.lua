@@ -418,7 +418,7 @@ local function PageSummary(B, db)
     B:Row("Play sessions", #AllSessions(db))
     B:Row("Experience earned", Num(db.xp.total))
     B:Row("Monsters slain", db.kills.total)
-    Lifetime(B, "Monsters slain, all time", "Total kills that grant experience or honor", "Total kills")
+    Lifetime(B, "Monsters slain, all time", "Creatures killed")
     B:Row("Deaths", #db.deaths)
     Lifetime(B, "Deaths, all time", "Total deaths")
     B:Row("Quests completed", db.quests.completed)
@@ -584,7 +584,8 @@ local function PageKills(B, db)
     local K = db.kills
     B:Title("Kills")
     B:Row("XP-granting kills", K.total)                                      -- #26
-    Lifetime(B, "XP-granting kills, all time", "Total kills that grant experience or honor", "Total kills")
+    -- The game's "kills that grant experience or honor" counts players too.
+    Lifetime(B, "Creatures killed, all time", "Creatures killed")
     local top = Sorted(K.byName)[1]
     B:Row("Most killed", top and (top[1] .. " x" .. top[2]) or "-")          -- #29
     local m = K.maxLevelDiff
@@ -609,6 +610,7 @@ local function PageBosses(B, db)
     end
     B:Heading("Player vs. Player")                                           -- #43
     B:Row("Honorable kills", db.pvp.honorableKills or 0)
+    Lifetime(B, "Honorable kills, all time", "Total Honorable Kills")
 end
 
 local function PageDeaths(B, db)
