@@ -1,14 +1,15 @@
 param(
     [string]$ExportDir = (Join-Path $PSScriptRoot "export"),
-    [int]$JpegQuality = 85,
-    [int]$OverviewTilePixels = 64   # continent overview: pixels per 512px minimap tile
+    [int]$JpegQuality = 85,   # zone maps
+    [int]$TileQuality = 80,   # web map tiles
+    [int]$MinTileZoom = 3     # the most zoomed-out web map tiles
 )
 # Turns wow.export output into what the website uses:
+#   art\export\web\tiles\<z>\<x>\<y>.jpg    the web map: Kalimdor and the Eastern
+#                                           Kingdoms cut from the minimap terrain
 #   art\export\web\zones\<UiMapID>.jpg      each zone's parchment map, named by the
 #                                           game's map ID (the ID the addon records)
 #   art\export\web\terrain\<UiMapID>.jpg    the same zone cut from the minimap terrain
-#   art\export\web\continents\<UiMapID>.jpg Kalimdor and the Eastern Kingdoms,
-#                                           stitched from the minimap terrain
 #   art\maps.json                           every map's ID, name, parent, continent,
 #                                           world rectangle and images
 #
@@ -22,8 +23,17 @@ param(
 # Minimap tile mapXX_YY covers world Y (west) from (32 - XX) * T down to
 # (31 - XX) * T and world X (north) from (32 - YY) * T down to (31 - YY) * T,
 # where T = 533.33 yards (one ADT tile).
+#
+# The web map measures everything in minimap tiles: x runs east, y south,
+# and each continent sits where the game's Azeroth map (947) draws it, moved
+# to the nearest whole tile (maps.json has it as minimap.layout). A web tile
+# is 256px and covers 2^(8-z) minimap tiles a side, so at zoom 8 it's exactly
+# one minimap tile at half size and at zoom 9 a quarter of one at full size.
+# In Leaflet with CRS.Simple, [lat, lng] = [-y, x] and the tiles load from
+# tiles/{z}/{x}/{y}.jpg (zoom 3 to 9; open sea has no tiles).
 Add-Type -AssemblyName System.Drawing
 $ErrorActionPreference = "Stop"
+$started = Get-Date
 
 $uiMaps = Import-Csv -Path (Join-Path $ExportDir "UiMap.csv") -Delimiter ";"
 $assignments = Import-Csv -Path (Join-Path $ExportDir "UiMapAssignment.csv") -Delimiter ";"
@@ -64,8 +74,13 @@ Get-ChildItem -Path (Join-Path $ExportDir "zones") -Filter "Zone_*.png" | ForEac
 $webDir = Join-Path $ExportDir "web\zones"
 New-Item -ItemType Directory -Force $webDir | Out-Null
 $jpeg = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq "image/jpeg" }
-$params = New-Object System.Drawing.Imaging.EncoderParameters 1
-$params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality, [long]$JpegQuality)
+function Quality([int]$quality) {
+    $p = New-Object System.Drawing.Imaging.EncoderParameters 1
+    $p.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality, [long]$quality)
+    return $p
+}
+$params = Quality $JpegQuality
+$tileParams = Quality $TileQuality
 
 $T = 51200 / 3 / 32           # yards per minimap tile
 $TILE = 512                     # pixels per exported minimap tile
@@ -117,35 +132,68 @@ function Save-Jpeg($bitmap, [string]$path) {
     $bitmap.Save($path, $jpeg, $params)
 }
 
-# Draw the minimap tiles covering tile rectangle [left, right) x [top, bottom)
-# into a width x height image. Gaps are ocean.
-function Draw-Terrain($tiles, [double]$left, [double]$top, [double]$right, [double]$bottom, [int]$width, [int]$height) {
+function New-Canvas([int]$width, [int]$height) {
     $bmp = New-Object System.Drawing.Bitmap $width, $height
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.Clear($OCEAN)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
     $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+    return $bmp, $g
+}
+
+# A minimap tile with its sea repainted. Neighboring zones share tiles, so
+# recent ones are kept; the oldest go past 96.
+$tileCache = @{}
+$tileOrder = New-Object 'System.Collections.Generic.Queue[string]'
+function Get-TileImage([string]$file) {
+    $img = $tileCache[$file]
+    if ($img) { return $img }
+    $img = New-Object System.Drawing.Bitmap $file
+    [MinimapSea]::Repaint($img, $OCEAN.R, $OCEAN.G, $OCEAN.B)
+    $tileCache[$file] = $img
+    $tileOrder.Enqueue($file)
+    if ($tileOrder.Count -gt 96) {
+        $old = $tileOrder.Dequeue()
+        $tileCache[$old].Dispose()
+        $tileCache.Remove($old)
+    }
+    return $img
+}
+
+# Draw the minimap tiles covering tile rectangle [left, right) x [top, bottom)
+# into a width x height image. Gaps are ocean.
+function Draw-Terrain($tiles, [double]$left, [double]$top, [double]$right, [double]$bottom, [int]$width, [int]$height) {
+    $bmp, $g = New-Canvas $width $height
     $sx = $width / ($right - $left); $sy = $height / ($bottom - $top)
     for ($ty = [math]::Floor($top); $ty -lt [math]::Ceiling($bottom); $ty++) {
         for ($tx = [math]::Floor($left); $tx -lt [math]::Ceiling($right); $tx++) {
             $file = $tiles["$tx,$ty"]
             if (-not $file) { continue }
-            $img = New-Object System.Drawing.Bitmap $file
-            try {
-                [MinimapSea]::Repaint($img, $OCEAN.R, $OCEAN.G, $OCEAN.B)
-                # Half a pixel extra each way hides seams between scaled tiles.
-                $x0 = (($tx - $left) * $sx) - 0.5; $y0 = (($ty - $top) * $sy) - 0.5
-                $corners = [System.Drawing.PointF[]]@(
-                    (New-Object System.Drawing.PointF $x0, $y0),
-                    (New-Object System.Drawing.PointF ($x0 + $sx + 1), $y0),
-                    (New-Object System.Drawing.PointF $x0, ($y0 + $sy + 1)))
-                $source = New-Object System.Drawing.RectangleF 0, 0, $img.Width, $img.Height
-                $g.DrawImage($img, $corners, $source, [System.Drawing.GraphicsUnit]::Pixel, $tileAttributes)
-            } finally { $img.Dispose() }
+            $img = Get-TileImage $file
+            # Half a pixel extra each way hides seams between scaled tiles.
+            $x0 = (($tx - $left) * $sx) - 0.5; $y0 = (($ty - $top) * $sy) - 0.5
+            $corners = [System.Drawing.PointF[]]@(
+                (New-Object System.Drawing.PointF $x0, $y0),
+                (New-Object System.Drawing.PointF ($x0 + $sx + 1), $y0),
+                (New-Object System.Drawing.PointF $x0, ($y0 + $sy + 1)))
+            $source = New-Object System.Drawing.RectangleF 0, 0, $img.Width, $img.Height
+            $g.DrawImage($img, $corners, $source, [System.Drawing.GraphicsUnit]::Pixel, $tileAttributes)
         }
     }
     $g.Dispose()
     return $bmp
+}
+
+# A square copy of a bitmap at another size.
+function Resize-Square($bitmap, [int]$size) {
+    $out = New-Object System.Drawing.Bitmap $size, $size
+    $g = [System.Drawing.Graphics]::FromImage($out)
+    $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+    $g.DrawImage($bitmap, (New-Object System.Drawing.Rectangle 0, 0, $size, $size), 0, 0, $bitmap.Width, $bitmap.Height,
+                 [System.Drawing.GraphicsUnit]::Pixel, $tileAttributes)
+    $g.Dispose()
+    return $out
 }
 
 $maps = @()
@@ -155,7 +203,7 @@ foreach ($id in $CONTINENTS.Keys) { $tilesByContinent[$id] = Get-Tiles $CONTINEN
 $mapIDOf = @{}   # continent instance (0 or 1) -> continent UiMap ID
 foreach ($id in $CONTINENTS.Keys) { if ($whole["$id"]) { $mapIDOf[[int]$whole["$id"].MapID] = $id } }
 
-# Each continent's overview covers its zones plus one tile of sea, so stray
+# Each continent's web map covers its zones plus one tile of sea, so stray
 # far-off tiles (lone islands, test areas) don't stretch it.
 $bounds = @{}
 foreach ($m in $uiMaps) {
@@ -167,6 +215,33 @@ foreach ($m in $uiMaps) {
     $b = $bounds[$continent]
     if (-not $b) { $bounds[$continent] = $box; continue }
     $bounds[$continent] = @([math]::Min($b[0], $box[0]), [math]::Min($b[1], $box[1]), [math]::Max($b[2], $box[2]), [math]::Max($b[3], $box[3]))
+}
+$crop = @{}
+foreach ($id in $bounds.Keys) {
+    $b = $bounds[$id]
+    $crop[$id] = [ordered]@{ minX = [int][math]::Floor($b[0]) - 1; maxX = [int][math]::Ceiling($b[2]);
+                             minY = [int][math]::Floor($b[1]) - 1; maxY = [int][math]::Ceiling($b[3]) }
+}
+
+# Where each continent sits on the web map: where the Azeroth map draws it
+# (its 1500 x 1000 units turned into minimap tiles), rounded to whole tiles
+# so every minimap tile lands exactly on the web tile grid.
+$fit = @{}
+foreach ($p in $parts["947"]) {
+    $id = $mapIDOf[[int]$p.mapID]
+    if (-not $id) { continue }
+    $R = $p.world; $du = $p.uiMax.x - $p.uiMin.x; $dv = $p.uiMax.y - $p.uiMin.y
+    $fit[$id] = @{
+        perX = 1500 * $T * $du / ($R.maxY - $R.minY)   # map units per minimap tile
+        perY = 1000 * $T * $dv / ($R.maxX - $R.minX)
+        x0 = 1500 * ($p.uiMin.x + ($R.maxY - 32 * $T) * $du / ($R.maxY - $R.minY))   # where tile 0,0 lands
+        y0 = 1000 * ($p.uiMin.y + ($R.maxX - 32 * $T) * $dv / ($R.maxX - $R.minX))
+    }
+}
+$unit = ($fit.Values | ForEach-Object { $_.perX; $_.perY } | Measure-Object -Average).Average
+$layout = @{}
+foreach ($id in $fit.Keys) {
+    $layout[$id] = [ordered]@{ x = [int][math]::Round($fit[$id].x0 / $unit); y = [int][math]::Round($fit[$id].y0 / $unit) }
 }
 
 foreach ($m in $uiMaps) {
@@ -201,18 +276,10 @@ foreach ($m in $uiMaps) {
         $written++
     }
 
-    # Continents: stitch the minimap tiles around their zones into one overview.
-    if ($CONTINENTS.ContainsKey($id) -and $tilesByContinent[$id].Count -gt 0 -and $bounds[$id]) {
-        $b = $bounds[$id]
-        $minTX = [int][math]::Floor($b[0]) - 1; $maxTX = [int][math]::Ceiling($b[2])
-        $minTY = [int][math]::Floor($b[1]) - 1; $maxTY = [int][math]::Ceiling($b[3])
-        $w = ($maxTX - $minTX + 1) * $OverviewTilePixels; $h = ($maxTY - $minTY + 1) * $OverviewTilePixels
-        $bmp = Draw-Terrain $tilesByContinent[$id] $minTX $minTY ($maxTX + 1) ($maxTY + 1) $w $h
-        try { Save-Jpeg $bmp (Join-Path $ExportDir "web\continents\$id.jpg") } finally { $bmp.Dispose() }
+    # Continents: which minimap tiles the web map uses, and where they go.
+    if ($CONTINENTS.ContainsKey($id) -and $crop[$id] -and $layout[$id]) {
         $entry.minimap = [ordered]@{ dir = $CONTINENTS[$id]; tileYards = [math]::Round($T, 4)
-            tiles = [ordered]@{ minX = $minTX; maxX = $maxTX; minY = $minTY; maxY = $maxTY }
-            pixelsPerTile = $OverviewTilePixels; image = "continents/$id.jpg" }
-        Write-Host ("{0}: overview {1}x{2} from {3} tiles" -f $m.Name_lang, $w, $h, $tilesByContinent[$id].Count)
+            tiles = $crop[$id]; layout = $layout[$id] }
     }
 
     # Zones and cities on a continent: cut their rectangle from the terrain.
@@ -231,3 +298,64 @@ $json = $maps | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText((Join-Path $PSScriptRoot "maps.json"), $json, (New-Object System.Text.UTF8Encoding $false))
 $terrain = ($maps | Where-Object { $_.terrain }).Count
 Write-Host ("{0} maps in maps.json; {1} parchment zone maps, {2} terrain zone maps" -f $maps.Count, $written, $terrain)
+
+# The web map's tiles. Each minimap tile is read once: its quarters are zoom
+# 9 tiles, its half-size copy a zoom 8 tile, and smaller copies go into the
+# zoom 7 and wider tiles, which are saved once they're all filled in.
+$tileDir = Join-Path $ExportDir "web\tiles"
+if (Test-Path $tileDir) { Remove-Item -Recurse -Force $tileDir }   # tiles from an older layout
+function Save-Tile($bitmap, [int]$z, [int]$x, [int]$y) {
+    $dir = Join-Path $tileDir "$z\$x"
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force $dir | Out-Null }
+    $bitmap.Save((Join-Path $dir "$y.jpg"), $jpeg, $tileParams)
+}
+$wide = @{}   # "z/x/y" -> bitmap and graphics of a zoom 7-and-wider tile
+$saved = 0
+foreach ($id in $CONTINENTS.Keys) {
+    $c = $crop[$id]; $at = $layout[$id]
+    if (-not $c -or -not $at) { continue }
+    foreach ($key in $tilesByContinent[$id].Keys) {
+        $t = $key -split ","; $tx = [int]$t[0]; $ty = [int]$t[1]
+        if ($tx -lt $c.minX -or $tx -gt $c.maxX -or $ty -lt $c.minY -or $ty -gt $c.maxY) { continue }
+        $x = $tx + $at.x; $y = $ty + $at.y
+        $img = New-Object System.Drawing.Bitmap $tilesByContinent[$id][$key]
+        if ($img.Width -ne $TILE -or $img.Height -ne $TILE) { $sized = Resize-Square $img $TILE; $img.Dispose(); $img = $sized }
+        [MinimapSea]::Repaint($img, $OCEAN.R, $OCEAN.G, $OCEAN.B)
+        foreach ($q in 0..3) {
+            $qx = $q % 2; $qy = [int][math]::Floor($q / 2)
+            $quarter = $img.Clone((New-Object System.Drawing.Rectangle ($qx * 256), ($qy * 256), 256, 256), $img.PixelFormat)
+            Save-Tile $quarter 9 (2 * $x + $qx) (2 * $y + $qy)
+            $quarter.Dispose()
+        }
+        $level = Resize-Square $img 256
+        $img.Dispose()
+        Save-Tile $level 8 $x $y
+        $saved += 5
+        for ($z = 7; $z -ge $MinTileZoom; $z--) {
+            $span = 1 -shl (8 - $z); $size = 256 / $span
+            $smaller = Resize-Square $level $size
+            $level.Dispose(); $level = $smaller
+            $wx = [int][math]::Floor($x / $span); $wy = [int][math]::Floor($y / $span)
+            $wkey = "$z/$wx/$wy"
+            if (-not $wide[$wkey]) {
+                $wide[$wkey] = New-Canvas 256 256
+                $wide[$wkey][1].InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
+                $wide[$wkey][1].PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::Half
+            }
+            $spot = New-Object System.Drawing.Rectangle (($x - $wx * $span) * $size), (($y - $wy * $span) * $size), $size, $size
+            $wide[$wkey][1].DrawImage($level, $spot, 0, 0, $size, $size, [System.Drawing.GraphicsUnit]::Pixel)
+        }
+        $level.Dispose()
+    }
+}
+foreach ($wkey in $wide.Keys) {
+    $p = $wkey -split "/"
+    $wide[$wkey][1].Dispose()
+    Save-Tile $wide[$wkey][0] $p[0] $p[1] $p[2]
+    $wide[$wkey][0].Dispose()
+    $saved++
+}
+foreach ($id in $layout.Keys) {
+    Write-Host ("{0}: minimap tile 0,0 at web map {1},{2}" -f $CONTINENTS[$id], $layout[$id].x, $layout[$id].y)
+}
+Write-Host ("{0:N0} web map tiles, zoom {1} to 9, in {2:N0}s" -f $saved, $MinTileZoom, ((Get-Date) - $started).TotalSeconds)

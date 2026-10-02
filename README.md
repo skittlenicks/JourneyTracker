@@ -13,10 +13,10 @@ stats and more) for a "Wrapped"-style recap. Players export their data with
 | `JourneyProbe/` | Dev-only test addon that logs what the game API exposes. Not for players. |
 | `specs/` | What to track, with each item's status (`TODO`, `BUILT`, `VERIFIED`, `BLOCKED`, `SKIP`). Read the status rules in `specs/journey-tracking-spec.md` before changing code. |
 | `build/` | `build.ps1` packages the addon into `dist/JourneyTracker-<version>.zip` for friends. |
-| `art/` | The JT logo and zone maps. `make-logo.ps1` draws both the in-game icon (`JourneyTracker/JT.tga`) and the CurseForge logo (`curseforge-logo.png`). `build-maps.ps1` turns a wow.export export of the Forever client (kept in the git-ignored `art/export/`) into web maps (parchment and terrain zone maps, plus continents stitched from the minimap) and `maps.json`, every map's ID, continent and world rectangle. |
+| `art/` | The JT logo and zone maps. `make-logo.ps1` draws both the in-game icon (`JourneyTracker/JT.tga`) and the CurseForge logo (`curseforge-logo.png`). `build-maps.ps1` turns a wow.export export of the Forever client (kept in the git-ignored `art/export/`) into web maps (parchment and terrain zone maps, plus map tiles of both continents cut from the minimap, zoom 3 to 9) and `maps.json`, every map's ID, continent, world rectangle and place on the web map. |
 | `curseforge/` | The CurseForge page text: `summary.txt` and `description.md` (paste with the description editor set to Markdown). |
 | `tools/import/` | Node tool that decodes exports and inserts them into Supabase. |
-| `site/` | Draft of the recap website with sample data. `build.ps1` assembles it into `dist/road-to-60.html` (run `art/build-maps.ps1` first). |
+| `site/` | Draft of the recap website with sample data. `build.ps1` assembles it into `dist/road-to-60.html` (run `art/build-maps.ps1` first), carrying as many map tiles as fit in about 13 MB. |
 
 ## Common tasks
 

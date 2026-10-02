@@ -118,8 +118,10 @@
                                       "minY":  8,
                                       "maxY":  52
                                   },
-                        "pixelsPerTile":  64,
-                        "image":  "continents/1414.jpg"
+                        "layout":  {
+                                       "x":  -16,
+                                       "y":  -4
+                                   }
                     }
     },
     {
@@ -146,8 +148,10 @@
                                       "minY":  23,
                                       "maxY":  61
                                   },
-                        "pixelsPerTile":  64,
-                        "image":  "continents/1415.jpg"
+                        "layout":  {
+                                       "x":  29,
+                                       "y":  -13
+                                   }
                     }
     },
     {
