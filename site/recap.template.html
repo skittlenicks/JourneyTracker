@@ -250,6 +250,8 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 .stat dd small { font-family: var(--font-body); font-size: 0.9rem; color: var(--ink-soft); }
+.stat.line { flex-direction: column; gap: 4px; }
+.stat.line dd { font-family: var(--font-body); font-size: 0.95rem; line-height: 1.45; color: var(--ink); }
 
 .bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .bars li {
@@ -447,6 +449,9 @@ kbd {
 .atlas-view { position: absolute; inset: 0; transform-origin: 0 0; isolation: isolate; }
 /* Both maps of a move, moving as one. */
 .atlas-stage { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
+/* A continent's map reaches past Azeroth's edges: between them, a copy of
+   its art lies under Azeroth and fills what Azeroth doesn't cover. */
+.atlas-stage > img.atlas-fill { position: absolute; display: block; filter: brightness(0.66); }
 .atlas-view > img, .atlas-view > canvas, .atlas-view > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* The art is dimmed, as the old map's terrain was, so the heat's glow stands out. */
 .atlas-view > img.atlas-art { filter: brightness(0.66); }
@@ -853,7 +858,7 @@ kbd {
       <h2 id="forever-title"></h2>
     </div>
     <div class="chapter-body">
-      <dl class="stats" id="forever-stats"></dl>
+      <dl class="stats cols-2" id="forever-stats"></dl>
       <dl class="stats cols-2" id="social-stats"></dl>
     </div>
   </section>
@@ -1022,9 +1027,11 @@ kbd {
   function levels(from, to) { return from === to ? "level " + from : "levels " + from + " to " + to; }
 
   // Rows of [label, value(html)].
+  // Rows of [name, value, optional "line"]: a line is a value that reads as
+  // text (the forms a druid learned and when), so its name goes first.
   function stats(id, rows) {
     $(id).innerHTML = rows.map(function (r) {
-      return '<div class="stat"><dt>' + esc(r[0]) + "</dt><dd>" + r[1] + "</dd></div>";
+      return '<div class="stat' + (r[2] ? " " + r[2] : "") + '"><dt>' + esc(r[0]) + "</dt><dd>" + r[1] + "</dd></div>";
     }).join("");
   }
   // Rows of [name, value, optional color]; bars scale to max (or the biggest value).
@@ -1230,9 +1237,12 @@ kbd {
     S.bestKill && ["Biggest level gap won", "+" + (S.bestKill.mob - S.bestKill.you) + " <small>(" + S.bestKill.mob + " at " + S.bestKill.you + ")</small>"]
   ].filter(Boolean));
 
-  // Deaths
-  $("deaths-title").textContent = !S.deaths ? "Not a single death so far." : S.deaths === 1 ? "You died once." :
-    "You died " + S.deaths + " times." + (S.deathZones.length ? " " + S.deathZones[0][0] + " took " + S.deathZones[0][1] + " of them." : "");
+  // Deaths ("You died 47 times, 11 of them in Stranglethorn Vale.")
+  var deathZone = S.deathZones[0];
+  $("deaths-title").textContent = !S.deaths ? "Not a single death so far." :
+    S.deaths === 1 ? "You died once" + (deathZone ? ", in " + deathZone[0] : "") + "." :
+    "You died " + num(S.deaths) + " times" + (!deathZone || deathZone[1] < 2 ? "" :
+      deathZone[1] >= S.deaths ? ", all of them in " + deathZone[0] : ", " + num(deathZone[1]) + " of them in " + deathZone[0]) + ".";
   bars("death-zones", S.deathZones, num);
   bars("killers", S.killers, num);
   $("death-zones").parentNode.parentNode.hidden = !S.deathZones.length && !S.killers.length;
@@ -1346,7 +1356,7 @@ kbd {
       ["Most common shift", esc(S.topShift.from) + " to " + esc(S.topShift.to) + " <small>(" + num(S.topShift.n) + ")</small>"],
       ["Healing done (estimated)", num(S.healing)],
       ["Time in Prowl", dur(S.prowl)],
-      ["Forms learned at", '<small>' + esc(S.formsLearned) + "</small>"]
+      ["Forms learned at", esc(S.formsLearned).split(" · ").map(function (f) { return f.replace(/ /g, "&nbsp;"); }).join(" · "), "line"]
     ]);
   } else {
     // Whatever the class tracked most time in (forms, stances, auras,
@@ -1762,11 +1772,11 @@ kbd {
 
   // Moving between views. Into a zone (or a continent from Azeroth) the map
   // grows into the zone's rectangle while the zone's own map fades in; out
-  // again, it shrinks back into its place. Between Kalimdor and the Eastern
-  // Kingdoms it slides across, the way they lie. Pins and route go with
-  // their map, or fade while it grows. The new map's art is decoded before
-  // anything moves, and a click while one move is on its way hurries it
-  // along and goes next.
+  // again, the zone's map dissolves and the map around it zooms back out.
+  // Between Kalimdor and the Eastern Kingdoms it slides across, the way they
+  // lie. Pins and route go with their map, or fade while it grows. The new
+  // map's art is decoded before anything moves, and a click while one move
+  // is on its way hurries it along and goes next.
   var frame = $("atlas-frame"), nameTag = $("atlas-name"), current = null, shown = null, hover = null;
   var moving = false, queued = null, running = [];
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1777,6 +1787,19 @@ kbd {
   }
   function shrinkTo(rect) {
     return "translate(" + rect[0] * 100 + "%," + rect[1] * 100 + "%) scale(" + (rect[2] - rect[0]) + "," + (rect[3] - rect[1]) + ")";
+  }
+  // The rectangle moved (not resized) to lie within the map, as far as it fits.
+  function inside(rect) {
+    var dx = rect[0] < 0 ? -rect[0] : rect[2] > 1 ? 1 - rect[2] : 0;
+    var dy = rect[1] < 0 ? -rect[1] : rect[3] > 1 ? 1 - rect[3] : 0;
+    return [rect[0] + dx, rect[1] + dy, rect[2] + dx, rect[3] + dy];
+  }
+  // An element over a rectangle of what holds it (0 to 1 across and down).
+  function placeAt(el, rect) {
+    el.style.left = (rect[0] * 100) + "%";
+    el.style.top = (rect[1] * 100) + "%";
+    el.style.width = ((rect[2] - rect[0]) * 100) + "%";
+    el.style.height = ((rect[3] - rect[1]) * 100) + "%";
   }
   function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
   // The part of the outer map in the frame partway (p, 0 to 1) into a zoom
@@ -1813,31 +1836,46 @@ kbd {
       // fades. (The stage starts where the old map already is on screen.)
       stage = document.createElement("div");
       stage.className = "atlas-stage";
-      if (m.kind === "in") {
-        next.el.style.transform = shrinkTo(m.rect);
-        stage.appendChild(prev.el);
-        stage.appendChild(next.el);
-        prev.el.classList.add("moving");
-        next.el.classList.add("moving");
-        run(stage, zoomFrames(m.rect), { duration: 640, easing: EASE, fill: "forwards" });
-        run(next.el, [{ opacity: 0 }, { opacity: 0, offset: 0.38 }, { opacity: 1, offset: 0.82 }, { opacity: 1 }],
-          { duration: 640, fill: "forwards" });
-      } else if (m.kind === "out") {
-        stage.style.transform = into(m.rect);
-        prev.el.style.transform = shrinkTo(m.rect);
-        stage.appendChild(next.el);
-        stage.appendChild(prev.el);
-        prev.el.classList.add("moving");
-        next.el.classList.add("moving");
-        run(stage, zoomFrames(m.rect, true), { duration: 640, easing: EASE, fill: "forwards" });
-        run(prev.el, [{ opacity: 1 }, { opacity: 1, offset: 0.06 }, { opacity: 0, offset: 0.46 }, { opacity: 0 }],
-          { duration: 640, fill: "forwards" });
-      } else {
+      if (m.kind === "pan") {
         next.el.style.transform = "translateX(" + m.dir * 100 + "%)";
         stage.appendChild(prev.el);
         stage.appendChild(next.el);
         run(stage, [{ transform: "none" }, { transform: "translateX(" + -m.dir * 100 + "%)" }],
           { duration: 640, easing: PAN_EASE, fill: "forwards" });
+      } else {
+        var inner = m.kind === "in" ? next : prev, outer = m.kind === "in" ? prev : next;
+        inner.el.style.transform = shrinkTo(m.rect);
+        if (m.rect[0] < 0 || m.rect[1] < 0 || m.rect[2] > 1 || m.rect[3] > 1) {
+          var fill = inner.el.querySelector(".atlas-art").cloneNode();
+          fill.className = "atlas-fill";
+          placeAt(fill, m.rect);
+          stage.appendChild(fill);
+        }
+        stage.appendChild(outer.el);
+        stage.appendChild(inner.el);
+        prev.el.classList.add("moving");
+        next.el.classList.add("moving");
+        if (m.kind === "in") {
+          run(stage, zoomFrames(m.rect), { duration: 640, easing: EASE, fill: "forwards" });
+          run(next.el, [{ opacity: 0 }, { opacity: 0, offset: 0.38 }, { opacity: 1, offset: 0.82 }, { opacity: 1 }],
+            { duration: 640, fill: "forwards" });
+        } else {
+          // Out, the old map dissolves before anything shrinks it (shrinking
+          // away as it faded, it lingered over the new one), and then the
+          // map it was part of zooms out on its own. A continent's map
+          // reaches past Azeroth's edge, so the view first slides over until
+          // it's all Azeroth, the continent fading on the way.
+          var fit = inside(m.rect);
+          stage.style.transform = into(m.rect);
+          if (fit[0] !== m.rect[0] || fit[1] !== m.rect[1]) {
+            run(stage, [{ transform: into(m.rect) }, { transform: into(fit) }], { duration: 280, easing: PAN_EASE, fill: "forwards" });
+            run(prev.el, [{ opacity: 1 }, { opacity: 1, offset: 0.35 }, { opacity: 0 }], { duration: 260, fill: "forwards" });
+            run(stage, zoomFrames(fit, true), { duration: 360, delay: 280, easing: EASE, fill: "forwards" });
+          } else {
+            run(prev.el, [{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: "ease-in-out", fill: "forwards" });
+            run(stage, zoomFrames(m.rect, true), { duration: 570, delay: 70, easing: EASE, fill: "forwards" });
+          }
+        }
       }
       frame.insertBefore(stage, nameTag);
     }
@@ -1902,10 +1940,7 @@ kbd {
     img.className = "atlas-glow";
     img.alt = "";
     img.src = src;
-    img.style.left = (rect[0] * 100) + "%";
-    img.style.top = (rect[1] * 100) + "%";
-    img.style.width = ((rect[2] - rect[0]) * 100) + "%";
-    img.style.height = ((rect[3] - rect[1]) * 100) + "%";
+    placeAt(img, rect);
     current.el.insertBefore(img, current.el.querySelector(".atlas-route"));
     return img;
   }
