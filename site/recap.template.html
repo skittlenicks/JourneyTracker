@@ -437,7 +437,7 @@ kbd {
   position: relative;
   aspect-ratio: 1002 / 668;
   overflow: hidden;
-  background: #4a4433;   /* the parchment sea, dimmed, for past a map's edge mid-move */
+  background: #4a4433;   /* the parchment sea, dimmed, until the first map is in */
   border: 1px solid var(--rule);
   border-radius: 6px;
   container-type: inline-size;
@@ -446,24 +446,23 @@ kbd {
   user-select: none;
 }
 .atlas-frame:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; }
-.atlas-view { position: absolute; inset: 0; transform-origin: 0 0; isolation: isolate; }
-/* Both maps of a move, moving as one. */
-.atlas-stage { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; }
-/* A continent's map reaches past Azeroth's edges: between them, a copy of
-   its art lies under Azeroth and fills what Azeroth doesn't cover. */
-.atlas-stage > img.atlas-fill { position: absolute; display: block; filter: brightness(0.66); }
-.atlas-view > img, .atlas-view > canvas, .atlas-view > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.atlas-view { position: absolute; inset: 0; }
+/* A map's picture: its art, the heat and the highlight you point at. In a
+   move the camera places it. It and its art are layers of their own, so
+   moving them redraws nothing. */
+.atlas-pic { position: absolute; inset: 0; transform-origin: 0 0; will-change: transform; isolation: isolate; }
+.atlas-pic > img, .atlas-pic > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* The art is dimmed, as the old map's terrain was, so the heat's glow stands out. */
-.atlas-view > img.atlas-art { filter: brightness(0.66); }
-.atlas-heat { pointer-events: none; }
+.atlas-pic > img.atlas-art { filter: brightness(0.66); will-change: transform; }
+.atlas-heat { pointer-events: none; will-change: transform; }
 /* The game adds a zone's highlight to the map's light (plus-lighter; screen
    where a browser doesn't have it). */
-.atlas-view > img.atlas-glow { inset: auto; mix-blend-mode: screen; mix-blend-mode: plus-lighter; pointer-events: none; }
-.atlas-route { overflow: visible; pointer-events: none; }
-/* While the map zooms between views, its pins and route fade out (they'd
-   grow with it) and fade back in after. */
-.atlas-route, .atlas-pin { transition: opacity 0.15s; }
-.atlas-view.moving .atlas-route, .atlas-view.moving .atlas-pin { opacity: 0; }
+.atlas-pic > img.atlas-glow { inset: auto; mix-blend-mode: screen; mix-blend-mode: plus-lighter; pointer-events: none; }
+/* Over the picture, the route and the pins. They stay put: they go as a
+   move starts and fade back in once the map is there. */
+.atlas-over { position: absolute; inset: 0; pointer-events: none; will-change: opacity; }
+.atlas-over > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.atlas-route { overflow: visible; }
 .atlas-route path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .atlas-route .halo { stroke: rgba(255, 238, 190, 0.5); stroke-width: 5; }
 .atlas-route .line { stroke: #2a1406; stroke-width: 2.2; stroke-dasharray: 0.5 6.5; }
@@ -485,7 +484,9 @@ kbd {
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   cursor: pointer;
+  pointer-events: auto;
 }
+.atlas-over.away .atlas-pin { pointer-events: none; }
 .atlas-pin:hover, .atlas-pin.here { color: var(--ground); background: var(--gold-pale); }
 .atlas-world .atlas-pin { width: clamp(13px, 1.8cqw, 18px); height: clamp(13px, 1.8cqw, 18px); font-size: clamp(8px, 1cqw, 10px); }
 /* The name of the zone you point at (or the one you opened), at the top of
@@ -1729,27 +1730,31 @@ kbd {
     }
     return heatOf[view.id];
   }
-  // Art the map is about to show, fetched ahead.
+  // Art the map is about to show, fetched and decoded ahead.
   var fetched = {};
   function fetchArt(name) {
     var src = artURL(name);
     if (!src || fetched[name]) return;
     fetched[name] = new Image();
     fetched[name].src = src;
+    if (fetched[name].decode) fetched[name].decode().catch(function () {});
   }
   function buildView(view) {
-    var el = document.createElement("div"), art = new Image(), heat = document.createElement("canvas");
+    var el = document.createElement("div"), pic = document.createElement("div"), over = document.createElement("div");
+    var art = new Image(), heat = document.createElement("canvas");
     el.className = "atlas-view atlas-" + view.kind;
+    pic.className = "atlas-pic";
+    over.className = "atlas-over";
     art.className = "atlas-art";
     art.alt = "";
-    art.src = artURL(view.kind === "zone" ? "zones/" + view.id + ".jpg" : "worldmap/" + view.id + ".jpg");
+    art.src = artFor(view);
     heat.className = "atlas-heat";
     heat.width = AW;
     heat.height = AH;
     heat.getContext("2d").drawImage(heatFor(view), 0, 0);
-    el.appendChild(art);
-    el.appendChild(heat);
-    el.insertAdjacentHTML("beforeend", routeLayer(view));
+    pic.appendChild(art);
+    pic.appendChild(heat);
+    over.insertAdjacentHTML("beforeend", routeLayer(view));
     route.forEach(function (r) {
       var at = onView(view, r.at);
       if (!at || at[0] < -0.01 || at[0] > 1.01 || at[1] < -0.01 || at[1] > 1.01) return;
@@ -1762,213 +1767,379 @@ kbd {
       pin.title = r.n + ". " + r.name + ": " + levels(r.from, r.to) + ", " + dur(r.seconds);
       pin.setAttribute("aria-label", pin.title);
       pin.addEventListener("click", function (event) { event.stopPropagation(); openZone(r.map.uiMapID); });
-      el.appendChild(pin);
+      over.appendChild(pin);
     });
+    el.appendChild(pic);
+    el.appendChild(over);
     // Ready once its art is decoded, so nothing pops in mid-move.
-    var ready = art.decode ? art.decode().catch(function () {}) :
-      new Promise(function (resolve) { art.onload = art.onerror = resolve; });
-    return { view: view, el: el, ready: ready };
+    return { view: view, el: el, pic: pic, over: over, ready: decoded(art), revealed: true };
+  }
+  function artFor(view) { return artURL(view.kind === "zone" ? "zones/" + view.id + ".jpg" : "worldmap/" + view.id + ".jpg"); }
+  function decoded(img) {
+    return img.decode ? img.decode().catch(function () {}) :
+      new Promise(function (resolve) { if (img.complete) resolve(); else img.onload = img.onerror = resolve; });
   }
 
-  // Moving between views. Into a zone (or a continent from Azeroth) the map
-  // grows into the zone's rectangle while the zone's own map fades in; out
-  // again, the zone's map dissolves and the map around it zooms back out.
-  // Between Kalimdor and the Eastern Kingdoms it slides across, the way they
-  // lie. Pins and route go with their map, or fade while it grows. The new
-  // map's art is decoded before anything moves, and a click while one move
-  // is on its way hurries it along and goes next.
-  var frame = $("atlas-frame"), nameTag = $("atlas-name"), current = null, shown = null, hover = null;
-  var moving = false, queued = null, running = [];
+  // Moving between views: one camera flight over Azeroth. Every map lies
+  // where it is on Azeroth's (a continent's reaching past Azeroth's edges,
+  // each zone's inside its continent's), and every map on screen is placed
+  // from the same camera at the same moment, so they always line up.
+  // - In: the map that opens appears where it lies, fading in before the
+  //   camera has moved much, and the camera closes in on it.
+  // - Out: the camera pulls back with the old map whole until it's back in
+  //   its place, and only then does it fade, where it lies.
+  // - From one zone to another of the same continent: out to see both, the
+  //   one fading where it lies and the other appearing, then in.
+  // - Between Kalimdor and the Eastern Kingdoms: a slide, the way they lie
+  //   (from a zone, out first; to a zone, in after).
+  // So nothing fades while it moves and nothing trails behind. The pins,
+  // the route and the map's name go as a move starts and fade in once it's
+  // there. Each picture is a layer of its own, so a move redraws nothing,
+  // and all the art a move shows is decoded before it starts. A click
+  // mid-move speeds it up, and the next move starts where it ends.
+  var frame = $("atlas-frame"), nameTag = $("atlas-name");
+  var shown = null, target = null, hover = null, pointer = null;
+  var flying = false, queued = null, running = [];
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var EASE = "cubic-bezier(.4,0,.2,1)", PAN_EASE = "cubic-bezier(.65,0,.35,1)";
-  function into(rect) {
-    return "scale(" + 1 / (rect[2] - rect[0]) + "," + 1 / (rect[3] - rect[1]) + ") translate(" +
-      (-rect[0] * 100) + "%," + (-rect[1] * 100) + "%)";
-  }
-  function shrinkTo(rect) {
-    return "translate(" + rect[0] * 100 + "%," + rect[1] * 100 + "%) scale(" + (rect[2] - rect[0]) + "," + (rect[3] - rect[1]) + ")";
-  }
-  // The rectangle moved (not resized) to lie within the map, as far as it fits.
-  function inside(rect) {
-    var dx = rect[0] < 0 ? -rect[0] : rect[2] > 1 ? 1 - rect[2] : 0;
-    var dy = rect[1] < 0 ? -rect[1] : rect[3] > 1 ? 1 - rect[3] : 0;
-    return [rect[0] + dx, rect[1] + dy, rect[2] + dx, rect[3] + dy];
-  }
-  // An element over a rectangle of what holds it (0 to 1 across and down).
-  function placeAt(el, rect) {
-    el.style.left = (rect[0] * 100) + "%";
-    el.style.top = (rect[1] * 100) + "%";
-    el.style.width = ((rect[2] - rect[0]) * 100) + "%";
-    el.style.height = ((rect[3] - rect[1]) * 100) + "%";
+  var canFly = typeof frame.animate === "function" && typeof KeyframeEffect === "function" && typeof Animation === "function";
+  // How long things take (ms), and the camera's pace: a gentle start and a
+  // soft landing.
+  var PINS_OUT = 90, LEAD = 40, FADE_IN = 120, FADE_OUT = 130, DWELL = 70, SLIDE_MS = 560, HURRY = 3.5;
+  // (ONWARD: a slide partway through a longer trip sets off more briskly.)
+  var SMOOTH = bezier(0.6, 0, 0.25, 1), SLIDE = bezier(0.65, 0, 0.35, 1), ONWARD = bezier(0.45, 0, 0.3, 1);
+  // CSS's cubic-bezier() as a function, to work out the camera's path ahead.
+  function bezier(x1, y1, x2, y2) {
+    function at(a1, a2, s) { return ((1 - 3 * a2 + 3 * a1) * s + (3 * a2 - 6 * a1)) * s * s + 3 * a1 * s; }
+    return function (x) {
+      if (x <= 0) return 0;
+      if (x >= 1) return 1;
+      var lo = 0, hi = 1, s = x;
+      for (var i = 0; i < 24; i++) {
+        s = (lo + hi) / 2;
+        if (at(x1, x2, s) < x) lo = s; else hi = s;
+      }
+      return at(y1, y2, s);
+    };
   }
   function wait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
-  // The part of the outer map in the frame partway (p, 0 to 1) into a zoom
-  // into rect: it shrinks by the same factor each step and closes in on the
-  // one point that stays put, so the zoom feels even rather than slow, then
-  // rushing. As stage transforms, from p = 0 to 1 (or back, zooming out).
-  function zoomFrames(rect, back) {
-    var w1 = rect[2] - rect[0], h1 = rect[3] - rect[1], frames = [];
-    for (var i = 0; i <= 12; i++) {
-      var p = back ? 1 - i / 12 : i / 12, w = Math.pow(w1, p), h = Math.pow(h1, p);
-      var fx = Math.abs(1 - w1) < 1e-6 ? p : (1 - w) / (1 - w1), fy = Math.abs(1 - h1) < 1e-6 ? p : (1 - h) / (1 - h1);
-      frames.push({ transform: into([rect[0] * fx, rect[1] * fy, rect[0] * fx + w, rect[1] * fy + h]) });
-    }
-    return frames;
+  function fixed(x, places) { var k = Math.pow(10, places); return Math.round(x * k) / k; }
+
+  // Where a view's map lies on Azeroth's (left, top, right, bottom; Azeroth
+  // is 0 to 1 both ways), or null if it can't be placed.
+  var WORLD_VIEW = viewOf(947), spots = {};
+  function spotOf(view) {
+    if (!(view.id in spots)) spots[view.id] = view.kind === "world" ? [0, 0, 1, 1] : rectOnView(WORLD_VIEW, view.map);
+    return spots[view.id];
   }
-  function moveOf(from, to) {
-    var inside = rectOnView(from, to.map), around = rectOnView(to, from.map);
-    if (inside && inside[2] - inside[0] < 1 && to.kind !== "world") return { kind: "in", rect: inside };
-    if (around && around[2] - around[0] < 1 && from.kind !== "world") return { kind: "out", rect: around };
-    if (from.kind === "continent" && to.kind === "continent") {
-      var a = PARTS[from.map.mapID], b = PARTS[to.map.mapID];
-      return { kind: "pan", dir: a && b && b.uiMin.x < a.uiMin.x ? -1 : 1 };
-    }
-    return { kind: "fade" };
+  // The maps a view sits in, from Azeroth down to the view itself.
+  function lineage(view) {
+    var line = [view];
+    while (line[0].kind !== "world") line.unshift(line[0].kind === "zone" ? viewOf(line[0].up) : WORLD_VIEW);
+    return line;
   }
-  function animateMove(prev, next) {
-    var m = moveOf(prev.view, next.view), anims = [], stage = null;
-    function run(el, keyframes, options) { anims.push(el.animate(keyframes, options)); }
-    if (m.kind === "fade") {
-      run(next.el, [{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: "ease-out", fill: "forwards" });
-    } else {
-      // Both maps on one stage, placed as they lie on each other, so they
-      // move as one picture: the stage zooms or slides, and the map on top
-      // fades. (The stage starts where the old map already is on screen.)
-      stage = document.createElement("div");
-      stage.className = "atlas-stage";
-      if (m.kind === "pan") {
-        next.el.style.transform = "translateX(" + m.dir * 100 + "%)";
-        stage.appendChild(prev.el);
-        stage.appendChild(next.el);
-        run(stage, [{ transform: "none" }, { transform: "translateX(" + -m.dir * 100 + "%)" }],
-          { duration: 640, easing: PAN_EASE, fill: "forwards" });
+  // The camera (what part of Azeroth fills the frame) partway, p from 0 to
+  // 1, from showing rect a to showing rect b: it zooms at an even rate about
+  // the one point that stays put, or pans between rects of a size.
+  function camBetween(a, b, p) {
+    var out = [];
+    for (var k = 0; k < 2; k++) {
+      var a0 = a[k], a1 = a[k + 2], b0 = b[k], b1 = b[k + 2], r = (b1 - b0) / (a1 - a0);
+      if (Math.abs(r - 1) < 1e-6) {
+        out[k] = a0 + (b0 - a0) * p;
+        out[k + 2] = a1 + (b1 - a1) * p;
       } else {
-        var inner = m.kind === "in" ? next : prev, outer = m.kind === "in" ? prev : next;
-        inner.el.style.transform = shrinkTo(m.rect);
-        if (m.rect[0] < 0 || m.rect[1] < 0 || m.rect[2] > 1 || m.rect[3] > 1) {
-          var fill = inner.el.querySelector(".atlas-art").cloneNode();
-          fill.className = "atlas-fill";
-          placeAt(fill, m.rect);
-          stage.appendChild(fill);
-        }
-        stage.appendChild(outer.el);
-        stage.appendChild(inner.el);
-        prev.el.classList.add("moving");
-        next.el.classList.add("moving");
-        if (m.kind === "in") {
-          run(stage, zoomFrames(m.rect), { duration: 640, easing: EASE, fill: "forwards" });
-          run(next.el, [{ opacity: 0 }, { opacity: 0, offset: 0.38 }, { opacity: 1, offset: 0.82 }, { opacity: 1 }],
-            { duration: 640, fill: "forwards" });
-        } else {
-          // Out, the old map dissolves before anything shrinks it (shrinking
-          // away as it faded, it lingered over the new one), and then the
-          // map it was part of zooms out on its own. A continent's map
-          // reaches past Azeroth's edge, so the view first slides over until
-          // it's all Azeroth, the continent fading on the way.
-          var fit = inside(m.rect);
-          stage.style.transform = into(m.rect);
-          if (fit[0] !== m.rect[0] || fit[1] !== m.rect[1]) {
-            run(stage, [{ transform: into(m.rect) }, { transform: into(fit) }], { duration: 280, easing: PAN_EASE, fill: "forwards" });
-            run(prev.el, [{ opacity: 1 }, { opacity: 1, offset: 0.35 }, { opacity: 0 }], { duration: 260, fill: "forwards" });
-            run(stage, zoomFrames(fit, true), { duration: 360, delay: 280, easing: EASE, fill: "forwards" });
-          } else {
-            run(prev.el, [{ opacity: 1 }, { opacity: 0 }], { duration: 140, easing: "ease-in-out", fill: "forwards" });
-            run(stage, zoomFrames(m.rect, true), { duration: 570, delay: 70, easing: EASE, fill: "forwards" });
-          }
-        }
+        var f = (b0 - r * a0) / (1 - r), s = Math.pow(r, p);
+        out[k] = f + (a0 - f) * s;
+        out[k + 2] = f + (a1 - f) * s;
       }
-      frame.insertBefore(stage, nameTag);
     }
+    return out;
+  }
+  // A view showing two zones' maps with a margin, within their continent's.
+  function around(a, b, c) {
+    var x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]), x1 = Math.max(a[2], b[2]), y1 = Math.max(a[3], b[3]);
+    var size = Math.max(x1 - x0, y1 - y0) * 1.12, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    if (size >= Math.min(c[2] - c[0], c[3] - c[1])) return c.slice();
+    var r = [cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2];
+    var dx = r[0] < c[0] ? c[0] - r[0] : r[2] > c[2] ? c[2] - r[2] : 0;
+    var dy = r[1] < c[1] ? c[1] - r[1] : r[3] > c[3] ? c[3] - r[3] : 0;
+    return [r[0] + dx, r[1] + dy, r[2] + dx, r[3] + dy];
+  }
+  // A zoom takes longer the further it goes: 440ms for a continent from
+  // Azeroth, about 600ms for a zone from its continent, at most 760ms.
+  function zoomTime(a, b) {
+    var ratio = (a[2] - a[0]) / (b[2] - b[0]);
+    if (ratio < 1) ratio = 1 / ratio;
+    return Math.round(Math.min(760, Math.max(440, 400 + 80 * Math.log(ratio) / Math.LN2)));
+  }
+  // Where a map lying at rect goes on screen while the camera shows cam: a
+  // move, then a scale, from its top left corner. Every map's transform has
+  // this same form, so between two keyframes they all move as one.
+  function placeOn(cam, rect) {
+    var w = cam[2] - cam[0], h = cam[3] - cam[1];
+    return "translate(" + fixed((rect[0] - cam[0]) / w * 100, 4) + "%," + fixed((rect[1] - cam[1]) / h * 100, 4) + "%) scale(" +
+      fixed((rect[2] - rect[0]) / w, 6) + "," + fixed((rect[3] - rect[1]) / h, 6) + ")";
+  }
+
+  // The legs of a move from one view to another.
+  function legsTo(from, to) {
+    var a = lineage(from), b = lineage(to), n = 0;
+    while (n < a.length && n < b.length && a[n].id === b[n].id) n++;
+    var top = a[n - 1];
+    if (!spotOf(from) || !spotOf(to)) return [{ kind: "dip", to: to }];
+    if (top.id === from.id) return [{ kind: "in", to: to, through: b.slice(n, -1) }];
+    if (top.id === to.id) return [{ kind: "out", to: to, through: a.slice(n, -1) }];
+    if (top.kind === "continent") return [{ kind: "hop", to: to, via: top }];
+    var here = a[1], there = b[1];
+    if (here.kind !== "continent" || there.kind !== "continent") return [{ kind: "dip", to: to }];
+    var legs = [];
+    if (from.kind === "zone") legs.push({ kind: "out", to: here, through: [] });
+    legs.push({ kind: "slide", to: there });
+    if (to.kind === "zone") legs.push({ kind: "in", to: to, through: [] });
+    return legs;
+  }
+
+  // One flight. layers: bottom to top, { built, spot, fade }, where fade is
+  // [start ms, end ms, from opacity, to opacity]; path(ms) is the camera,
+  // which stops at arrive. Each map's keyframes come from the same camera
+  // positions, a frame apart.
+  function fly(layers, path, arrive) {
+    var total = arrive, anims = [], cams = [];
+    layers.forEach(function (l) { if (l.fade) total = Math.max(total, l.fade[1]); });
+    var n = Math.max(2, Math.ceil(total / 16));
+    for (var i = 0; i <= n; i++) cams.push(path(total * i / n));
+    layers.forEach(function (l) {
+      anims.push(l.built.pic.animate(cams.map(function (cam, k) {
+        return { offset: k / n, transform: placeOn(cam, l.spot) };
+      }), { duration: total, fill: "forwards" }));
+      if (!l.fade) return;
+      var f = l.fade, frames = [];
+      if (f[0] > 0) frames.push({ offset: 0, opacity: f[2] });
+      frames.push({ offset: f[0] / total, opacity: f[2], easing: "ease-in-out" });
+      frames.push({ offset: f[1] / total, opacity: f[3] });
+      if (f[1] < total) frames.push({ offset: 1, opacity: f[3] });
+      anims.push(l.built.pic.animate(frames, { duration: total, fill: "forwards" }));
+    });
+    var landing = new Animation(new KeyframeEffect(null, null, arrive), document.timeline);
+    landing.play();
+    anims.push(landing);
     running = anims;
-    return Promise.all(anims.map(function (x) { return x.finished.catch(function () {}); })).then(function () {
-      // The new map stays just where it is, on its own; the stage goes, with the old map.
-      next.el.style.transform = "";
-      next.el.getAnimations().forEach(function (x) { x.cancel(); });
-      frame.insertBefore(next.el, nameTag);
-      if (stage) stage.remove();
+    if (queued) hurry();
+    function settled(a) { return a.finished.catch(function () {}); }
+    return { arrived: settled(landing), done: Promise.all(anims.map(settled)) };
+  }
+  function hurry() {
+    running.forEach(function (a) { if (a.updatePlaybackRate) a.updatePlaybackRate(HURRY); else a.playbackRate = HURRY; });
+  }
+  // Fade an element from where it is now to an opacity.
+  function fadeTo(el, to, ms) {
+    var from = Number(getComputedStyle(el).opacity);
+    if (el.getAnimations) el.getAnimations().forEach(function (a) { a.cancel(); });
+    el.style.opacity = to;
+    if (ms && canFly && !reduceMotion && from !== to) el.animate([{ opacity: from }, { opacity: to }], { duration: ms, easing: "ease-out" });
+  }
+  function hideOver(built) { built.over.classList.add("away"); built.over.style.opacity = 0; built.revealed = false; }
+  function reveal(built) {
+    if (built.revealed) return;
+    built.revealed = true;
+    built.over.classList.remove("away");
+    fadeTo(built.over, 1, 200);
+    nameTag.innerHTML = built.view.kind === "zone" ? nameFor(built.view.id) : "";
+    fadeTo(nameTag, 1, 200);
+  }
+
+  // One leg, from the map on screen; done once the new one is there alone.
+  // Its maps are built, their art decoded. The camera sets off at t0 (ms),
+  // once the pins have gone; pace under 1 quickens the legs of a long trip.
+  function runLeg(leg, last, pace, t0) {
+    var prev = shown, next = leg.next, between = leg.between, via = leg.hub, extra = between.concat(via ? [via] : []);
+    var P = spotOf(prev.view), Q = spotOf(next.view), layers, path, arrive, d;
+    function put(built, before) { frame.insertBefore(built.el, before || nameTag); }
+    function spotted(fade) { return function (b) { return { built: b, spot: spotOf(b.view), fade: fade }; }; }
+    function after(t, ms) { return Math.min(1, Math.max(0, t - t0) / ms); }
+    if (leg.kind === "in") {
+      t0 = Math.max(t0, LEAD);
+      d = zoomTime(P, Q) * pace;
+      between.forEach(function (b) { put(b); });
+      put(next);
+      layers = [{ built: prev, spot: P }].concat(between.map(spotted([0, FADE_IN, 0, 1])),
+        [{ built: next, spot: Q, fade: [0, FADE_IN, 0, 1] }]);
+      path = function (t) { return camBetween(P, Q, SMOOTH(after(t, d))); };
+      arrive = t0 + d;
+    } else if (leg.kind === "out") {
+      // (The last tenth of a zoom moves it less than 1%, so the fade starts
+      // there; on a longer trip it's quicker, so the next leg sets off sooner.)
+      d = zoomTime(P, Q) * pace;
+      var gone = pace < 1 ? [t0 + d - 90, t0 + d + 10, 1, 0] : [t0 + d - 70, t0 + d - 70 + FADE_OUT, 1, 0];
+      put(next, prev.el);
+      between.forEach(function (b) { put(b, prev.el); });
+      layers = [{ built: next, spot: Q }].concat(between.map(spotted(gone)), [{ built: prev, spot: P, fade: gone }]);
+      path = function (t) { return camBetween(P, Q, SMOOTH(after(t, d))); };
+      arrive = t0 + d;
+    } else if (leg.kind === "hop") {
+      var C = spotOf(via.view), U = around(P, Q, C), d1 = zoomTime(P, U) * pace, d2 = zoomTime(U, Q) * pace, mid = t0 + d1;
+      put(via, prev.el);
+      put(next);
+      layers = [{ built: via, spot: C }, { built: prev, spot: P, fade: [mid - 50, mid + 60, 1, 0] },
+                { built: next, spot: Q, fade: [mid + 20, mid + 20 + FADE_IN, 0, 1] }];
+      path = function (t) {
+        return t <= mid ? camBetween(P, U, SMOOTH(after(t, d1))) : t <= mid + DWELL ? U :
+          camBetween(U, Q, SMOOTH(Math.min(1, (t - mid - DWELL) / d2)));
+      };
+      arrive = mid + DWELL + d2;
+    } else if (leg.kind === "slide") {
+      var from = PARTS[prev.view.map.mapID], to = PARTS[next.view.map.mapID], dir = from && to && to.uiMin.x < from.uiMin.x ? -1 : 1;
+      var ms = SLIDE_MS * pace, ease = pace < 1 ? ONWARD : SLIDE;
+      P = [0, 0, 1, 1];
+      Q = [dir, 0, dir + 1, 1];
+      put(next);
+      layers = [{ built: prev, spot: P }, { built: next, spot: Q }];
+      path = function (t) { return camBetween(P, Q, ease(after(t, ms))); };
+      arrive = t0 + ms;
+    } else {
+      // A map that can't be placed: the old one fades away, then the new
+      // one comes up, never both at once.
+      P = [0, 0, 1, 1];
+      put(next);
+      layers = [{ built: prev, spot: P, fade: [0, 140, 1, 0] }, { built: next, spot: P, fade: [140, 320, 0, 1] }];
+      path = function () { return P; };
+      arrive = 320;
+    }
+    // Before anything moves, each map where the camera starts.
+    var start = path(0);
+    layers.forEach(function (l) {
+      l.built.pic.style.transform = placeOn(start, l.spot);
+      if (l.fade) l.built.pic.style.opacity = l.fade[2];
+    });
+    var f = fly(layers, path, arrive);
+    if (last) f.arrived.then(function () { if (!queued) reveal(next); });
+    return f.done.then(function () {
+      prev.el.remove();
+      extra.forEach(function (b) { b.el.remove(); });
+      next.pic.style.transform = "";
+      next.pic.style.opacity = "";
+      next.pic.getAnimations().forEach(function (a) { a.cancel(); });
+      shown = next;
+      running = [];
     });
   }
-  function show(view) {
-    if (moving) {
-      queued = view;
-      running.forEach(function (a) { a.finish(); });
-      return;
-    }
-    moving = true;
-    var prev = shown, next = buildView(view);
-    current = next;
-    setHover(null);
+
+  function markLevel(view) {
     var level = view.kind === "zone" ? view.up : view.id;
     [].forEach.call($("atlas-bar").querySelectorAll("button"), function (b) {
       b.setAttribute("aria-pressed", String(Number(b.getAttribute("data-map")) === level));
     });
-    nameTag.innerHTML = view.kind === "zone" ? nameFor(view.id) : "";
-    if (view.kind === "zone") focusZone(view.id); else showRoute();
-    function done() {
-      if (prev) prev.el.remove();
-      next.el.classList.remove("moving");
-      shown = next;
-      running = [];
-      moving = false;
-      if (queued) { var q = queued; queued = null; show(q); }
-    }
-    if (!prev || reduceMotion || typeof next.el.animate !== "function") {
-      frame.insertBefore(next.el, nameTag);
-      done();
+  }
+  function show(view) {
+    target = view;
+    if (flying) {
+      queued = view;
+      hurry();
       return;
     }
-    next.el.style.visibility = "hidden";
-    frame.insertBefore(next.el, nameTag);
-    Promise.race([next.ready, wait(800)]).then(function () {
-      next.el.style.visibility = "";
-      return queued ? null : animateMove(prev, next);
-    }).then(done);
+    markLevel(view);
+    if (view.kind === "zone") focusZone(view.id); else showRoute();
+    if (shown && shown.view.id === view.id) { reveal(shown); return; }
+    if (!shown || reduceMotion || !canFly) {
+      var next = buildView(view);
+      frame.insertBefore(next.el, nameTag);
+      if (shown) shown.el.remove();
+      shown = next;
+      hover = null;
+      frame.style.cursor = "";
+      nameTag.innerHTML = view.kind === "zone" ? nameFor(view.id) : "";
+      nameTag.style.opacity = "";
+      return;
+    }
+    flying = true;
+    hover = null;
+    frame.style.cursor = "";
+    shown.over.classList.add("away");
+    shown.revealed = false;
+    fadeTo(shown.over, 0, PINS_OUT);
+    fadeTo(nameTag, 0, PINS_OUT);
+    var clicked = Date.now();
+    // Every map the trip shows, built now (heat painted, art decoding), so
+    // its legs run back to back.
+    var legs = legsTo(shown.view, view), pace = legs.length > 1 ? 0.85 : 1, built = [];
+    legs.forEach(function (leg) {
+      leg.next = buildView(leg.to);
+      leg.between = (leg.through || []).map(buildView);
+      leg.hub = leg.via ? buildView(leg.via) : null;
+      built = built.concat([leg.next], leg.between, leg.hub ? [leg.hub] : []);
+    });
+    built.forEach(hideOver);
+    var chain = Promise.race([Promise.all(built.map(function (b) { return b.ready; })), wait(2500)]);
+    legs.forEach(function (leg, i) {
+      chain = chain.then(function () {
+        if (i > 0 && queued) return;
+        return runLeg(leg, i === legs.length - 1, pace, i ? 0 : Math.max(0, PINS_OUT - (Date.now() - clicked)));
+      });
+    });
+    chain.then(function () {
+      flying = false;
+      running = [];
+      var q = queued;
+      queued = null;
+      if (q && q.id !== shown.view.id) { show(q); return; }
+      target = shown.view;
+      reveal(shown);
+      if (pointer) setHover(targetAt(pointer));
+    });
   }
   function nameFor(id) {
     var r = stopOf(id), m = MAP_BY_ID[id];
     return "<b>" + esc(m.name) + "</b><span>" + (r ? "Stop " + r.n + " · " + levels(r.from, r.to) + " · " + dur(r.seconds) :
       "Not on your route") + "</span>";
   }
-  function openZone(id) { if (artURL("zones/" + id + ".jpg") && (!current || current.view.id !== id)) show(viewOf(id)); }
-  function openMap(id) { if (!current || current.view.id !== id) show(viewOf(id)); }
+  function openZone(id) { if (artURL("zones/" + id + ".jpg") && (!target || target.id !== id)) show(viewOf(id)); }
+  function openMap(id) { if (!target || target.id !== id) show(viewOf(id)); }
 
   // Pointing: on a continent, the zone under the pointer lights up with the
   // game's own highlight (and its map starts loading); on Azeroth, the
   // continent's coastline lights up, as the game outlines it.
+  function placeAt(el, rect) {
+    el.style.left = (rect[0] * 100) + "%";
+    el.style.top = (rect[1] * 100) + "%";
+    el.style.width = ((rect[2] - rect[0]) * 100) + "%";
+    el.style.height = ((rect[3] - rect[1]) * 100) + "%";
+  }
   function glowOver(rect, src) {
     var img = new Image();
     img.className = "atlas-glow";
     img.alt = "";
     img.src = src;
     placeAt(img, rect);
-    current.el.insertBefore(img, current.el.querySelector(".atlas-route"));
+    shown.pic.appendChild(img);
     return img;
   }
-  function setHover(target) {
+  function setHover(t) {
     if (hover && hover.glow) hover.glow.remove();
     hover = null;
     frame.style.cursor = "";
-    if (current && current.view.kind !== "zone") nameTag.innerHTML = "";
-    if (!target || !current) return;
-    hover = { id: target };
+    if (!shown) return;
+    if (shown.view.kind !== "zone") nameTag.innerHTML = "";
+    if (!t) return;
+    hover = { id: t };
     frame.style.cursor = "pointer";
-    if (current.view.kind === "continent") {
-      hover.glow = glowOver(GLOWS[target].rect, GLOWS[target].src);
-      nameTag.innerHTML = nameFor(target);
+    if (shown.view.kind === "continent") {
+      hover.glow = glowOver(GLOWS[t].rect, GLOWS[t].src);
+      nameTag.innerHTML = nameFor(t);
       // Its map and its heat, ready before the click.
-      fetchArt("zones/" + target + ".jpg");
-      (window.requestIdleCallback || setTimeout)(function () { heatFor(viewOf(target)); });
+      fetchArt("zones/" + t + ".jpg");
+      (window.requestIdleCallback || setTimeout)(function () { heatFor(viewOf(t)); });
     } else {
-      var rect = rectOnView(current.view, MAP_BY_ID[target]), src = artURL("worldmap/highlights/" + target + ".jpg");
-      if (rect && src && WORLDMAP.outlines.indexOf(target) >= 0) hover.glow = glowOver(rect, src);
-      nameTag.innerHTML = "<b>" + esc(MAP_BY_ID[target].name) + "</b><span>" +
-        count(route.filter(function (r) { return r.map.mapID === MAP_BY_ID[target].mapID; }).length, "zone") + " of your route</span>";
+      var rect = rectOnView(shown.view, MAP_BY_ID[t]), src = artURL("worldmap/highlights/" + t + ".jpg");
+      if (rect && src && WORLDMAP.outlines.indexOf(t) >= 0) hover.glow = glowOver(rect, src);
+      nameTag.innerHTML = "<b>" + esc(MAP_BY_ID[t].name) + "</b><span>" +
+        count(route.filter(function (r) { return r.map.mapID === MAP_BY_ID[t].mapID; }).length, "zone") + " of your route</span>";
     }
   }
   function targetAt(event) {
-    var view = current && current.view;
+    var view = shown && !flying ? shown.view : null;
     if (!view || view.kind === "zone") return null;
     var box = frame.getBoundingClientRect(), u = (event.clientX - box.left) / box.width, v = (event.clientY - box.top) / box.height;
+    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
     if (view.kind === "continent") return zoneAt(view, u, v);
     var hit = null;
     [1414, 1415].forEach(function (id) {
@@ -1978,21 +2149,27 @@ kbd {
     return hit;
   }
   frame.addEventListener("pointermove", function (event) {
-    if (event.pointerType === "touch" || moving) return;
-    var target = targetAt(event);
-    if ((hover && hover.id) !== target) setHover(target);
+    if (event.pointerType === "touch") return;
+    pointer = { clientX: event.clientX, clientY: event.clientY };
+    if (flying) return;
+    var t = targetAt(event);
+    if ((hover && hover.id) !== t) setHover(t);
   });
-  frame.addEventListener("pointerleave", function () { setHover(null); });
+  frame.addEventListener("pointerleave", function () {
+    pointer = null;
+    if (!flying) setHover(null);
+  });
   frame.addEventListener("click", function (event) {
-    var target = targetAt(event);
-    if (!target) return;
-    if (current.view.kind === "world") openMap(target); else openZone(target);
+    if (flying) return;
+    var t = targetAt(event);
+    if (!t) return;
+    if (shown.view.kind === "world") openMap(t); else openZone(t);
   });
   // Escape goes back out, like the game's zoom out.
   frame.tabIndex = 0;
   frame.addEventListener("keydown", function (event) {
-    if (event.key !== "Escape" || !current || current.view.kind === "world") return;
-    openMap(current.view.kind === "zone" ? current.view.up : 947);
+    if (event.key !== "Escape" || !target || target.kind === "world") return;
+    openMap(target.kind === "zone" ? target.up : 947);
   });
   $("atlas-bar").addEventListener("click", function (event) {
     var button = event.target.closest("button");
