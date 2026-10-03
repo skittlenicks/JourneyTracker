@@ -2053,7 +2053,7 @@ kbd {
     }
     flying = true;
     hover = null;
-    frame.style.cursor = "";
+    frame.style.cursor = "progress";   // until its maps are in, if they have to load
     shown.over.classList.add("away");
     shown.revealed = false;
     fadeTo(shown.over, 0, PINS_OUT);
@@ -2073,6 +2073,7 @@ kbd {
     legs.forEach(function (leg, i) {
       chain = chain.then(function () {
         if (i > 0 && queued) return;
+        frame.style.cursor = "";
         return runLeg(leg, i === legs.length - 1, pace, i ? 0 : Math.max(0, PINS_OUT - (Date.now() - clicked)));
       });
     });
@@ -2216,6 +2217,17 @@ kbd {
       routeList();
     }
   }
+  // Pointing at a zone in the list (or tabbing to it) loads its map ahead.
+  function readyZone(event) {
+    var button = event.target.closest && event.target.closest(".zone-link");
+    if (!button) return;
+    var n = Number(button.getAttribute("data-stop")), r = route.filter(function (x) { return x.n === n; })[0];
+    if (!r) return;
+    fetchArt("zones/" + r.map.uiMapID + ".jpg");
+    (window.requestIdleCallback || setTimeout)(function () { heatFor(viewOf(r.map.uiMapID)); });
+  }
+  $("spots").addEventListener("pointerover", readyZone);
+  $("spots").addEventListener("focusin", readyZone);
   $("spots").addEventListener("click", function (event) {
     var button = event.target.closest(".zone-link");
     if (!button) return;
