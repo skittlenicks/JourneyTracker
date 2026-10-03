@@ -1839,8 +1839,9 @@ kbd {
   var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   var canFly = typeof frame.animate === "function" && typeof KeyframeEffect === "function" && typeof Animation === "function";
   // How long things take (ms), and how they move: EASE starts and ends
-  // gently, SETTLE comes to rest softly, SLIDE is the slide's.
-  var PINS_OUT = 90, ZOOM_MS = 500, ACROSS_MS = 480, SLIDE_MS = 560, HURRY = 3.5;
+  // gently, SETTLE comes to rest softly, SLIDE is the slide's. Every move
+  // plays at PACE: 30% slower than the timings in runMove say.
+  var PACE = 1.3, PINS_OUT = 115, ZOOM_MS = 500, ACROSS_MS = 480, SLIDE_MS = 560, HURRY = 3.5;
   var EASE = bezier(0.45, 0, 0.55, 1), SETTLE = bezier(0.3, 0, 0.2, 1), SLIDE = bezier(0.65, 0, 0.35, 1);
   // CSS's cubic-bezier() as a function, to work out keyframes ahead.
   function bezier(x1, y1, x2, y2) {
@@ -1942,9 +1943,9 @@ kbd {
     if (built.revealed) return;
     built.revealed = true;
     built.over.classList.remove("away");
-    fadeTo(built.over, 1, 200);
+    fadeTo(built.over, 1, 260);
     nameTag.innerHTML = built.view.kind === "zone" ? nameFor(built.view.id) : "";
-    fadeTo(nameTag, 1, 200);
+    fadeTo(nameTag, 1, 260);
   }
 
   // One move from the map on screen to next (built, its art decoded),
@@ -2004,6 +2005,13 @@ kbd {
         { built: next, at: function (t) { return [1, dir * 100 * (1 - along(t, t0, total, SLIDE)), 0, 0, 1]; } }
       ];
     }
+    // Played at PACE: a moment t after the start shows the move as its
+    // timings have it at (t - t0) / PACE.
+    var end = t0 + (total - t0) * PACE;
+    layers.forEach(function (l) {
+      var at = l.at;
+      l.at = function (t) { return at(t0 + (t - t0) / PACE); };
+    });
     // Before anything moves, each map as it starts.
     layers.forEach(function (l) {
       var k = look(l.at(0));
@@ -2012,7 +2020,7 @@ kbd {
       l.built.pic.style.opacity = k.pic.opacity;
       l.built.soft.style.opacity = k.soft.opacity;
     });
-    var move = fly(layers, total, total - 70);
+    var move = fly(layers, end, end - 70 * PACE);
     move.landed.then(function () { if (!queued) reveal(next); });
     return move.done.then(function () {
       prev.el.remove();
