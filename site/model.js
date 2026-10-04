@@ -8,7 +8,8 @@ var JourneyModel = (function () {
 
   // Bump when a ranked value changes meaning or the rankings gain keys:
   // profiles saved under an older model get worked out again (site/api/ranks.js).
-  var MODEL = 1;
+  // 2: ranked per milestone; "played" and "days" are the time to it.
+  var MODEL = 2;
   // A place needs this many players on the ranking, you included: being 1st
   // of 2 says nothing.
   var MIN_PLAYERS = 3;
@@ -62,6 +63,9 @@ var JourneyModel = (function () {
     return out;
   }
   function capFirst(text) { return text.charAt(0).toUpperCase() + text.slice(1); }
+  // Every ten levels is a milestone. A journey counts toward the last one
+  // its level reached (one at 34 toward 30; one under 10 toward none, 0).
+  function milestoneOf(level) { return level >= 60 ? 60 : Math.max(0, Math.floor(level / 10) * 10); }
   function dayOf(t) { return new Date(t * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric" }); }
   function own(map, key) { return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined; }
   var QUALITY = ["poor", "common", "uncommon", "rare", "epic", "legendary"];
@@ -138,7 +142,31 @@ var JourneyModel = (function () {
     var path = listOf(st.path);
     var pathLevels = path.map(function (p) { return number(named(p).level); }).filter(function (l) { return l > 0; });
     J.firstLevel = pathLevels.length ? Math.min.apply(null, pathLevels) : level;
-    J.complete = J.firstLevel <= 2 && level >= 60;   // tracked from the start to 60
+
+    // The milestone it counts toward, and whether it's "at" it: exported at
+    // that level, as the addon does when you reach one (data.milestone).
+    // The time to it is from the level-up there, where the tracker saw it.
+    J.milestone = milestoneOf(level);
+    J.atMilestone = level === J.milestone;
+    J.savedAtMilestone = J.atMilestone && number(data.milestone) === level;
+    var reach = named(dings[J.milestone]);
+    var reachedAt = number(reach.t) || (J.milestone === 60 && reachedMax) || (J.atMilestone && J.milestone ? now : 0);
+    J.complete = J.firstLevel <= 2 && J.milestone >= 10;   // tracked from the start to its milestone
+    J.playedTo = J.milestone ? number(reach.played) || (J.atMilestone ? J.played : 0) || undefined : undefined;
+    // Calendar days only count from a start the tracker saw.
+    function daysTo(t) { return J.complete ? Math.max(1, Math.ceil((t - since) / 86400)) : null; }
+    J.daysTo = reachedAt && daysTo(reachedAt) || undefined;
+    J.reachedMilestone = J.milestone && reachedAt ? dayOf(reachedAt) : null;
+    // Then and now: each milestone the tracker saw you reach, with how far
+    // you'd come by then (the running totals saved at the level-up).
+    J.milestoneRows = [];
+    for (var m = 10; m <= J.milestone; m += 10) {
+      var at = named(dings[m]);
+      if (!(number(at.t) > 0)) continue;
+      J.milestoneRows.push({ level: m, date: dayOf(number(at.t)), days: daysTo(number(at.t)),
+                             played: number(at.played) || null, kills: number(at.kills), deaths: number(at.deaths),
+                             quests: number(at.quests) });
+    }
     function mostIn(field) {
       return Object.keys(levelStats).reduce(function (m, k) { return Math.max(m, number(named(levelStats[k])[field])); }, 0);
     }
@@ -489,15 +517,17 @@ var JourneyModel = (function () {
     var enoughHours = !J.imported || hourSum >= 5 * 3600;
     var enoughTime = !J.imported || trackedTime >= 5 * 3600;
     function when(enough, value) { return enough ? value : undefined; }
+    // An export is ranked against others at its milestone (the sample is a 60).
     var p = {
       label: "You", classToken: J.classToken, className: J.className, race: J.race, faction: J.faction,
-      ruleset: J.ruleset, trades: J.trades, partial: !J.complete,
+      ruleset: J.ruleset, trades: J.trades, partial: !J.complete, milestone: J.imported ? J.milestone : 60,
       names: { mob: J.topMobs.length ? J.topMobs[0][0] : "", zone: J.deathZones.length ? J.deathZones[0][0] : "",
                quest: J.longestQuest && J.longestQuest.title || "Your longest quest",
                item: J.wornPlayed ? "[" + J.wornPlayed.name + "]" : "", kept: J.wornLevels ? "[" + J.wornLevels.name + "]" : "",
                fav: home ? home[0] : "" },
       values: {
-        played: total, days: J.calendarDays, sessions: J.sessions, avgSession: J.avgSession || total / J.sessions,
+        // Time to the milestone: from its level-up (none before level 10).
+        played: J.imported ? J.playedTo : total, days: J.imported ? J.daysTo : J.calendarDays, sessions: J.sessions, avgSession: J.avgSession || total / J.sessions,
         session: J.longestSession, sessionLevels: J.bestSession && J.bestSession.levels, daysPlayed: J.daysPlayed,
         afk: part(J.timeSpent, "AFK"), resting: part(J.timeSpent, "Resting in inns and cities"),
         taxiTime: part(J.timeSpent, "On flight paths"), mounted: part(J.timeSpent, "Mounted"),
@@ -572,37 +602,44 @@ var JourneyModel = (function () {
       if (typeof v === "number" && isFinite(v)) values[r.key] = rounded(v);
     });
     return { model: MODEL, classToken: p.classToken, race: p.race, faction: p.faction, ruleset: p.ruleset,
-             trades: p.trades.slice(), partial: p.partial, values: values };
+             trades: p.trades.slice(), partial: p.partial, milestone: p.milestone, values: values };
   }
 
   // Whether a ranking applies: a number to rank, the right class, race,
-  // faction or realm, the profession it's about, and (where more is notable)
-  // something to count. Where less is notable (fewest deaths, fastest to
-  // 60), only a journey tracked from level 1 to 60 counts.
+  // faction or realm, the profession it's about, the milestone it's for
+  // (some only mean something at 60), and (where more is notable) something
+  // to count. Where less is notable (fewest deaths, fastest to 30), only a
+  // journey tracked from level 1 to its milestone counts.
   function applies(r, p) {
     var v = p.values[r.key];
     if (typeof v !== "number" || !isFinite(v)) return false;
     if (r.trade && p.trades.indexOf(r.trade) < 0) return false;
+    if (r.at60 && p.milestone !== undefined && p.milestone !== 60) return false;
     if (r.high ? !(v > 0) : p.partial) return false;
     return !r.only || Object.keys(r.only).every(function (k) { return [].concat(r.only[k]).indexOf(p[k]) >= 0; });
   }
   var COHORT_FIELDS = { class: "classToken", race: "race", faction: "faction", ruleset: "ruleset" };
   var RACE_PLURAL = { "Night Elf": "Night Elves", Dwarf: "Dwarves", Undead: "Undead", Tauren: "Tauren", Skyborne: "Skyborne" };
+  // Who a place is among: "Druids", or below 60 "Level 30 Druids".
   function cohortLabel(r, p) {
-    if (r.cohort === "class") return p.className + "s";
-    if (r.cohort === "race") return RACE_PLURAL[p.race] || (p.race + "s");
-    if (r.cohort === "faction") return p.faction + " players";
-    if (r.cohort === "ruleset") return p.ruleset + " realm players";
-    return "All players";
+    var at = p.milestone === undefined || p.milestone >= 60 ? "" : p.milestone ? "Level " + p.milestone + " " : "Level 1-9 ";
+    if (r.cohort === "class") return at + p.className + "s";
+    if (r.cohort === "race") return at + (RACE_PLURAL[p.race] || (p.race + "s"));
+    if (r.cohort === "faction") return at + p.faction + " players";
+    if (r.cohort === "ruleset") return at + p.ruleset + " realm players";
+    return at ? at + "players" : "All players";
   }
 
   // Where a saved profile places on each ranking that applies to it, against
-  // the others in its cohort (its class, race, faction, realm type or
-  // everyone) that the ranking applies to: { ranking id: [place, players] },
-  // 1 the best and ties sharing the better place. Rankings with fewer than
-  // MIN_PLAYERS players are left out.
+  // the others at its milestone in its cohort (its class, race, faction,
+  // realm type or everyone) that the ranking applies to: { ranking id:
+  // [place, players] }, 1 the best and ties sharing the better place.
+  // Rankings with fewer than MIN_PLAYERS players are left out.
   function placesFor(me, others, rankings) {
     var out = {};
+    others = others.filter(function (q) {
+      return q.milestone === undefined || me.milestone === undefined || q.milestone === me.milestone;
+    });
     rankings.forEach(function (r) {
       if (!applies(r, me)) return;
       var field = COHORT_FIELDS[r.cohort], mine = me.values[r.key], place = 1, players = 1;
@@ -627,6 +664,7 @@ var JourneyModel = (function () {
       text = text.replace(/\{n\} ([a-z\/]*[^su\W]s)\b(?!,| and | [a-z]+s\b)/gi, function (all, word) { return "{n} " + word.slice(0, -1); });
     }
     return text.replace(/\{(\w+)\}/g, function (all, k) {
+      if (k === "m") return String(p.milestone || 60);
       if (k === "n") return num(v);
       if (k === "t") return dur(v);
       if (k === "g") return coins(v);
@@ -678,6 +716,7 @@ var JourneyModel = (function () {
     MODEL: MODEL, MIN_PLAYERS: MIN_PLAYERS, SHARE_FROM: SHARE_FROM,
     sum: sum, num: num, dur: dur, coins: coins, named: named, number: number, numbered: numbered, listOf: listOf,
     addUp: addUp, topRows: topRows, tally: tally, capFirst: capFirst, dayOf: dayOf, own: own, itemOf: itemOf,
+    milestoneOf: milestoneOf,
     paneNumber: paneNumber, CLASS_NAMES: CLASS_NAMES, RACE_NAMES: RACE_NAMES,
     journeyFromExport: journeyFromExport, profileOf: profileOf, saved: saved, applies: applies,
     cohortLabel: cohortLabel, placesFor: placesFor, ordinal: ordinal, fill: fill, standing: standing,

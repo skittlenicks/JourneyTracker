@@ -11,7 +11,8 @@
 //   who        who the top players are, read as "the top 1% of <who>"
 //   detail     the player's number: {n} count, {t} time, {g} money (from copper),
 //              {p} whole number, {d} one decimal; {mob} {zone} {quest} {item}
-//              {kept} {fav} are the player's own names
+//              {kept} {fav} are the player's own names; {m} the milestone the
+//              journey is ranked at (30 for one at level 30-39, 60 at 60)
 //   direction  "+" when more is the notable way, "-" when less is. A "+"
 //              ranking skips players at 0: nobody is top 1% of Onyxia
 //              slayers without killing her.
@@ -19,12 +20,13 @@
 //              log. Made up: only the sample journey and the example players
 //              are ranked on them. A saved journey gets its real place.
 //   line       a line to go with it (it can use the names too)
-//   extra      { id, family, only, cohort, trade, min, max }: `id` when two
+//   extra      { id, family, only, cohort, trade, min, max, at60 }: `id` when two
 //              rankings share a key, `family` for rankings that measure the
 //              same thing (only one is shown), `only`/`cohort` for class,
 //              race, faction and realm rankings (`only` can list several), `trade` for a profession's
 //              own rankings (only players with it), `min`/`max` for the
-//              values the game allows (levels, skill, percentages)
+//              values the game allows (levels, skill, percentages), `at60`
+//              for rankings that only mean something at level 60
 var RANKINGS = (function () {
   function R(key, source, group, who, detail, direction, median, spread, line, extra) {
     var r = { id: key, key: key, source: source, group: group, name: who, detail: detail,
@@ -48,9 +50,9 @@ var RANKINGS = (function () {
 
   return [
     // ---- Time and pace (journey #1-18) ----
-    R("played", "J1", "pace", "speed-levelers", "60 in {t} /played", "-", 864000, 0.3, "Azeroth barely had time to learn your name."),
-    R("played", "J1", "pace", "speed-levelers", "60 in {t} /played", "-", 850000, 0.28, "The fastest of your class. Your trainer barely kept up.", { id: "playedClass", cohort: "class" }),
-    R("days", "J4", "pace", "fast finishers", "60 in {n} calendar days", "-", 62, 0.5, "Some take a season. You took a few weeks."),
+    R("played", "J1", "pace", "speed-levelers", "{m} in {t} /played", "-", 864000, 0.3, "Azeroth barely had time to learn your name."),
+    R("played", "J1", "pace", "speed-levelers", "{m} in {t} /played", "-", 850000, 0.28, "The fastest of your class. Your trainer barely kept up.", { id: "playedClass", cohort: "class" }),
+    R("days", "J4", "pace", "fast finishers", "{m} in {n} calendar days", "-", 62, 0.5, "Some take a season. You took a few weeks."),
     R("sessions", "J6", "pace", "frequent visitors", "{n} play sessions", "+", 90, 0.4, "You clocked in like it was a job. It kind of was."),
     R("avgSession", "J7", "pace", "settlers-in", "{t} per session on average", "+", 6000, 0.4, "When you sit down, you sit down."),
     R("session", "J8", "pace", "marathon players", "{t} in one sitting", "+", 16200, 0.4, "Hydration is a buff too, you know."),
@@ -97,7 +99,7 @@ var RANKINGS = (function () {
     R("maxMobs", "J40", "combat", "crowd fighters", "{n} mobs on you at once", "+", 5, 0.35, "That's not a pull, that's a parade."),
     R("bosses", "J41", "dungeons", "dungeon crawlers", "{n} dungeon bosses downed", "+", 55, 0.45, "Bosses saw you coming and checked their loot tables."),
     R("wipes", "J42", "dungeons", "wipe veterans", "{n} boss wipes", "+", 12, 0.7, "Every wipe is a lesson. You learned a lot."),
-    R("honor", "J43", "pvp", "world PvPers", "{n} honorable kills on the way to 60", "+", 35, 0.9, "Leveling was the side quest. The other faction was the main one."),
+    R("honor", "J43", "pvp", "world PvPers", "{n} honorable kills on the way to {m}", "+", 35, 0.9, "Leveling was the side quest. The other faction was the main one."),
 
     // ---- Deaths (#44-52) ----
     R("deaths", "J44", "deaths", "survivors", "only {n} deaths", "-", 60, 0.45, "The Spirit Healer has your number but never calls."),
@@ -161,14 +163,14 @@ var RANKINGS = (function () {
     R("mount", "J84", "gold", "early riders", "first mount at level {n}", "-", 40, 0.06, "Walking is for people without a plan.", { min: 40 }),
     R("mountPlayed", "J84", "gold", "quick saddlers", "mounted after {t} /played", "-", 500000, 0.25, "Saddled up before most had worn in their boots."),
     R("peakGold", "J85", "gold", "hoarders", "{g} at your richest", "+", 1200000, 0.6, "A dragon would be jealous of that hoard."),
-    R("saved", "J77", "gold", "savers", "{g} kept at 60", "+", 800000, 0.8, "Ready for that epic mount. Almost."),
+    R("saved", "J77", "gold", "savers", "{g} kept at {m}", "+", 800000, 0.8, "Ready for that epic mount. Almost."),
 
     // ---- Loot and gear (#86-90, 104) ----
     R("looted", "J86", "loot", "looters", "{n} items looted", "+", 3000, 0.3, "If it dropped, it's in your bags."),
     R("grays", "J87", "loot", "vendor trash collectors", "{n} gray items picked up", "+", 1250, 0.4, "One player's trash is another player's three copper."),
     R("greens", "J87", "loot", "green collectors", "{n} green items looted", "+", 500, 0.4, "Of the Monkey, of the Bear, of the Whale: all yours."),
     R("rareLoot", "J87", "loot", "treasure hunters", "{n} blue items looted", "+", 45, 0.5, "Blue drops follow you around."),
-    R("epics", "J87", "loot", "epic finders", "{n} epic items looted", "+", 0.5, 0.9, "Purple, before 60. Some people just have it."),
+    R("epics", "J87", "loot", "epic finders", "{n} epic items looted", "+", 0.5, 0.9, "Purple, before {m}. Some people just have it."),
     R("bestItem", "J88", "loot", "loot legends", "best item looted: item level {n}", "+", 40, 0.15, "The drop rate gods smiled on you."),
     R("firstBlue", "J90", "loot", "early blues", "first blue at level {n}", "-", 22, 0.2, "Blue before most had their first green."),
     R("firstEpic", "J90", "loot", "early epics", "first epic at level {n}", "-", 55, 0.1, "Purple pixels, early."),
@@ -182,7 +184,7 @@ var RANKINGS = (function () {
     R("herbs", "J103", "crafts", "herbalists", "{n} herbs picked", "+", 400, 0.9, "Peacebloom fears you.", T("Herbalism")),
     R("ore", "J103", "crafts", "miners", "{n} ore nodes mined", "+", 350, 0.9, "You can hear a copper vein from three zones away.", T("Mining")),
     R("skinned", "J103", "crafts", "skinners", "{n} creatures skinned", "+", 650, 0.8, "Nothing goes to waste. Nothing.", T("Skinning")),
-    R("maxed", "J92", "crafts", "master artisans", "{n} professions at 300 by level 60", "+", 1, 0.6, "Max level and max skill. Overachiever."),
+    R("maxed", "J92", "crafts", "master artisans", "{n} professions at 300 by level 60", "+", 1, 0.6, "Max level and max skill. Overachiever.", { at60: true }),
 
     // ---- Social and fun (#97-100) ----
     R("grouped", "J97", "social", "party people", "{p}% of your time in a group", "+", 25, 0.5, "Better together."),
@@ -194,7 +196,7 @@ var RANKINGS = (function () {
 
     // ---- WoW Forever (wrapped W-001..W-021) ----
     R("zephras", "W-001", "forever", "quick fledglings", "left Zephras Isle at level {n}", "-", 10, 0.2, "The nest was nice, but the world was waiting.", { only: { race: "Skyborne" }, cohort: "race" }),
-    R("hyjal", "W-006", "forever", "Hyjal pioneers", "reached Mount Hyjal {n} days after 60", "-", 5, 0.8, "You didn't even unpack at 60."),
+    R("hyjal", "W-006", "forever", "Hyjal pioneers", "reached Mount Hyjal {n} days after 60", "-", 5, 0.8, "You didn't even unpack at 60.", { at60: true }),
     R("forever", "W-007", "forever", "Forever explorers", "{n} new Forever quests done", "+", 55, 0.45, "You went looking for what's new, and found it."),
     R("camps", "W-008", "forever", "campers", "{n} campfires set up", "+", 10, 0.7, "Why pay for an inn when you can bring your own?"),
     R("campTime", "W-009", "forever", "fireside regulars", "{t} at campfires", "+", 7200, 0.6, "Marshmallows were toasted. Probably.", { family: "camps" }),
@@ -466,7 +468,7 @@ var RANKINGS = (function () {
     R("onyxia", "P-1098", "bosses", "Onyxia slayers", "{n} Onyxia kills", "+", 0.2, 0.8, "Many whelps! You handled it."),
     // Consumables
     R("elixirs", "P-923", "consumables", "alchemy fans", "{n} elixirs", "+", 40, 0.9, "Better living through alchemy."),
-    R("flasks", "P-811", "consumables", "flask drinkers", "{n} flasks", "+", 0.5, 1.2, "Flasks before 60? Fancy."),
+    R("flasks", "P-811", "consumables", "flask drinkers", "{n} flasks", "+", 0.5, 1.2, "Flasks before {m}? Fancy."),
     R("drinks", "P-346", "consumables", "the well-hydrated", "{n} drinks", "+", 600, 0.6, "Stay hydrated, adventurer."),
     R("meals", "P-347", "consumables", "eaters", "{n} meals eaten", "+", 500, 0.6, "Second breakfast is a real meal.", { family: "food" }),
     // Reputation

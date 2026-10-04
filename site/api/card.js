@@ -15,17 +15,20 @@ const JourneyModel = require('./model');
 const LOGO = fs.readFileSync(path.join(__dirname, 'logo.png'));
 const SITE = 'https://www.journeytracker.dev';
 
-// What the card shows, the way the share page's card shows it. Before a
-// journey has places, three of its headline numbers, skipping any at 0
-// (but no deaths is worth showing).
+// What the card shows, the way the share page's card shows it. At a
+// milestone, the time it took to get there; otherwise the time so far.
+// Before a journey has places, three of its headline numbers, skipping any
+// at 0 (but no deaths is worth showing).
 function cardOf(J, picks) {
   const zones = J.path.length;
   const stats = [['Kills', J.kills], ['Deaths', J.deaths, true], ['Quests', J.quests.completed], ['Zones', zones],
     ['Dungeon bosses', J.bosses], ['Jumps', J.jumps]].filter((s) => s[1] > 0 || s[2]).slice(0, 3);
+  const reached = J.atMilestone && J.milestone && J.playedTo;
   return {
     who: `${J.race} ${J.className}` + (J.faction ? ` · ${J.faction}` : ''),
     level: J.level,
-    played: `${JourneyModel.dur(J.played)} /played` + (J.reached60 ? ` over ${J.calendarDays} days` : '') +
+    played: `${JourneyModel.dur(reached ? J.playedTo : J.played)} /played` +
+      (reached && J.daysTo ? ` over ${J.daysTo} day${J.daysTo === 1 ? '' : 's'}` : '') +
       (zones ? ` · ${zones} zone${zones === 1 ? '' : 's'}` : ''),
     ranks: picks.slice(0, 3).map((x) => ({ big: x.big, who: x.who, detail: x.detail, cohort: x.cohort })),
     stats: stats.map((s) => [s[0], JourneyModel.num(s[1])]),
