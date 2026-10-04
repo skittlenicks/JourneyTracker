@@ -22,6 +22,7 @@ local TICK_SECONDS = 5         -- time/position sampling interval
 local FIGHT_SAMPLE_SECONDS = 1 -- nameplate threat sampling while in combat
 local XP_SOURCE_WINDOW = 2     -- seconds an XP source (kill/quest/explore) stays "fresh"
 local TELEPORT_YARDS = 200     -- a jump bigger than this between samples isn't travel
+local SPOT_GRID = 25           -- #108 each zone map in 25 x 25 squares (4% of it each way)
 local HEARTHSTONE = 8690
 local FISHING = { [7620] = true, [7731] = true, [7732] = true, [18248] = true }
 local PROFESSIONS = {
@@ -180,6 +181,7 @@ local DEFAULTS = {
     subzones = {},          -- #64 ["zone: subzone"] = first visit epoch
     discovered = 0,         -- #64 "Discovered ..." exploration messages
     path = {},              -- #67 zone changes in order
+    where = {},             -- #108 [uiMapID] = { [square] = seconds }, see SpotOf()
     travel = { hearths = 0, flights = 0, flightPaths = {}, ground = 0, taxi = 0 },
     dungeons = { entered = {}, runs = {} }, -- #73-75; .current = run in progress
     money = { earned = 0, spent = 0, loot = 0, vendor = 0, vendorSpent = 0,
@@ -319,6 +321,14 @@ local function MapPos()
     local ok, x, y = pcall(pos.GetXY, pos)
     if not ok then return mapID end
     return mapID, Pct(Num(Safe(x))), Pct(Num(Safe(y)))
+end
+
+-- #108 the square of a zone map a position (percentages) is in: 1 to 625,
+-- row by row from the top left.
+local function SpotOf(x, y)
+    local col = math.min(SPOT_GRID - 1, math.max(0, math.floor(x / 100 * SPOT_GRID)))
+    local row = math.min(SPOT_GRID - 1, math.max(0, math.floor(y / 100 * SPOT_GRID)))
+    return row * SPOT_GRID + col + 1
 end
 
 -- World position in yards (readable outdoors on Forever, per the probe).
@@ -1200,7 +1210,7 @@ local function CloseSession()
     end
 end
 
-local lastTick, lastPos
+local lastTick, lastPos, spot
 local function Tick()
     local now = GetTime()
     local dt = lastTick and (now - lastTick) or 0
@@ -1213,7 +1223,8 @@ local function Tick()
     db.days[date("%Y-%m-%d")] = true                          -- #17 distinct days
     Inc(db.hours, tonumber(date("%H")), dt)                   -- #18 hour-of-day heatmap
 
-    if Call("UnitIsAFK", "player") == true then T.afk = T.afk + dt end      -- #10
+    local afk = Call("UnitIsAFK", "player") == true
+    if afk then T.afk = T.afk + dt end                                     -- #10
     if Call("IsResting") == true then T.resting = T.resting + dt end       -- #11
     local onTaxi = Call("UnitOnTaxi", "player") == true
     if onTaxi then T.taxi = T.taxi + dt end                                -- #13
@@ -1227,6 +1238,24 @@ local function Tick()
     if InGroup() then T.grouped = T.grouped + dt else T.solo = T.solo + dt end -- #97
     local Z = currentZone and db.zones[currentZone]
     if Z then Z.seconds = Z.seconds + dt end                               -- #66 time per zone
+
+    -- #108 where you spend your time: the square of the zone's map you're
+    -- in, read out of combat like the distance below, so a fight's time
+    -- goes to the square it started in. Not on a flight path or AFK, and
+    -- nowhere the map can't place you (instances).
+    if onTaxi then
+        spot = nil
+    elseif not afk then
+        if not InCombat() then
+            local mapID, x, y = MapPos()
+            spot = x and y and { map = mapID, square = SpotOf(x, y) } or nil
+        end
+        if spot then
+            local squares = db.where[spot.map]
+            if not squares then squares = {}; db.where[spot.map] = squares end
+            Inc(squares, spot.square, math.floor(dt + 0.5))
+        end
+    end
 
     -- #71 distance, sampled out of combat only.
     if not InCombat() then

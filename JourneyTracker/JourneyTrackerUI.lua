@@ -784,6 +784,13 @@ local function PageZones(B, db)
     B:Title("Zones")
     local zones = Zones(db)
     B:Row("Zones visited", Count(zones))                                     -- #63
+    local squares, placed = 0, 0                                             -- #108
+    for _, map in pairs(db.where or {}) do
+        for _, seconds in pairs(map) do squares, placed = squares + 1, placed + seconds end
+    end
+    B:Row("Time placed on the map", Dur(placed))
+    B:Note(string.format("In %s squares of the zone maps. The website draws where you spent your time from these.",
+        Num(squares)))
     local list = Sorted(zones, function(z) return z.seconds end)
     local max = list[1] and list[1][2].seconds or 0
     B:Heading("Time Spent in Each Zone")                                     -- #66

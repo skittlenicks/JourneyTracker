@@ -59,6 +59,9 @@ WHAT'S COLLECTED
 - Your character's class, race, faction, level and time played.
 - Gameplay stats: kills, deaths, quests, gold, loot, zones, professions,
   spells you cast, and so on.
+- Where on each zone's map you spend your time: the rough square you're in,
+  every few seconds (not on flights or while AFK). The website draws its
+  heat map from it.
 - A random ID made up by the addon, so I can tell your exports apart over
   time. It isn't based on your name or anything else about you.
 

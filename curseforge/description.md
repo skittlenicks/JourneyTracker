@@ -29,6 +29,7 @@ Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap.
 **Exploration and travel**
 
 - Every zone in the order you reached it, subzones discovered, and time spent in each zone
+- Where on each zone's map you spent that time, for the heat map on your recap (checked every few seconds, not on flights or while AFK)
 - Hearthstone uses, flight paths found, flights taken, and distance traveled on the ground and by air
 - Total distance fallen, and the longest fall you survived
 
