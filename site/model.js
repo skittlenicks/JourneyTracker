@@ -317,14 +317,25 @@ var JourneyModel = (function () {
     });
     J.zonesVisited = Object.keys(zones).filter(function (z) { return z !== "Unknown"; }).length;
     J.subzones = Object.keys(named(st.subzones)).length;
-    // The places found in each zone ("Zone: Subzone" keys).
+    // The level you were at a moment: the last level-up or zone change the
+    // tracker saw before it (levels only go up).
+    var ups = Object.keys(dings).map(function (l) { return [number(named(dings[l]).t), Number(l)]; });
+    function levelAt(t) {
+      var lvl = J.firstLevel || 0;
+      ups.forEach(function (u) { if (u[0] > 0 && u[0] <= t && u[1] > lvl) lvl = u[1]; });
+      path.forEach(function (p) { p = named(p); if (number(p.t) <= t && number(p.level) > lvl) lvl = number(p.level); });
+      return lvl;
+    }
+    // The places found in each zone ("Zone: Subzone" keys, each with when you
+    // first went in), in the order you found them: [{ name, date, level }].
     J.places = Object.create(null);
-    Object.keys(named(st.subzones)).forEach(function (key) {
-      var at = key.indexOf(": ");
+    var subzones = named(st.subzones);
+    Object.keys(subzones).sort(function (a, b) { return number(subzones[a]) - number(subzones[b]); }).forEach(function (key) {
+      var at = key.indexOf(": "), t = number(subzones[key]);
       if (at < 1) return;
       var zone = key.slice(0, at);
       if (!J.places[zone]) J.places[zone] = [];
-      J.places[zone].push(key.slice(at + 2));
+      J.places[zone].push({ name: key.slice(at + 2), date: t > 0 ? dayOf(t) : null, level: t > 0 ? levelAt(t) : null });
     });
     J.zoneChanges = path.length;
     var travel = named(st.travel), falls = named(st.falls);

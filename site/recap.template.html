@@ -564,6 +564,9 @@ kbd {
   box-shadow: 0 0 0 2px var(--gold-deep), 0 0 8px 3px var(--gold);
 }
 .death-dot { display: inline-block; font: 700 0.95rem/1 var(--font-body); color: #ff7a59; }
+/* A place you found: a plain ring, not a hotspot's glow (finding a place
+   isn't time spent there) */
+.found-dot { display: inline-block; width: 9px; height: 9px; border: 1.5px solid var(--ink-soft); border-radius: 50%; }
 
 /* Under the map: the route (or the zone you flew into), in columns */
 .heat-info { display: grid; gap: 14px; }
@@ -2377,8 +2380,9 @@ kbd {
       $("spots").innerHTML = died.map(function (s) {
         return listItem('<span class="n dot"><i class="death-dot">×</i></span>', s.d.killer || "Unknown", "Level " + s.d.level,
           Math.round(s.d.x) + ", " + Math.round(s.d.y));
-      }).join("") + found.map(function (name) {
-        return listItem('<span class="n dot"><i class="spot-dot"></i></span>', name, "", "Found");
+      }).join("") + found.map(function (p) {
+        return listItem('<span class="n dot"><i class="found-dot"></i></span>', p.name, p.level ? "Level " + p.level : "",
+          p.date ? "Found " + p.date : "Found");
       }).join("");
     } else {
       routeList();
