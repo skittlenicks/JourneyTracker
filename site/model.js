@@ -149,13 +149,17 @@ var JourneyModel = (function () {
     J.milestone = milestoneOf(level);
     J.atMilestone = level === J.milestone;
     J.savedAtMilestone = J.atMilestone && number(data.milestone) === level;
-    var reach = named(dings[J.milestone]);
-    var reachedAt = number(reach.t) || (J.milestone === 60 && reachedMax) || (J.atMilestone && J.milestone ? now : 0);
+    // Without the level-up's own record, an export made at the milestone
+    // stands in for it, but only if the tracker saw the character below it:
+    // one picked up at 20 didn't reach 20 on the day it was exported.
+    var reach = named(dings[J.milestone]), sawIt = J.atMilestone && J.milestone && J.firstLevel < J.milestone;
+    var reachedAt = number(reach.t) || (J.milestone === 60 && reachedMax) || (sawIt ? now : 0);
     J.complete = J.firstLevel <= 2 && J.milestone >= 10;   // tracked from the start to its milestone
-    J.playedTo = J.milestone ? number(reach.played) || (J.atMilestone ? J.played : 0) || undefined : undefined;
-    // Calendar days only count from a start the tracker saw.
-    function daysTo(t) { return J.complete ? Math.max(1, Math.ceil((t - since) / 86400)) : null; }
-    J.daysTo = reachedAt && daysTo(reachedAt) || undefined;
+    J.playedTo = J.milestone ? number(reach.played) || (sawIt ? J.played : 0) || undefined : undefined;
+    // Calendar days from the tracker's first day: the journey's own first
+    // day only when it's complete, so only then "Level 30 in 12 days".
+    function daysTo(t) { return Math.max(1, Math.ceil((t - since) / 86400)); }
+    J.daysTo = J.milestone && reachedAt ? daysTo(reachedAt) : undefined;
     J.reachedMilestone = J.milestone && reachedAt ? dayOf(reachedAt) : null;
     // Then and now: each milestone the tracker saw you reach, with how far
     // you'd come by then (the running totals saved at the level-up).
@@ -261,6 +265,10 @@ var JourneyModel = (function () {
     J.quests = { completed: best(quests.completed, 98), accepted: number(quests.accepted), abandoned: best(quests.abandoned, 94),
                  group: addUp(tags) - number(tags.Dungeon), dungeon: number(tags.Dungeon),
                  forever: number(forever.forever), classic: number(forever.classic) };
+    // Then and now's last row: the tracker's own counts now, as the
+    // level-ups saved them (not the Statistics pane's).
+    J.nowRow = { level: level, date: dayOf(now), days: daysTo(now), played: J.played || null, kills: number(kills.total),
+                 deaths: deaths.length, quests: number(quests.completed) };
     var heldFor = number(named(quests.longest).seconds);
     J.longestQuest = heldFor > 0 ? { days: Math.round(heldFor / 86400), seconds: heldFor } : null;
     J.questZones = topRows(quests.byZone, 5);

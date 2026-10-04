@@ -28,7 +28,7 @@ function cardOf(J, picks) {
     who: `${J.race} ${J.className}` + (J.faction ? ` · ${J.faction}` : ''),
     level: J.level,
     played: `${JourneyModel.dur(reached ? J.playedTo : J.played)} /played` +
-      (reached && J.daysTo ? ` over ${J.daysTo} day${J.daysTo === 1 ? '' : 's'}` : '') +
+      (reached && J.complete && J.daysTo ? ` over ${J.daysTo} day${J.daysTo === 1 ? '' : 's'}` : '') +
       (zones ? ` · ${zones} zone${zones === 1 ? '' : 's'}` : ''),
     ranks: picks.slice(0, 3).map((x) => ({ big: x.big, who: x.who, detail: x.detail, cohort: x.cohort })),
     stats: stats.map((s) => [s[0], JourneyModel.num(s[1])]),

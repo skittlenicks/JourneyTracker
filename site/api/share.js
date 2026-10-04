@@ -97,7 +97,7 @@ module.exports = async function share(req, res) {
     const reached = J.atMilestone && J.milestone && J.playedTo;
     const meta = {
       title: (reached ? `${who}: the road to ${J.milestone}` : `${who}, level ${J.level || '?'}`) + ' · Journey Tracker',
-      description: (reached ? `Level ${J.milestone} in ${J.daysTo ? days(J.daysTo) + ', ' : ''}` +
+      description: (reached ? `Level ${J.milestone} in ${J.complete && J.daysTo ? days(J.daysTo) + ', ' : ''}` +
         `${JourneyModel.dur(J.playedTo)} /played${across}. ` : `${JourneyModel.dur(J.played)} of /played${across}. `) +
         (best ? `${best.big} ${best.who}${best.cohort === 'All players' ? '' :
           ` among ${best.cohort.replace(/^Level /, 'level ')}`}. ` : '') +

@@ -216,6 +216,21 @@ kbd {
   padding: 4px 11px;
 }
 .milestones b { font-family: var(--font-mono); font-weight: 500; color: var(--gold); margin-right: 6px; }
+/* A shared journey's character at its other saved levels */
+.journeys { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+.journeys .label { margin: 0 4px 0 0; }
+.journeys a {
+  padding: 3px 11px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+}
+.journeys a:hover { color: var(--ink); border-color: var(--ink-soft); }
+.journeys a[aria-current="page"] { color: var(--ground); background: var(--gold); border-color: var(--gold); font-weight: 500; }
 
 /* Chapters */
 .chapter {
@@ -230,6 +245,35 @@ kbd {
 .chapter-head p:not(.eyebrow) { margin: 0; color: var(--ink-soft); }
 .chapter-body { display: grid; gap: 30px; align-content: start; min-width: 0; }
 .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px; }
+/* Every ten levels: the totals each milestone's level-up saved, oldest
+   first, and where the journey is now */
+.tens-wrap { overflow-x: auto; }
+.tens { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.tens th {
+  padding: 0 0 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule);
+}
+.tens td { padding: 10px 0 10px 16px; text-align: right; white-space: nowrap; border-bottom: 1px dashed var(--rule); }
+.tens tbody tr:last-child td { border-bottom: 0; }
+.tens th:nth-child(-n+2), .tens td:nth-child(-n+2) { text-align: left; }
+.tens th:first-child, .tens td:first-child { padding-left: 0; }
+.tens td:first-child { font-family: var(--font-display); font-size: var(--step-1); line-height: 1.1; color: var(--gold); }
+.tens td small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.tens tr.now td { color: var(--gold-pale); }
 
 .stats {
   margin: 0;
@@ -648,6 +692,10 @@ kbd {
   .card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card-lines { grid-template-columns: 1fr; }
   .card-lines dd { margin-bottom: 6px; }
+  /* Every ten levels fits a phone without the running /played */
+  .tens { font-size: 0.9375rem; }
+  .tens th, .tens td { padding-left: 12px; }
+  .tens .total { display: none; }
 }
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
@@ -671,6 +719,7 @@ kbd {
         <li>Restart the game. Type <code>/journey</code> or click the gold JT button on the minimap to see your stats.</li>
         <li>Play. It records as you go: the road you took, every death and quest, kills, gold and more.</li>
         <li>For your recap, click <b>Export</b> in its window (or right-click the minimap button), press <kbd>Ctrl</kbd>+<kbd>C</kbd> and paste it in the box here.</li>
+        <li>Every ten levels it also keeps your journey as it was then. Pick <b>At 30</b> in the export window (or type <code>/journey export 30</code>) to share your road to 30.</li>
       </ol>
     </section>
     <form class="import" id="import-form" novalidate>
@@ -685,6 +734,7 @@ kbd {
   </div>
 
   <section class="hero" id="journey" aria-labelledby="hero-title">
+    <nav class="journeys" id="journeys" aria-label="This character's saved journeys" hidden></nav>
     <p class="eyebrow" id="hero-who"></p>
     <h1 id="hero-title">Your road to 60</h1>
     <p class="hero-total"><span class="big" id="total-played"></span><span class="unit">of /played</span></p>
@@ -695,6 +745,26 @@ kbd {
       <figcaption id="road-caption">Time spent at each level, 1 to 59. Hover a bar for the exact time.</figcaption>
     </figure>
     <ul class="milestones" id="milestones" aria-label="Milestones"></ul>
+  </section>
+
+  <section class="chapter" id="chapter-tens" aria-labelledby="tens-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Every ten levels</p>
+      <h2 id="tens-title"></h2>
+      <p id="tens-lede"></p>
+    </div>
+    <div class="chapter-body">
+      <div class="tens-wrap">
+        <table class="tens">
+          <thead>
+            <tr><th scope="col">Level</th><th scope="col">When</th><th scope="col">Took</th><th scope="col" class="total">/played</th>
+              <th scope="col">Kills</th><th scope="col">Deaths</th><th scope="col">Quests</th></tr>
+          </thead>
+          <tbody id="tens-rows"></tbody>
+        </table>
+      </div>
+      <p class="footnote" id="tens-note"></p>
+    </div>
   </section>
 
   <section class="chapter" id="chapter-time" aria-labelledby="time-title">
@@ -882,7 +952,7 @@ kbd {
         <summary id="all-ranks-summary"></summary>
         <ol id="all-ranks-list"></ol>
       </details>
-      <p class="footnote"><span id="rank-count"></span> rankings in all: one for every stat the addon tracks, each class's own stats and the game's Statistics pane. A saved journey is ranked against the latest export of every other saved character, on the rankings that apply to it, among all players or its own class, race, faction or realm type. You see the ones you stand out in most. A place shows once 3 journeys are on a ranking, like "2nd of 9", and becomes a share like "Top 3%" at 100. <span id="ranks-madeup">The sample journey's places are made up, and so are the numbers it doesn't have.</span></p>
+      <p class="footnote"><span id="rank-count"></span> rankings in all: one for every stat the addon tracks, each class's own stats and the game's Statistics pane. A saved journey is ranked among the others at its milestone, every ten levels: a level 34 journey among the level 30 ones, on its time to 30, with each other character's export closest to 30. It's ranked on the rankings that apply to it, among all players or its own class, race, faction or realm type. You see the ones you stand out in most. A place shows once 3 journeys are on a ranking, like "2nd of 9", and becomes a share like "Top 3%" at 100. <span id="ranks-madeup">The sample journey's places are made up, and so are the numbers it doesn't have.</span></p>
     </div>
   </section>
 
@@ -1003,6 +1073,16 @@ kbd {
     SAMPLE.perLevel.push(Math.round(base * wobble * 60));
   }
   SAMPLE.played = SAMPLE.perLevel.reduce(function (t, v) { return t + v; }, 0);
+  // Its milestone (every ten levels), and the totals at each one's level-up:
+  // [level, date, days in, kills, deaths, quests]. No deaths from 31 to 44.
+  Object.assign(SAMPLE, { milestone: 60, atMilestone: true, playedTo: SAMPLE.played, daysTo: 46, reachedMilestone: "February 27" });
+  SAMPLE.milestoneRows = [[10, "January 14", 2, 380, 2, 31], [20, "January 18", 6, 1490, 7, 104],
+                          [30, "January 26", 14, 3420, 15, 226], [40, "February 5", 24, 6010, 15, 355],
+                          [50, "February 16", 35, 8930, 29, 487], [60, "February 27", 46, 11842, 47, 612]]
+    .map(function (r) {
+      var played = SAMPLE.perLevel.slice(0, r[0] - 1).reduce(function (t, v) { return t + v; }, 0);
+      return { level: r[0], date: r[1], days: r[2], played: played, kills: r[3], deaths: r[4], quests: r[5] };
+    });
 
   // The journey model (site/model.js, which build.ps1 puts here): an export
   // as a journey, the numbers it's ranked on and where it places.
@@ -1134,10 +1214,15 @@ kbd {
   // A list or chart together with its label.
   function hideBlock(id, hidden) { $(id).parentNode.hidden = !!hidden; }
 
-  // Hero
+  // Hero: the road to the journey's milestone (every ten levels; the
+  // sample's is 60), or to the next one, so far.
+  var milestone = S.milestone, atMilestone = S.atMilestone && milestone >= 10;
+  var atLevel = milestone ? "level " + milestone : "level 1-9";   // who it's ranked among
+  function days(n) { return n + (n === 1 ? " day" : " days"); }
   if (S.imported) {
     $("journey-chip").textContent = "Your journey";
-    $("hero-title").textContent = S.level >= 60 ? "Your road to 60" : "Your road to 60, so far";
+    $("hero-title").textContent = atMilestone ? "Your road to " + milestone :
+      "Your road to " + Math.min(60, milestone + 10) + ", so far";
     $("foot-note").textContent = "Built from the export you pasted.";
     $("road-caption").textContent = "Time spent at each level the tracker saw level up. Hover a bar for the exact time.";
   }
@@ -1145,15 +1230,59 @@ kbd {
   $("total-played").textContent = dur(total);
   var levelNote = knownLevels.length >= 2 ? " Fastest level: " + (fastest + 1) + " in " + dur(perLevel[fastest]) +
     ". Slowest: " + (slowest + 1) + " in " + dur(perLevel[slowest]) + "." : "";
+  // An export made after the milestone: its /played when it got there too.
+  var playedThen = S.playedTo && Math.abs(S.playedTo - total) >= 60 ? ", at " + dur(S.playedTo) + " /played" : "";
   $("hero-sub").textContent = (!S.imported ?
     "From your first login on " + S.firstLogin + " to level 60 on " + S.reached60 + ", " + S.calendarDays + " days later." :
-    "Tracked since " + S.firstLogin + (S.reached60 ? ", level 60 on " + S.reached60 + ", " + S.calendarDays + " days later." :
-      ", " + S.calendarDays + (S.calendarDays === 1 ? " day" : " days") + " ago. Level " + S.level + " so far.")) + levelNote;
+    "Tracked since " + S.firstLogin + (atMilestone && S.reachedMilestone ? ", level " + milestone + " on " +
+      S.reachedMilestone + (S.daysTo ? ", " + days(S.daysTo) + " later" : "") + playedThen + "." :
+      ", " + days(S.calendarDays) + " ago. Level " + S.level + " so far.")) + levelNote;
+
+  // A shared journey's character at its other saved levels, from the share
+  // page (site/api/share.js): [{ level, share, here }].
+  var journeys = shared && Array.isArray(shared.journeys) ? shared.journeys.filter(function (j) {
+    return j && /^[A-Za-z0-9_-]{22}$/.test(String(j.share)) && number(j.level) >= 1;
+  }) : [];
+  $("journeys").innerHTML = '<span class="label">This character</span>' + journeys.map(function (j) {
+    return '<a href="/j/' + j.share + '"' + (j.here ? ' aria-current="page"' : "") + ">Level " + number(j.level) + "</a>";
+  }).join("");
+  hide("journeys", journeys.length < 2);
   hide("road", knownLevels.length < 2);
   $("milestones").innerHTML = S.milestones.map(function (m) {
     return "<li><b>" + m[0] + "</b>" + esc(m[1]) + "</li>";
   }).join("");
   hide("milestones", !S.milestones.length);
+
+  // Every ten levels: the totals the tracker saved at each milestone's
+  // level-up, then where the journey is now when it's between two. "Took"
+  // is the /played since the milestone before, or since level 1 when the
+  // tracker saw it.
+  var fromStart = !S.imported || S.complete;
+  var tens = S.milestoneRows.slice();
+  if (S.imported && !atMilestone && S.nowRow) tens.push(Object.assign({ now: true }, S.nowRow));
+  tens.forEach(function (r, i) {
+    var before = i ? tens[i - 1] : fromStart && r.level === 10 ? { level: 0, played: 0 } : null;
+    var follows = before && before.level === (r.now ? milestone : r.level - 10);
+    r.took = follows && r.played && before.played !== null && r.played > before.played ? r.played - before.played : null;
+  });
+  var stretches = tens.filter(function (r) { return !r.now && r.took; });
+  var longTen = stretches.reduce(function (a, r) { return !a || r.took > a.took ? r : a; }, null);
+  function stretch(r) { return "Levels " + Math.max(1, r.level - 10) + " to " + r.level; }
+  var tookTen = longTen && dur(longTen.took).replace(/ /g, " ");   // on one line
+  $("tens-title").textContent = stretches.length >= 2 ? stretch(longTen) + " took longest: " + tookTen + " of /played." :
+    longTen ? stretch(longTen) + " took " + tookTen + " of /played." : "Your road, ten levels at a time.";
+  $("tens-lede").textContent = "Where you were at each tenth level-up" +
+    (tens.length && tens[tens.length - 1].now ? ", and where you are now." : ".");
+  $("tens-rows").innerHTML = tens.map(function (r) {
+    return "<tr" + (r.now ? ' class="now"' : "") + "><td>" + r.level + (r.now ? "<small>now</small>" : "") + "</td><td>" +
+      esc(r.date || "") + (fromStart && r.days ? "<small>day " + r.days + "</small>" : "") + "</td><td>" +
+      (r.took ? dur(r.took) : "–") + '</td><td class="total">' + (r.played ? dur(r.played) : "–") + "</td><td>" + num(r.kills) +
+      "</td><td>" + num(r.deaths) + "</td><td>" + num(r.quests) + "</td></tr>";
+  }).join("");
+  $("tens-note").textContent = fromStart ? "" : "Kills, deaths and quests here count from level " + S.firstLevel +
+    ", when the tracker started.";
+  hide("tens-note", fromStart);
+  hide("chapter-tens", tens.length < 2);
 
   function drawRoad() {
     if (knownLevels.length < 2) return;
@@ -2386,12 +2515,12 @@ kbd {
   var NO_RANKS = !S.imported ? "Nothing to rank yet." :
     !S.shareId ? "This journey wasn't saved, so it isn't ranked. Paste the export again to save it and see where you place." :
     !ranks || ranks.error ? "The rankings couldn't be worked out just now. Reload the page in a minute." :
-    "No ranking has " + M.MIN_PLAYERS + " saved journeys on it yet (" + num(savedCount) + (savedCount === 1 ? " is" : " are") +
-      " saved so far). Your places show up here as more players paste their exports.";
+    "No ranking has " + M.MIN_PLAYERS + " saved " + atLevel + " journeys on it yet (" + num(savedCount) +
+      (savedCount === 1 ? " is" : " are") + " saved so far). Your places show up here as more players paste their exports.";
   function showRankings(p) {
     var all = rankingsFor(p), picks = M.picksFor(all, 9);
     $("ranks-for").textContent = p.example ? "Where this " + p.label + " stands out (made-up example)" :
-      !p.places ? "Where you stand out" : S.shareId ? "Where you place among saved journeys" : "Not ranked";
+      !p.places ? "Where you stand out" : S.shareId ? "Where you place among saved " + atLevel + " journeys" : "Not ranked";
     $("ranks").innerHTML = picks.length ? picks.map(rankCard).join("") : '<p class="footnote">' + esc(NO_RANKS) + "</p>";
     $("all-ranks-summary").textContent = "See all " + all.length + (p.example ? " of this player's" : " of your") + " rankings, best first";
     $("all-ranks-list").innerHTML = all.map(function (x) {
@@ -2410,20 +2539,20 @@ kbd {
   hide("profiles", PROFILES.length < 2);
   $("rank-count").textContent = RANKINGS.length;
   if (S.imported) {
-    $("ranks-madeup").textContent = savedCount ? num(savedCount) + (savedCount === 1 ? " journey is" : " journeys are") +
+    $("ranks-madeup").textContent = savedCount ? num(savedCount) + " " + atLevel + (savedCount === 1 ? " journey is" : " journeys are") +
       " saved so far, and places change as more come in." : "";
   }
 
   var mine = rankingsFor(YOU), myPicks = M.picksFor(mine, 9), best = myPicks[0];
-  function among(x) { return x.cohort === "All players" ? "" : " among " + x.cohort; }
+  function among(x) { return x.cohort === "All players" ? "" : " among " + x.cohort.replace(/^Level /, "level "); }
   $("ranks-title").textContent = best ?
     "You're " + (best.players < M.SHARE_FROM ? best.big : "in the top " + best.top + "%") + " " + best.who + among(best) + "." :
     S.shareId ? "Your places fill in as more players share their journeys." : "Saved journeys get ranked against everyone else's.";
   showRankings(YOU);
   var pace = mine.filter(function (x) { return x.r.id === "played"; })[0];
   var paceText = !pace ? "" : pace.players < M.SHARE_FROM ?
-    (pace.place === 1 ? "Fastest" : M.ordinal(pace.place) + " fastest") + " to 60 of " + pace.players + " players" :
-    pace.top < 100 ? "Faster to 60 than " + (100 - pace.top) + "% of players" : "";
+    (pace.place === 1 ? "Fastest" : M.ordinal(pace.place) + " fastest") + " to " + milestone + " of " + pace.players + " players" :
+    pace.top < 100 ? "Faster to " + milestone + " than " + (100 - pace.top) + "% of players" : "";
   $("hero-rank").textContent = paceText;
   hide("hero-rank", !paceText);
 
@@ -2431,7 +2560,10 @@ kbd {
   // highlights of the journey.
   $("card-who").textContent = YOU.race + " " + YOU.className + (YOU.faction ? " · " + YOU.faction : "");
   $("card-level").textContent = "Level " + S.level;
-  $("card-played").textContent = dur(total) + " /played" + (S.imported && !S.reached60 ? "" : " over " + S.calendarDays + " days");
+  // At a milestone, the time it took (as site/api/card.js draws it).
+  $("card-played").textContent = !S.imported ? dur(total) + " /played over " + days(S.calendarDays) :
+    atMilestone && S.playedTo ? dur(S.playedTo) + " /played" + (S.complete && S.daysTo ? " over " + days(S.daysTo) : "") :
+    dur(total) + " /played";
   $("card-ranks").innerHTML = myPicks.slice(0, 3).map(function (x) {
     return "<li><b>" + esc(x.big) + "</b><span>" + esc(x.who) + "</span><small>" + esc(x.detail) + " · " +
       esc(x.cohort) + "</small><i>" + esc(x.line) + "</i></li>";
@@ -2542,7 +2674,8 @@ kbd {
   if (shared && shared.payload) {
     var justSaved = JSON.parse(remembered("jt-saved") || "null");
     if (justSaved && justSaved.share === shared.id) {
-      say("<b>" + (justSaved.status === "duplicate" ? "This export was already saved." : "Saved: it counts toward the rankings.") +
+      say("<b>" + (justSaved.status === "duplicate" ? "This export was already saved." :
+        "Saved: it counts toward the " + atLevel + " rankings.") +
         "</b> This page's link shows your recap to anyone you send it to." + COPY, "good");
     } else {
       $("journey-chip").textContent = "Shared journey";
