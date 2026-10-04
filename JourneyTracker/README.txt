@@ -30,8 +30,14 @@ Nothing uploads by itself: your data only leaves the game when you paste it.
 
 Pasting saves your export so it counts toward the rankings. Anyone you give
 the link to can see your recap, but never your character's name or realm.
-Paste a fresh export every few levels to update it: each one gets its own
-link, and pasting the same export twice only counts once.
+Each export gets its own link, and pasting the same one twice only counts
+once.
+
+Every 10 levels, the addon also saves your journey as it was when you got
+there, so you can share your road to 10, 20, 30 and on even after you've
+passed it. Pick it at the top of the export window ("At 30"), or type
+/journey export 30. On the website it's ranked against other players at
+the same level.
 
 You can also paste the export to me in Discord. If it's long, Discord turns
 it into a file attachment. That's fine, just send it.
@@ -78,6 +84,8 @@ COMMANDS
 --------
 /journey           Open your stats (same as clicking the minimap button)
 /journey export    Make a text export for www.journeytracker.dev
+/journey export 30 Export your journey as it was at level 30 (saved every
+                   10 levels)
 /journey backup    Save a backup copy of your data
 /journey stats     Show what's been read from the game's Statistics pane
 /journey version   Show which version you have

@@ -1826,7 +1826,7 @@ SlashCmdList.JOURNEYTRACKER = function(msg)
     if cmd == "backup" then
         Backup()
     elseif cmd == "export" and ns.Export then
-        ns.Export()
+        ns.Export(tonumber((msg or ""):match("^%s*%S+%s+(%d+)")))       -- #106 /journey export 30
     elseif cmd == "testexport" and ns.TestExport then
         ns.TestExport()
     elseif cmd == "statprobe" and ns.StatProbe then
