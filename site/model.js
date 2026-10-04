@@ -13,6 +13,9 @@ var JourneyModel = (function () {
   // A place needs this many players on the ranking, you included: being 1st
   // of 2 says nothing.
   var MIN_PLAYERS = 3;
+  // The addon's squares across each zone's map, for where you spent your
+  // time (its SPOT_GRID).
+  var SPOT_GRID = 25;
   // From this many players up, a place reads as a share ("Top 3%") instead
   // of a place ("2nd of 9").
   var SHARE_FROM = 100;
@@ -297,6 +300,21 @@ var JourneyModel = (function () {
     J.path = stops;
     J.heat = [];
     J.zoneHeat = true;
+    // Where you spent your time (addon 0.5.0 on): the seconds in each square
+    // of each zone's map (SPOT_GRID x SPOT_GRID, numbered from 1 at the top
+    // left), as [uiMapID, x %, y %, seconds] at each square's middle.
+    J.where = [];
+    var where = named(st.where);
+    Object.keys(where).forEach(function (id) {
+      var map = Number(id), squares = numbered(where[id]);
+      if (!(map > 0) || Math.floor(map) !== map) return;
+      Object.keys(squares).forEach(function (k) {
+        var n = Number(k), seconds = number(squares[k]);
+        if (!(n >= 1 && n <= SPOT_GRID * SPOT_GRID) || Math.floor(n) !== n || !(seconds > 0)) return;
+        J.where.push([map, ((n - 1) % SPOT_GRID + 0.5) * 100 / SPOT_GRID,
+                      (Math.floor((n - 1) / SPOT_GRID) + 0.5) * 100 / SPOT_GRID, seconds]);
+      });
+    });
     J.zonesVisited = Object.keys(zones).filter(function (z) { return z !== "Unknown"; }).length;
     J.subzones = Object.keys(named(st.subzones)).length;
     // The places found in each zone ("Zone: Subzone" keys).

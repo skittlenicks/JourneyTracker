@@ -1609,6 +1609,14 @@ kbd {
     var m = MAP_BY_ID[d.map];
     return m && m.world ? { at: toWorld(m, d.x / 100, d.y / 100), d: d, map: m } : null;
   }).filter(Boolean);
+  // Where you spent your time: an export from addon 0.5.0 on knows the
+  // squares of each zone's map, [uiMapID, x %, y %, seconds]; placed[id] for
+  // the maps it has squares on.
+  var squares = (S.where || []).filter(function (w) { var m = MAP_BY_ID[w[0]]; return m && m.world; });
+  var placed = Object.create(null);
+  squares.forEach(function (w) { placed[w[0]] = true; });
+  // Zones of the route it has time for but no squares (time from before 0.5.0).
+  var unplaced = S.imported && route.some(function (r) { return r.seconds > 0 && !placed[r.map.uiMapID]; });
 
   // The opening line: how far you went, and the place you lingered longest.
   var favorite = null;
@@ -1637,8 +1645,11 @@ kbd {
   $("heat-lede").textContent = lede.charAt(0).toUpperCase() + lede.slice(1);
   if (S.imported) {
     $("map-caption").textContent = "Point at a zone to light it up and click it to open its map, as in the game. " +
-      "The dotted line joins the zones in the order you first reached them; the brighter a zone, the more time you spent there" +
-      (deathSpots.length ? ", and each × is where you died." : ".") + " Map art: World of Warcraft © Blizzard Entertainment.";
+      "The dotted line joins the zones in the order you first reached them, the glow is where you spent your time" +
+      (deathSpots.length ? " and each × is where you died." : ".") +
+      (unplaced ? " Before version 0.5.0 the addon didn't record where in a zone you were, so for that time a zone " +
+        "glows as a whole on the continent maps, brighter the longer you stayed, and not on its own map." : "") +
+      " Map art: World of Warcraft © Blizzard Entertainment.";
   }
 
   // Repeatable randomness for the sample, so the heat looks the same every time.
@@ -1678,17 +1689,26 @@ kbd {
   // The heat as soft glows in the world: where, how many minutes m, and how
   // far they spread s (yards). The zones the sample has hotspots for glow
   // where those are; its other zones in a few glows sharing the zone's time.
-  // An export knows the time in each zone, not where in it: one soft glow
-  // around the zone's pin, never smaller than a minimap tile (533 yards) so
-  // a city's shows.
+  // An export glows on each square of a zone's map it spent time in, spread
+  // to blend into the next square. A zone it has time for but no squares
+  // (from before addon 0.5.0) can't say where in it: one soft glow around
+  // its pin, never smaller than a minimap tile (533 yards) so a city's
+  // shows, only on the continents and the world ("wide"). On the zone's
+  // own map it would light up the whole map.
+  // On the continents and the world a square spreads at least a third of a
+  // minimap tile (far), so a city's time doesn't shrink to a dot under its pin.
   var HEAT = [];
+  squares.forEach(function (w) {
+    var m = MAP_BY_ID[w[0]];
+    HEAT.push({ at: toWorld(m, w[1] / 100, w[2] / 100), m: w[3] / 60, s: (m.world.maxY - m.world.minY) * 0.03, far: 1600 / 9 });
+  });
   route.forEach(function (r) {
     var m = r.map, zoneYards = m.world.maxY - m.world.minY, d = detailFor(m.uiMapID);
     function add(x, y, minutes, spreadYards) { HEAT.push({ at: toWorld(m, x / 100, y / 100), m: minutes, s: spreadYards }); }
     if (d >= 0) {
       zonePoints(S.heat[d]).forEach(function (p) { add(p.x, p.y, p.m, p.r / 100 * zoneYards); });
     } else if (S.zoneHeat) {
-      HEAT.push({ at: r.at, m: r.seconds / 60, s: Math.max(zoneYards * 0.16, 1600 / 3) });
+      if (!placed[m.uiMapID]) HEAT.push({ at: r.at, m: r.seconds / 60, s: Math.max(zoneYards * 0.16, 1600 / 3), wide: true });
     } else {
       var rnd = seeded(hashText(r.name));
       for (var k = 0; k < 3; k++) add(30 + rnd() * 40, 30 + rnd() * 40, r.seconds / 60 / 3, zoneYards * 0.07);
@@ -1775,28 +1795,47 @@ kbd {
       return t + (p.uiMax.x - p.uiMin.x) * AW / (p.world.maxY - p.world.minY);
     }, 0) / WORLD.parts.length;
   }
-  function peakAt(k) {
-    if (!heatPeak[k]) {
-      var least = HEAT_MIN_PX / k, peak = 0;
-      HEAT.forEach(function (p) {
-        var f = 0;
-        HEAT.forEach(function (q) {
-          if (q.at.mapID !== p.at.mapID) return;
-          var dx = p.at.X - q.at.X, dy = p.at.Y - q.at.Y;
-          f += q.m * Blob(dx * dx + dy * dy, Math.max(least, q.s));
-        });
-        if (f > peak) peak = f;
-      });
-      heatPeak[k] = peak || 1;
+  // The brightest the heat gets at a scale: the most glow at any glow's
+  // middle (zone maps leave the wide glows out). A glow ends at three
+  // spreads, so each only sums its neighbors: the others bucketed by place,
+  // plus the wide ones (one a zone at most).
+  // A glow's spread in yards on a zone's map or on the continents and world.
+  function spreadOf(p, zone) { return zone || !p.far ? p.s : Math.max(p.s, p.far); }
+  function peakAt(k, zone) {
+    var key = (zone ? "zone " : "") + k;
+    if (!heatPeak[key]) heatPeak[key] = brightest(HEAT_MIN_PX / k, zone) || 1;
+    return heatPeak[key];
+  }
+  function brightest(least, zone) {
+    var peak = 0, size = least, wide = [], near = [], buckets = Object.create(null);
+    HEAT.forEach(function (p) {
+      if (!p.wide) { near.push(p); size = Math.max(size, spreadOf(p, zone)); } else if (!zone) wide.push(p);
+    });
+    size *= 3;
+    function bucket(p, di, dj) { return p.at.mapID + " " + (Math.floor(p.at.X / size) + di) + " " + (Math.floor(p.at.Y / size) + dj); }
+    function glow(p, q) {
+      if (q.at.mapID !== p.at.mapID) return 0;
+      var dx = p.at.X - q.at.X, dy = p.at.Y - q.at.Y;
+      return q.m * Blob(dx * dx + dy * dy, Math.max(least, spreadOf(q, zone)));
     }
-    return heatPeak[k];
+    near.forEach(function (p) { var b = bucket(p, 0, 0); (buckets[b] = buckets[b] || []).push(p); });
+    near.concat(wide).forEach(function (p) {
+      var f = 0;
+      wide.forEach(function (q) { f += glow(p, q); });
+      for (var di = -1; di <= 1; di++) {
+        for (var dj = -1; dj <= 1; dj++) (buckets[bucket(p, di, dj)] || []).forEach(function (q) { f += glow(p, q); });
+      }
+      if (f > peak) peak = f;
+    });
+    return peak;
   }
   function paintHeat(canvas, view) {
     var w = canvas.width = AW, h = canvas.height = AH, k = pixelsPerYard(view), field = null;
     HEAT.forEach(function (p) {
+      if (p.wide && view.kind === "zone") return;
       var at = onView(view, p.at);
       if (!at) return;
-      var s = Math.max(HEAT_MIN_PX, p.s * k), reach = 3 * s, cx = at[0] * w, cy = at[1] * h;
+      var s = Math.max(HEAT_MIN_PX, spreadOf(p, view.kind === "zone") * k), reach = 3 * s, cx = at[0] * w, cy = at[1] * h;
       if (cx < -reach || cy < -reach || cx > w + reach || cy > h + reach) return;
       field = field || new Float32Array(w * h);
       var i0 = Math.max(0, Math.floor(cx - reach)), i1 = Math.min(w - 1, Math.ceil(cx + reach));
@@ -1813,7 +1852,7 @@ kbd {
       }
     });
     if (!field) return;
-    var ctx = canvas.getContext("2d"), peak = peakAt(k), img = ctx.createImageData(w, h);
+    var ctx = canvas.getContext("2d"), peak = peakAt(k, view.kind === "zone"), img = ctx.createImageData(w, h);
     for (var n = 0; n < field.length; n++) {
       if (!field[n]) continue;
       var at = Math.min(255, Math.round(Math.sqrt(field[n] / peak) * 255)) * 4;
@@ -2324,7 +2363,9 @@ kbd {
     var r = stopOf(id), m = MAP_BY_ID[id], d = detailFor(id);
     var died = deathSpots.filter(function (s) { return s.map === m; }), found = (S.places && own(S.places, m.name)) || [];
     $("zone-total").innerHTML = r ? "<b>" + dur(r.seconds) + "</b> in " + esc(r.name) + ", " + levels(r.from, r.to) +
-      " (" + Math.round(r.seconds / total * 100) + "% of your /played)." : esc(m.name) + " isn't on your route.";
+      " (" + Math.round(r.seconds / total * 100) + "% of your /played)." +
+      (S.imported && r.seconds > 0 && !placed[id] ? " Where in the zone isn't known: the addon records that from version 0.5.0." : "") :
+      esc(m.name) + " isn't on your route.";
     if (d >= 0) {
       $("spots-label").textContent = "Hotspots in " + m.name;
       $("spots").innerHTML = S.heat[d].spots.slice().sort(function (a, b) { return b[3] - a[3]; }).map(function (s) {
