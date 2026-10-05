@@ -109,7 +109,7 @@ _Only active for Alliance characters. [probe] for anything keyed on a mob name._
 77. `BUILT` `W-077` Times visited Southshore (subzone visits)
 78. `BUILT` `W-078` Times visited Theramore (subzone visits)
 79. `BUILT` `W-079` Times you entered Orgrimmar, Thunder Bluff, or Undercity (enemy capitals) (entries by city)
-80. `TODO` `W-080` Horde players killed in Southshore or Hillsbrad [probe]
+80. `BUILT` `W-080` Horde players killed in Southshore or Hillsbrad [probe] (enemy players killed in Hillsbrad Foothills (JourneyTrackerPvP.lua))
 81. `BUILT` `W-081` Racial mount bought: horse, ram, mechanostrider, or nightsaber (a mount item (class 15, subclass 5) bought from a vendor, with its price)
 82. `BUILT` `W-082` Level you left your starting zone (first move from your race's starting zone and capital to anywhere else; not recorded if the tracker already saw you elsewhere)
 83. `BUILT` `W-083` Dragonmaw orcs slain in the Wetlands (Dragonmaw names, in the Wetlands)
@@ -124,7 +124,7 @@ _Only active for Horde characters. [probe] for anything keyed on a mob name._
 88. `BUILT` `W-088` Plainstriders slain in the Barrens (Plainstrider names, in the Barrens)
 89. `BUILT` `W-089` Barrens General chat messages seen (count only) (General channel messages while you're in the Barrens; counted, text never kept)
 90. `BUILT` `W-090` Barrens chat messages mentioning Chuck Norris (count only) (the same messages containing 'chuck norris'; counted, text never kept)
-91. `TODO` `W-091` Alliance players killed in the Crossroads [probe]
+91. `BUILT` `W-091` Alliance players killed in the Crossroads [probe] (enemy players killed in the Crossroads)
 92. `BUILT` `W-092` Gamon slain in Orgrimmar (kills by name, with or without experience)
 93. `BUILT` `W-093` Zeppelin rides by route: Orgrimmar to Undercity, Orgrimmar to Grom'gol, Undercity to Grom'gol (zeppelin docks: Durotar, Tirisfal Glades, Grom'gol Base Camp; same rules as W-075)
 94. `BUILT` `W-094` Undercity elevator rides (moving between Undercity and Tirisfal Glades)
@@ -133,7 +133,7 @@ _Only active for Horde characters. [probe] for anything keyed on a mob name._
 97. `BUILT` `W-097` Times entered Orgrimmar, Thunder Bluff, and Undercity (entries by city)
 98. `BUILT` `W-098` Time AFK in Orgrimmar (5-second ticks AFK in Orgrimmar)
 99. `BUILT` `W-099` Times visited Tarren Mill (subzone visits)
-100. `TODO` `W-100` Alliance players killed in Tarren Mill or Hillsbrad [probe]
+100. `BUILT` `W-100` Alliance players killed in Tarren Mill or Hillsbrad [probe] (enemy players killed in Hillsbrad Foothills)
 101. `BUILT` `W-101` Times visited Grom'gol, Kargath, Hammerfall, and Stonard (subzone visits by outpost)
 102. `BUILT` `W-102` Times you entered Stormwind, Ironforge, or Darnassus (enemy capitals) (entries by city)
 103. `BUILT` `W-103` Racial mount bought: wolf, kodo, raptor, or skeletal horse (as W-081)
@@ -185,61 +185,61 @@ _[probe] Use UnitClassification and nameplate/target info._
 ## World PvP and ganking
 _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel, stealth state at combat start, UnitIsDeadOrGhost after combat. Store levels and classes only, never names._
 
-140. `TODO` `W-140` Enemy players killed total (honorable or not)
-141. `TODO` `W-141` Lowbies ganked: enemy players 10+ levels below you killed
-142. `TODO` `W-142` Stealth ganks: lowbies killed where you opened from stealth (rogue/druid)
-143. `TODO` `W-143` Biggest level gap in a gank (your level minus theirs)
-144. `TODO` `W-144` Times you were ganked: killed by an enemy player 10+ levels above you
-145. `TODO` `W-145` Biggest level gap when you got ganked
-146. `TODO` `W-146` Times corpse camped: killed by the same enemy player class/level combo 3+ times within 10 minutes
-147. `TODO` `W-147` Spirit healer rezzes taken to escape a camp
-148. `TODO` `W-148` Fair fights won: enemy players within 3 levels killed
-149. `TODO` `W-149` Fair fights lost
-150. `TODO` `W-150` World PvP kills by enemy class
-151. `TODO` `W-151` World PvP deaths by enemy class
-152. `TODO` `W-152` Your PvP nemesis class (class that killed you most)
-153. `TODO` `W-153` Your favorite PvP victim class
-154. `TODO` `W-154` Zone with the most world PvP kills
-155. `TODO` `W-155` Zone with the most world PvP deaths
-156. `TODO` `W-156` Time spent PvP flagged (UnitIsPVP)
-157. `TODO` `W-157` Times you flagged yourself for PvP
-158. `TODO` `W-158` Times you accidentally flagged (attacked a flagged player or entered a hostile town)
-159. `TODO` `W-159` Dishonorable kills (civilian NPCs killed)
-160. `TODO` `W-160` Enemy guards killed
-161. `TODO` `W-161` Times killed by enemy guards
-162. `TODO` `W-162` Times you attacked an enemy town
-163. `TODO` `W-163` Faction leaders killed (Thrall, Cairne, Sylvanas, Bolvar, Magni, Tyrande, etc.)
-164. `TODO` `W-164` Enemy players killed while you were at less than 20% health (clutch wins)
-165. `TODO` `W-165` Times you died to an enemy player while fighting a mob (third-partied)
-166. `TODO` `W-166` Times you killed an enemy player who was fighting a mob
-167. `TODO` `W-167` Times you used Feign Death, Vanish, or similar to escape an enemy player
-168. `TODO` `W-168` Enemy players killed in their own capital
-169. `TODO` `W-169` Kill streaks: most enemy players killed without dying
+140. `BUILT` `W-140` Enemy players killed total (honorable or not) (honorable kill messages, enemy player targets you attacked dying, and the combat log where Forever allows it; the same player within 10 seconds counts once; class and level kept, never names (JourneyTrackerPvP.lua))
+141. `BUILT` `W-141` Lowbies ganked: enemy players 10+ levels below you killed (victims 10+ levels below you)
+142. `BUILT` `W-142` Stealth ganks: lowbies killed where you opened from stealth (rogue/druid) (lowbie kills in a fight that began while you were stealthed)
+143. `BUILT` `W-143` Biggest level gap in a gank (your level minus theirs) (biggest gap, with the victim's class)
+144. `BUILT` `W-144` Times you were ganked: killed by an enemy player 10+ levels above you (deaths to a player 10+ levels above you (or a skull))
+145. `BUILT` `W-145` Biggest level gap when you got ganked (biggest gap, with the killer's class)
+146. `BUILT` `W-146` Times corpse camped: killed by the same enemy player class/level combo 3+ times within 10 minutes (three deaths to the same class and level within 10 minutes)
+147. `BUILT` `W-147` Spirit healer rezzes taken to escape a camp (spirit healer after two or more PvP deaths in 10 minutes)
+148. `BUILT` `W-148` Fair fights won: enemy players within 3 levels killed (kills of players within 3 levels)
+149. `BUILT` `W-149` Fair fights lost (deaths to players within 3 levels)
+150. `BUILT` `W-150` World PvP kills by enemy class (outside battlegrounds, by class)
+151. `BUILT` `W-151` World PvP deaths by enemy class (outside battlegrounds, by class)
+152. `BUILT` `W-152` Your PvP nemesis class (class that killed you most) (the top class in W-151)
+153. `BUILT` `W-153` Your favorite PvP victim class (the top class in W-150)
+154. `BUILT` `W-154` Zone with the most world PvP kills (kills by zone, outside battlegrounds)
+155. `BUILT` `W-155` Zone with the most world PvP deaths (deaths by zone, outside battlegrounds)
+156. `BUILT` `W-156` Time spent PvP flagged (UnitIsPVP) (5-second ticks with UnitIsPVP)
+157. `BUILT` `W-157` Times you flagged yourself for PvP (flag turned on within 3 seconds of TogglePVP or SetPVP)
+158. `BUILT` `W-158` Times you accidentally flagged (attacked a flagged player or entered a hostile town) (flag turned on without that, outside contested zones (those are W-021))
+159. `BUILT` `W-159` Dishonorable kills (civilian NPCs killed) (dishonorable kill messages)
+160. `BUILT` `W-160` Enemy guards killed (kills of the other faction's guards, by name)
+161. `BUILT` `W-161` Times killed by enemy guards (deaths to the other faction's guards)
+162. `BUILT` `W-162` Times you attacked an enemy town (entering combat in an enemy town, once per town per 10 minutes)
+163. `BUILT` `W-163` Faction leaders killed (Thrall, Cairne, Sylvanas, Bolvar, Magni, Tyrande, etc.) (kills by name, by leader)
+164. `BLOCKED` `W-164` Enemy players killed while you were at less than 20% health (clutch wins) (your health is SECRET on Forever (probe), so it can't be read at a kill)
+165. `BUILT` `W-165` Times you died to an enemy player while fighting a mob (third-partied) (deaths to a player in a fight that also had a mob)
+166. `BUILT` `W-166` Times you killed an enemy player who was fighting a mob (enemy players who were targeting a mob when they died on your target)
+167. `BUILT` `W-167` Times you used Feign Death, Vanish, or similar to escape an enemy player (Feign Death, Vanish, Ice Block, Divine Shield, Blessing of Protection or Invisibility in a fight with a player, then out of combat alive within 10 seconds)
+168. `BUILT` `W-168` Enemy players killed in their own capital (kills in the other faction's capitals)
+169. `BUILT` `W-169` Kill streaks: most enemy players killed without dying (kills since your last death, best kept)
 
 ## Battlegrounds and duels
 _Forever battlegrounds: Warsong Gulch (10v10, brackets from 10-19), Arathi Basin (15v15, from 20-29), Darkspear Islands (15v15, from 30-39), Alterac Valley (40v40, 51-60). No arenas. Use GetBattlefieldStatus, GetBattlefieldWinner, UPDATE_BATTLEFIELD_SCORE, and duel events._
 
-170. `TODO` `W-170` Battlegrounds entered, by battleground (WSG, AB, Darkspear Islands, AV)
-171. `TODO` `W-171` Battleground wins and losses, by battleground
-172. `TODO` `W-172` Time spent in battlegrounds
-173. `TODO` `W-173` Time spent in battleground queues
-174. `TODO` `W-174` Battleground killing blows and honorable kills (from the scoreboard)
-175. `TODO` `W-175` Battleground deaths
-176. `TODO` `W-176` Flags captured and returned in Warsong Gulch
-177. `TODO` `W-177` Bases assaulted and defended in Arathi Basin
-178. `TODO` `W-178` Darkspear Islands objectives (whatever scoreboard columns it reports)
-179. `TODO` `W-179` Alterac Valley towers and graveyards assaulted or defended, captains and generals killed
-180. `TODO` `W-180` Battleground marks earned, by battleground (3 per win, 1 per loss)
-181. `TODO` `W-181` Level brackets you played each battleground in
-182. `TODO` `W-182` Honor earned while leveling
-183. `TODO` `W-183` Highest seasonal PvP rank reached while leveling
-184. `TODO` `W-184` XP earned in battlegrounds, if Forever grants it
-185. `TODO` `W-185` Duels requested and accepted
-186. `TODO` `W-186` Duels won and lost
-187. `TODO` `W-187` Duels won and lost by opponent class
-188. `TODO` `W-188` Duels fled (left the area)
-189. `TODO` `W-189` Longest duel
-190. `TODO` `W-190` Times someone challenged you to a duel
+170. `BUILT` `W-170` Battlegrounds entered, by battleground (WSG, AB, Darkspear Islands, AV) (entering a pvp instance, by name)
+171. `BUILT` `W-171` Battleground wins and losses, by battleground (GetBattlefieldWinner at the end, by battleground)
+172. `BUILT` `W-172` Time spent in battlegrounds (5-second ticks in a battleground, by name)
+173. `BUILT` `W-173` Time spent in battleground queues (5-second ticks while any queue says queued)
+174. `BUILT` `W-174` Battleground killing blows and honorable kills (from the scoreboard) (your scoreboard row at the end (GetBattlefieldScore): killing blows, honorable kills, deaths, by battleground)
+175. `BUILT` `W-175` Battleground deaths (deaths from your scoreboard row)
+176. `BUILT` `W-176` Flags captured and returned in Warsong Gulch (Warsong Gulch's scoreboard columns (GetBattlefieldStatInfo/Data), whatever they're called)
+177. `BUILT` `W-177` Bases assaulted and defended in Arathi Basin (Arathi Basin's scoreboard columns)
+178. `BUILT` `W-178` Darkspear Islands objectives (whatever scoreboard columns it reports) (any other battleground's scoreboard columns)
+179. `BUILT` `W-179` Alterac Valley towers and graveyards assaulted or defended, captains and generals killed (Alterac Valley's scoreboard columns)
+180. `BUILT` `W-180` Battleground marks earned, by battleground (3 per win, 1 per loss) (Mark of Honor items received, by item)
+181. `BUILT` `W-181` Level brackets you played each battleground in (battleground and 10-level bracket on entry)
+182. `BUILT` `W-182` Honor earned while leveling (honor from kill messages and 'You have been awarded' messages)
+183. `BUILT` `W-183` Highest seasonal PvP rank reached while leveling (highest UnitPVPRank seen, with its name)
+184. `BUILT` `W-184` XP earned in battlegrounds, if Forever grants it (XP gained while in a battleground)
+185. `BUILT` `W-185` Duels requested and accepted (StartDuel (asked) and AcceptDuel (accepted) hooks)
+186. `BUILT` `W-186` Duels won and lost (duel result messages compared with your own name)
+187. `BUILT` `W-187` Duels won and lost by opponent class (won and lost by the opponent's class (your target at the challenge, or the session's cache))
+188. `BUILT` `W-188` Duels fled (left the area) ('has fled from' messages where you're the one who fled)
+189. `BUILT` `W-189` Longest duel (from entering combat during the duel to the result)
+190. `BUILT` `W-190` Times someone challenged you to a duel (DUEL_REQUESTED)
 
 ## Dungeons deep dive
 _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo and ENCOUNTER_START/END. Read boss names from the encounter events instead of hardcoding, since the new dungeons' full boss rosters aren't published yet and Forever may rename Classic bosses._
@@ -573,8 +573,8 @@ _Each records level, /played, zone, and real timestamp._
 465. `TODO` `W-465` First dungeon entered
 466. `TODO` `W-466` First green item looted
 467. `TODO` `W-467` First time reaching 1 gold, 10 gold, 100 gold
-468. `TODO` `W-468` First enemy player killed
-469. `TODO` `W-469` First time killed by an enemy player
+468. `BUILT` `W-468` First enemy player killed (first enemy player kill, with their class and level (JourneyTrackerPvP.lua))
+469. `BUILT` `W-469` First time killed by an enemy player (first death to a player, with their class and level)
 470. `TODO` `W-470` First trip to each capital city
 471. `TODO` `W-471` First flight path taken
 472. `BUILT` `W-472` First boat or zeppelin ride (first boat or zeppelin ride, with the route)
@@ -584,8 +584,8 @@ _Each records level, /played, zone, and real timestamp._
 476. `TODO` `W-476` First talent point
 477. `TODO` `W-477` First class quest completed
 478. `TODO` `W-478` First rare killed
-479. `TODO` `W-479` First time in a battleground
-480. `TODO` `W-480` First duel won
+479. `BUILT` `W-479` First time in a battleground (first battleground entered)
+480. `BUILT` `W-480` First duel won (first duel won, with the opponent's class)
 481. `TODO` `W-481` First time reaching rested max
 482. `TODO` `W-482` Last death before 60
 483. `TODO` `W-483` The ding to 60: zone, subzone, coords, time of day, cause, who was in your group (count/classes only)
@@ -635,3 +635,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-01: Probe dump and first snapshots read from a level 20 character (client 1.60.1, build 70170): 195 statistics in 26 categories, every value text, 167 of them "--"; no hidden, secret or account-flagged statistics; no C_ statistics namespace (GetComparisonStatistic also exists). The baseline and a later login snapshot both saved all 195. Findings that matter for the website: "Total kills that grant experience or honor" includes honorable kills (52 here, all PvP), and some counters look like they started when Forever added the pane (Creatures killed is 3 at level 20) while others cover the whole character (Quests completed 133), so not every "lifetime" number is lifetime. Deaths and flights changed in step with our own counts. Fixes: the window's "all time" rows use Creatures killed (Summary, Kills) and add Total Honorable Kills (Bosses & PvP); the W-507 cross-check takes honorable kills off Blizzard's kill count. W-508 `BUILT`: the combat statistics exist and are read with everything else.
 - 2026-10-01: The window's separate Lifetime > Statistics Pane page is gone. Every statistic now shows on the existing page it fits (category to page by category ID; one with no page goes where its parent goes, else on the Summary), all of them, "--" included. Rows both sides count show the bigger of the two numbers (both start partway through a character's life): Summary, Quests completed/abandoned/gold, Total deaths, Deaths from falling, XP-granting kills (the game's experience-or-honor kills less honorable kills), Honorable kills, Hearthstone uses, Flights taken, the Gold page's earned/spent rows, profession skill bars, Fish caught, and health/mana potions; those statistics aren't listed again. The window reads the pane again when it opens and every 20 seconds while it's open (out of combat only).
 - 2026-10-05: Sections 2-6 (creature families, Alliance, Horde and neutral iconic, rares) done in the new JourneyTrackerIconic.lua, plus boats and zeppelins (W-329, W-330, W-472) and gold spent on mounts (W-375), which the iconic routes and racial mounts needed. W-022..W-139 `BUILT` except the world PvP ones (W-080, W-091, W-100, left for the PvP section); W-113 and W-114 `SKIP` (covered by #46 and #66). The main tracker now passes kills (with zone, creature type and beast family), fights (with who was in them and the highest mob level), deaths, falls, loot and money changes to the wrapped files (ns.OnKill and friends, each run protected so a wrapped tracker can't break the main one), and remembers enemy players' class and level for the session only. Kills without experience (critters, Gamon) are counted when a target you attacked dies, and from the combat log where Forever lets addons read it ([probe]); neither counts a kill the experience message already did. The window has a new Wrapped Stats section (folded at first) with Creature Families, Iconic Moments and Rares & Elites pages. Checked outside the game (fengari, real saved data): murlocs in and out of a fight, wolves vs worgen, Hogger and the two Princesses, a chicken and a kobold, capital visits, a boat and a zeppelin ride, a guard death, quests, a Wanted target, loot, a rare, the Horde items, the export and every page.
+- 2026-10-05: Sections 7-8 (world PvP, battlegrounds and duels) done in the new JourneyTrackerPvP.lua, with the iconic PvP items (W-080, W-091, W-100) and the PvP firsts (W-468, W-469, W-479, W-480). W-140..W-190 `BUILT` except W-164 `BLOCKED` (health is secret on Forever). Enemy players killed come from honorable kill messages, enemy player targets you attacked dying, and the combat log where allowed; one player within 10 seconds counts once, and only class and level are kept. Battleground objectives come from your scoreboard row at the end, column by column, so Darkspear Islands' columns are kept whatever they're called. Duel results come from the system messages; the client's format there uses numbered parts (%1$s), so the pattern builder handles those. Checked outside the game: a stealth gank and an honorable kill (and the same player not counted twice), a corpse camp, two duels, a Warsong Gulch win with its scoreboard, and every page.

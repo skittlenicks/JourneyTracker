@@ -10,6 +10,7 @@ JourneyTracker.lua
 JourneyTrackerClass.lua
 JourneyTrackerWrapped.lua
 JourneyTrackerIconic.lua
+JourneyTrackerPvP.lua
 JourneyTrackerStats.lua
 JourneyTrackerSerialize.lua
 JourneyTrackerExport.lua
