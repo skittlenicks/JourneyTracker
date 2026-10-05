@@ -103,14 +103,18 @@ local function OnSkill(msg)
     end
 end
 
--- W-483 the ding to 60: where, when and who with (classes only).
+-- W-483 the ding to 60: where, when and who with (classes only, not your
+-- own: in a raid you're one of the raid units).
 local function DingTo60(snapshot)
     local party, size = {}, Num(Call("GetNumGroupMembers")) or 0
     local raid = Call("IsInRaid") == true
     for i = 1, raid and size or (size - 1) do
-        local _, class = Call("UnitClass", (raid and "raid" or "party") .. i)
-        class = Str(class)
-        if class then party[class] = (party[class] or 0) + 1 end
+        local unit = (raid and "raid" or "party") .. i
+        if Call("UnitIsUnit", unit, "player") ~= true then
+            local _, class = Call("UnitClass", unit)
+            class = Str(class)
+            if class then party[class] = (party[class] or 0) + 1 end
+        end
     end
     Track.first("W-483", { subzone = snapshot.subzone, x = snapshot.x, y = snapshot.y, cause = snapshot.cause,
         hour = tonumber(date("%H")), size = size, party = next(party) and party or nil })

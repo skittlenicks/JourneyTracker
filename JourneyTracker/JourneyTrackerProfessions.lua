@@ -17,6 +17,7 @@ local GATHERED = { [5] = true, [6] = true, [7] = true, [9] = true } -- trade goo
 local FISHING_BOBBER = 35591              -- the bobber's object ID; loot from another object is a pool
 local FISHING_GAP = 120                   -- seconds between casts that still make one session
 local VISIT_GAP = 600                     -- a new Darkmoon Faire visit after this long away
+local FAIRE_TURN_IN = 60                  -- a quest turned in this soon after seeing the Faire was there (W-461)
 local CLOTH = { ["Linen Cloth"] = true, ["Wool Cloth"] = true, ["Silk Cloth"] = true, ["Mageweave Cloth"] = true,
     ["Runecloth"] = true, ["Felcloth"] = true }
 local EXPLOSIVES = { "Dynamite", "Bomb", "Grenade", "Sapper Charge", "Land Mine", "Explosive Sheep" }
@@ -231,11 +232,11 @@ end
 -- W-432, W-433, W-453, W-456, W-459), and gadgets (W-435)
 ---------------------------------------------------------------------------
 
-local questDoneAt, questTitle = -1000, nil
+local donationAt = -1000   -- the last cloth donation quest turned in
 local faireAt = -1000      -- last seen at the Darkmoon Faire
 local recentCloth = {}     -- cloth just handed over: { name, n, t }, matched to a donation quest
 
-local function DonationJustNow() return GetTime() - questDoneAt < 2 and HasAny(questTitle, DONATION_WORDS) end
+local function DonationJustNow() return GetTime() - donationAt < 2 end
 
 local function OnItemChange(c)
     local name, n, kind = c.name, math.abs(c.delta), c.kind
@@ -323,27 +324,35 @@ local function OnCast(name)
 end
 
 -- Casts that started and didn't finish, on a frame of their own (the
--- shared one listens to some of these for your target).
+-- shared one listens to some of these for your target). FAILED and
+-- INTERRUPTED can both come for one cast, so each is told apart by its
+-- cast GUID.
 local castFrame = CreateFrame("Frame")
 for _, event in ipairs({ "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_INTERRUPTED", "UNIT_SPELLCAST_FAILED" }) do
     pcall(castFrame.RegisterUnitEvent, castFrame, event, "player")
 end
+local cablesFailed          -- the last cables cast counted as failed: castGUID
 castFrame:SetScript("OnEvent", Protect(function(_, event, unit, castGUID, spellID)
     local name = ns.SpellName(Num(Safe(spellID)) or 0)
     if not name then return end
+    castGUID = Str(Safe(castGUID))
     if event == "UNIT_SPELLCAST_START" then
-        if GATHER_SPELLS[name] then gatherCast = Str(Safe(castGUID)) end
+        if GATHER_SPELLS[name] then gatherCast = castGUID end
         return
     end
-    if HasAny(name, CABLES) then Track.count("W-434", "failed") end
-    -- W-420 [probe] a gathering cast cut short while you stood still out
-    -- of combat: someone else took the node.
-    if event == "UNIT_SPELLCAST_INTERRUPTED" and GATHER_SPELLS[name] and Track.enabled("probe")
-        and gatherCast and gatherCast == Str(Safe(castGUID)) and not ns.InCombat()
-        and (Num(Call("GetUnitSpeed", "player")) or 0) == 0 then
-        Track.count("W-420")
+    if HasAny(name, CABLES) and (not castGUID or castGUID ~= cablesFailed) then
+        cablesFailed = castGUID
+        Track.count("W-434", "failed")                        -- once per cast
     end
-    gatherCast = nil
+    -- W-420 [probe] a gathering cast cut short while you stood still out
+    -- of combat: someone else took the node. Only that cast's own
+    -- interruption ends it (not its FAILED, or another spell failing).
+    if event == "UNIT_SPELLCAST_INTERRUPTED" and castGUID and castGUID == gatherCast then
+        gatherCast = nil
+        if Track.enabled("probe") and not ns.InCombat() and (Num(Call("GetUnitSpeed", "player")) or 0) == 0 then
+            Track.count("W-420")
+        end
+    end
 end))
 
 ---------------------------------------------------------------------------
@@ -352,7 +361,7 @@ end))
 
 local function CheckProfessions()
     local list = { Call("GetProfessions") }
-    if #list == 0 then return end
+    if next(list) == nil then return end -- not loaded yet (the list has gaps, so not #list)
     local now = {}
     for _, index in pairs(list) do
         local name = Str(Call("GetProfessionInfo", index))
@@ -373,14 +382,65 @@ end
 
 local repGainAt = -1000
 
+-- Reputation is kept as a standing and the points into it (W-443..W-450),
+-- so nothing below Neutral is a negative number. Standings by the game's
+-- reaction (1-8), and where each starts in its raw values.
+local STANDINGS = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+local THRESHOLDS = { -42000, -6000, -3000, 0, 3000, 9000, 21000, 42000 }
+
+local function Rep(reaction, value, floor)
+    reaction, value, floor = Num(reaction), Num(value), Num(floor)
+    if not (reaction and STANDINGS[reaction] and value and floor) then return nil end
+    return { standing = STANDINGS[reaction], progress = math.max(0, value - floor) }
+end
+
+-- A raw value, as earlier versions saved them.
+local function RepFromRaw(value)
+    local reaction = 1
+    for i, floor in ipairs(THRESHOLDS) do
+        if value >= floor then reaction = i end
+    end
+    return Rep(reaction, value, THRESHOLDS[reaction])
+end
+
+-- A faction's reputation, and the game's raw value for it.
 local function RepOf(id)
     local data = Call("C_Reputation.GetFactionDataByID", id)
-    if type(data) == "table" then return Num(Safe(data.currentStanding)) end
-    local name, _, _, _, _, value = Call("GetFactionInfoByID", id)
-    if Str(name) then return Num(value) end
+    if type(data) == "table" then
+        local value = Num(Safe(data.currentStanding))
+        return Rep(Safe(data.reaction), value, Safe(data.currentReactionThreshold)), value
+    end
+    local name, _, standing, barMin, _, value = Call("GetFactionInfoByID", id)
+    if Str(name) then return Rep(standing, value, barMin), Num(value) end
     for i = 1, Num(Call("GetNumFactions")) or 0 do
-        local rowName, _, _, _, _, rowValue, _, _, isHeader = Call("GetFactionInfo", i)
-        if Str(rowName) == FACTIONS[id] and isHeader ~= true then return Num(rowValue) end
+        local rowName, _, rowStanding, rowMin, _, rowValue, _, _, isHeader = Call("GetFactionInfo", i)
+        if Str(rowName) == FACTIONS[id] and isHeader ~= true then
+            return Rep(rowStanding, rowValue, rowMin), Num(rowValue)
+        end
+    end
+end
+
+-- Raw values saved by earlier versions (negative below Neutral, which the
+-- export drops), turned into standings once at load.
+local function MigrateRep()
+    local function Convert(row)
+        for faction, v in pairs(row) do
+            if type(v) == "number" then row[faction] = RepFromRaw(v) end
+        end
+    end
+    for id in pairs(PROGRESSION) do
+        local map = Track.get(id)
+        if type(map) == "table" then
+            for _, row in pairs(map) do
+                if type(row) == "table" then Convert(row) end
+            end
+        end
+    end
+    if type(Track.get("W-450")) == "table" then Convert(Track.get("W-450")) end
+    local home = Track.get("W-449")
+    if type(home) == "table" and type(home.value) == "number" then
+        local rep = RepFromRaw(home.value)
+        home.standing, home.progress, home.value = rep.standing, rep.progress, nil
     end
 end
 
@@ -432,11 +492,14 @@ end
 -- gave reputation.
 local function OnQuestTurnedIn(questID)
     questID = Num(Safe(questID))
-    questDoneAt = GetTime()
-    questTitle = questID and Str(Call("C_QuestLog.GetTitleForQuestID", questID))
-    if DonationJustNow() then
+    -- This quest's own time and title: another one can be turned in before
+    -- the timer below runs, or before the donated cloth leaves your bags.
+    local doneAt = GetTime()
+    local title = questID and Str(Call("C_QuestLog.GetTitleForQuestID", questID))
+    if HasAny(title, DONATION_WORDS) then
+        donationAt = doneAt
         for _, cloth in ipairs(recentCloth) do
-            if questDoneAt - cloth.t < 2 then Track.count("W-453", cloth.name, cloth.n) end
+            if doneAt - cloth.t < 2 then Track.count("W-453", cloth.name, cloth.n) end
         end
     end
     recentCloth = {}
@@ -445,17 +508,17 @@ local function OnQuestTurnedIn(questID)
     local again = questID and seen[questID]
     if questID then seen[questID] = true end
     Track.set("questsTurnedIn", seen)
-    local title = questTitle
     if C_Timer and C_Timer.After then
         C_Timer.After(2, Protect(function()
-            if repGainAt >= questDoneAt - 1 and (again or HasAny(title, TURN_IN_WORDS)) then
+            if repGainAt >= doneAt - 1 and (again or HasAny(title, TURN_IN_WORDS)) then
                 Track.count("W-452")                          -- W-452 reputation turn-ins
                 if title then Track.count("W-452.byQuest", title) end
             end
         end))
     end
-    -- W-461 holiday quests, by title or at the Darkmoon Faire
-    if Track.enabled("holiday") and title and (HasAny(title, HOLIDAY_WORDS) or GetTime() - faireAt < VISIT_GAP) then
+    -- W-461 holiday quests, by title or turned in at the Darkmoon Faire
+    local atFaire = ns.SubZone() == "Darkmoon Faire" or doneAt - faireAt < FAIRE_TURN_IN
+    if Track.enabled("holiday") and title and (HasAny(title, HOLIDAY_WORDS) or atFaire) then
         Track.count("W-461", title)
     end
     if Track.enabled("holiday") and title == "Master Angler" then Track.count("W-460", "Master Angler") end
@@ -467,8 +530,8 @@ local function OnDing(snapshot, level)
     for id, list in pairs(PROGRESSION) do
         local row = {}
         for _, factionID in ipairs(list) do
-            local value = RepOf(factionID)
-            if value and value ~= 0 then row[FACTIONS[factionID]] = value end
+            local rep, value = RepOf(factionID)
+            if rep and value ~= 0 then row[FACTIONS[factionID]] = rep end
         end
         if next(row) then
             local map = Track.get(id)
@@ -480,7 +543,11 @@ local function OnDing(snapshot, level)
     if level >= 60 and Track.get("W-449") == nil then
         local _, race = Call("UnitRace", "player")
         local home = HOME_CITY[Str(race) or ""]
-        if home then Track.set("W-449", Track.context({ name = FACTIONS[home], value = RepOf(home) })) end -- W-449
+        if home then
+            local rep = RepOf(home) or {}
+            Track.set("W-449", Track.context({ name = FACTIONS[home], standing = rep.standing, -- W-449
+                                               progress = rep.progress }))
+        end
         local others = {}
         for _, id in ipairs(CITIES[Str(Call("UnitFactionGroup", "player")) or ""] or {}) do
             if id ~= home then others[FACTIONS[id]] = RepOf(id) end
@@ -550,8 +617,10 @@ local function DrawReputation(B)
         { "W-439", "Gained (the top one is your best friend)", "map" }, { "W-441", "Lost", "map" },
         { "W-442", "Times you turned on Booty Bay" }, { "W-454", "Desolace centaurs you sided with" },
         { "W-452", "Reputation turn-ins" }, { "W-453", "Cloth donated", "map" },
-        { "W-449", "Home city at 60" }, { "W-450", "Other cities at 60", "map" },
     })
+    local home = Track.get("W-449")                           -- W-449 with its standing
+    B:Row("Home city at 60", type(home) == "table" and ((home.name or "?") .. (home.standing and (", " .. home.standing) or "")) or "-")
+    ns.ShowItems(B, { { "W-450", "Other cities at 60", "map" } })
     local standings = Track.get("W-440")
     if type(standings) == "table" and next(standings) then
         B:Row("Standings reached", "")
@@ -614,6 +683,7 @@ On("ZONE_CHANGED_NEW_AREA", CheckFaire)
 On("PLAYER_TARGET_CHANGED", function()
     if Track.enabled("holiday") and FAIRE_NPCS[Str(Call("UnitName", "target")) or ""] then FaireVisit() end
 end)
+ns.OnLoad(Protect(MigrateRep))
 ns.OnLoad(function()
     ns.Hook("TakeInboxMoney", Protect(OnTakeMoney))
     ns.Hook("AutoLootMailItem", Protect(OnTakeMoney))

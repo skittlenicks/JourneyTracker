@@ -16,6 +16,7 @@ local On, Protect = ns.WrappedOn, ns.Protect
 local PAIR_WINDOW = 3      -- seconds between a purchase or posting and its money change
 local BROKE = 100          -- copper: under 1 silver (W-378)
 local LOW_DURABILITY = 0.2 -- when the game can't say, the armor figure turns yellow here (W-399)
+local ALERT_SLOTS = 11     -- the parts of the game's durability figure, head to ranged (W-399)
 local REWARD_CAP = 100     -- quest rewards watched for a sale (W-405)
 local CONTAINER, QUEST_ITEM = 1, 12 -- item classes
 local BIND_ON_EQUIP = 2
@@ -224,13 +225,21 @@ local function PairAuction()
     ahSpend, ahEvent = nil, nil
 end
 
+-- An auction posted. Forever's AH sends AUCTION_HOUSE_AUCTION_CREATED (its
+-- own UI prints "Auction created."); older clients send only the message,
+-- which is left alone once the event has been seen.
+local createdEvent = false
+local function Posted()
+    Track.count("W-367")                                      -- W-367 auctions posted
+    ahEvent = { kind = "posted", t = GetTime() }
+    PairAuction()
+end
+
 local function OnSystemMessage(msg)
     msg = Str(Safe(msg))
     if not msg then return end
     if msg:match(AUCTION_STARTED) then
-        Track.count("W-367")                                  -- W-367 auctions posted
-        ahEvent = { kind = "posted", t = GetTime() }
-        PairAuction()
+        if not createdEvent then Posted() end
     elseif msg:match(AUCTION_REMOVED) then
         Track.count("W-368", "cancelled")                     -- W-368 sold, expired, cancelled
     elseif msg:match(AUCTION_SOLD) then
@@ -366,14 +375,16 @@ local function OnLoot(link, count)
 end
 
 -- A treasure chest: loot from an object (not a herb, a vein or fishing)
--- with money or anything that isn't a quest item.
+-- with money or anything that isn't a quest item. Opening the same one
+-- again (loot left in it) counts once; its gold still counts (W-382).
+local chestsSeen = {}       -- [object GUID] = true, this session
 local function OnLootOpened()
     chestOpen = false
     if Call("IsFishingLoot") == true or GetTime() - lastGather < 5 then return end
-    local object, worth = false, false
+    local object, worth = nil, false
     for slot = 1, Num(Call("GetNumLootItems")) or 0 do
         local guid = Str(Call("GetLootSourceInfo", slot))
-        if guid and guid:find("^GameObject") then object = true end
+        if guid and guid:find("^GameObject") then object = guid end
         local kind = Num(Call("GetLootSlotType", slot))
         if kind == LOOT_MONEY then
             worth = true
@@ -384,7 +395,10 @@ local function OnLootOpened()
     end
     if object and worth then
         chestOpen = true
-        Track.count("W-381")                                  -- W-381 treasure chests
+        if not chestsSeen[object] then
+            chestsSeen[object] = true
+            Track.count("W-381")                              -- W-381 treasure chests
+        end
     end
 end
 
@@ -392,14 +406,20 @@ end
 -- Equipment (W-394, W-395, W-397..W-401)
 ---------------------------------------------------------------------------
 
-local equipped     -- [slot] = { id, key, enchant, link } or false, from the first look this session
-local durability, alert = {}, nil
+local equipped     -- [slot] = { id, key, enchant, link, guid } or false, from the first look this session
+local durability, alert = {}, nil -- durability[slot] = { cur, key } as last read
+
+-- The item's own GUID, which tells two copies of one item apart (W-401).
+local function SlotGUID(slot)
+    local ok, loc = pcall(function() return ItemLocation:CreateFromEquipmentSlot(slot) end)
+    return ok and loc and Str(Call("C_Item.GetItemGUID", loc)) or nil
+end
 
 local function SlotItem(slot)
     local link = Str(Call("GetInventoryItemLink", "player", slot))
     local id, enchant, suffix = LinkParts(link)
     if not id then return false end
-    return { id = id, enchant = enchant, key = id .. ":" .. suffix, link = link }
+    return { id = id, enchant = enchant, key = id .. ":" .. suffix, link = link, guid = SlotGUID(slot) }
 end
 
 local function ScanEquipped()
@@ -433,7 +453,8 @@ local function OnEquipmentChanged(slot)
     local old, new = equipped[slot], SlotItem(slot)
     equipped[slot] = new
     if not new then return end
-    if not old or old.key ~= new.key then
+    -- Another copy of the same item swapped in is an item equipped, not an enchant.
+    if not old or old.key ~= new.key or (old.guid and new.guid and old.guid ~= new.guid) then
         Track.count("W-394")                                  -- W-394 items equipped
         Track.count("W-395", ns.Level())                      -- W-395 gear swaps per level
         if slot == 16 and IsTwoHander(new) then
@@ -446,16 +467,29 @@ local function OnEquipmentChanged(slot)
 end
 
 local function CheckDurability()
-    local worst = 0
+    -- W-399 the game's own alert for each part of its durability figure
+    -- (head, shoulders, chest ... ranged), which aren't inventory slots
+    local worst, known = 0, false
+    for i = 1, ALERT_SLOTS do
+        local status = Num(Call("GetInventoryAlertStatus", i))
+        if status then
+            known = true
+            if status > worst then worst = status end
+        end
+    end
     for slot = 1, 18 do
         local cur, max = Call("GetInventoryItemDurability", slot)
         cur, max = Num(cur), Num(max)
         if cur and max and max > 0 then
-            if cur == 0 and (durability[slot] or 0) > 0 then Track.count("W-398") end -- W-398 an item broke
-            durability[slot] = cur
-            local status = Num(Call("GetInventoryAlertStatus", slot))
-            if not status then status = (cur == 0 and 2) or (cur / max <= LOW_DURABILITY and 1) or 0 end
-            if status > worst then worst = status end
+            -- W-398 an item broke: the same item, not one put on already broken
+            local item = SlotItem(slot)
+            local key, was = item and item.key, durability[slot]
+            if cur == 0 and was and was.cur > 0 and was.key == key then Track.count("W-398") end
+            durability[slot] = { cur = cur, key = key }
+            if not known then
+                local status = (cur == 0 and 2) or (cur / max <= LOW_DURABILITY and 1) or 0
+                if status > worst then worst = status end
+            end
         else
             durability[slot] = nil
         end
@@ -548,10 +582,12 @@ local function ReadSheet()
     s.health = Num(Call("UnitHealthMax", "player"))           -- W-385 max health and mana
     local mana = Num(Call("UnitPowerMax", "player", 0))
     if mana and mana > 0 then s.mana = mana end
+    -- W-386 attack power, never below 0 (as the character sheet shows it;
+    -- a debuff can take more than a low level's base)
     local base, plus, minus = Call("UnitAttackPower", "player")
-    if Num(base) then s.ap = Num(base) + (Num(plus) or 0) + (Num(minus) or 0) end -- W-386 attack power
+    if Num(base) then s.ap = math.max(0, Num(base) + (Num(plus) or 0) + (Num(minus) or 0)) end
     base, plus, minus = Call("UnitRangedAttackPower", "player")
-    if Num(base) and Num(base) > 0 then s.rap = Num(base) + (Num(plus) or 0) + (Num(minus) or 0) end
+    if Num(base) and Num(base) > 0 then s.rap = math.max(0, Num(base) + (Num(plus) or 0) + (Num(minus) or 0)) end
     local sp, spellCrit = 0, 0
     for school = 2, 7 do
         sp = math.max(sp, Num(Call("GetSpellBonusDamage", school)) or 0)
@@ -736,6 +772,15 @@ On("QUEST_TURNED_IN", function(questID, xp, money)
     if money and money > 0 then Track.count("W-377", ns.Level(), money) end -- W-377 quest gold by level
 end)
 On("CHAT_MSG_SYSTEM", OnSystemMessage)
+On("AUCTION_HOUSE_AUCTION_CREATED", function()
+    createdEvent = true
+    Posted()
+end)
+-- W-371 a commodity bought on Forever's AH (its UI prints the "won" line itself)
+On("AUCTION_HOUSE_SHOW_COMMODITY_WON_NOTIFICATION", function(name)
+    ahEvent = { kind = "won", name = Str(Safe(name)), t = GetTime() }
+    PairAuction()
+end)
 On("LOOT_OPENED", OnLootOpened)
 On("LOOT_CLOSED", function()
     if chestOpen then chestUntil = GetTime() + 2 end
@@ -755,7 +800,10 @@ ns.OnLoad(function()
         OnTakeMoney(index)
         OnTakeItem(index)
     end))
-    ns.Hook("PurchaseSlot", Protect(function() bankBuyAt = GetTime() end))
+    -- W-366 Forever buys bank tabs; PurchaseSlot is the older clients' bank slot
+    local function BankBuy() bankBuyAt = GetTime() end
+    ns.Hook("C_Bank.PurchaseBankTab", Protect(BankBuy))
+    ns.Hook("PurchaseSlot", Protect(BankBuy))
     ns.Hook("ConfirmTalentWipe", Protect(function()
         Track.count("W-407")                                  -- W-407 talent respecs
         if wipeCost then Track.count("W-376", nil, wipeCost) end -- W-376 gold on respecs

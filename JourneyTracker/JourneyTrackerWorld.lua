@@ -27,6 +27,8 @@ local function Round(v) return math.floor(v + 0.5) end
 local function Faction() return Str(Call("UnitFactionGroup", "player")) end
 local function Resting() return Call("IsResting") == true end
 local function Ghost() return Call("UnitIsGhost", "player") == true end
+-- The zone's PvP type: Forever's own UI reads it from C_PvP (W-339, W-349).
+local function ZonePvP() return Str(Call("C_PvP.GetZonePVPInfo")) or Str(Call("GetZonePVPInfo")) end
 
 local function HasWord(text, words)
     for _, w in ipairs(words) do
@@ -78,11 +80,34 @@ local function OnMirrorStop(timer)
     if name and mirrors[name] then EndMirror(name, GetTime()) end
 end
 
--- At a death: had this timer run out, with you still in it?
+-- After a /reload the game doesn't send MIRROR_TIMER_START again, so a
+-- timer already counting down is read back, as the game's own bars do.
+-- How far its bar has gone down says how long you've been in it.
+local function ReadMirrors()
+    local now = GetTime()
+    for i = 1, 3 do
+        local timer, value, maxValue, scale = Call("GetMirrorTimerInfo", i)
+        local name = Str(timer)
+        local m = name and mirrors[name]
+        if m and not m.since then
+            value = Num(Call("GetMirrorTimerProgress", name)) or Num(value)
+            maxValue, scale = Num(maxValue), Num(scale)
+            if value and maxValue and scale and scale < 0 then
+                m.since = now - math.max(0, maxValue - value) / 1000 / -scale
+                m.expires = now + value / 1000 / -scale
+            end
+        end
+    end
+end
+
+-- At a death: when this timer ran out, if it had with you still in it.
 local function RanOut(name, now)
     local m = mirrors[name]
-    if m.since then return m.expires ~= nil and now >= m.expires - 0.5 end
-    return m.ranOutAt ~= nil and now - m.ranOutAt < DROWN_WINDOW and not (m.out and m.out >= m.ranOutAt)
+    if m.since then
+        if m.expires and now >= m.expires - 0.5 then return m.expires end
+    elseif m.ranOutAt and now - m.ranOutAt < DROWN_WINDOW and not (m.out and m.out >= m.ranOutAt) then
+        return m.ranOutAt
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -245,7 +270,7 @@ local function IsGuard(killer, mob)
     if killer:find("Bruiser", 1, true) then return true end
     local faction = mob and mob.faction
     if faction == "Alliance" or faction == "Horde" then return faction ~= Faction() end
-    return Str(Call("GetZonePVPInfo")) == "hostile"
+    return ZonePvP() == "hostile"
 end
 
 local function EscortUnderWay(now)
@@ -262,8 +287,13 @@ local function OnDeath(rec, extra)
     local mob = extra and extra.mob
     local played = ns.PlayedNow()
     if played then rec.played = math.floor(played) end       -- /played at each death (W-355, W-357)
-    if RanOut("BREATH", now) then Track.count("W-337") end    -- W-337 drowned
-    if RanOut("EXHAUSTION", now) then Track.count("W-338") end -- W-338 fatigue
+    -- One death is one or the other: the timer that ran out first.
+    local breath, fatigue = RanOut("BREATH", now), RanOut("EXHAUSTION", now)
+    if breath and not (fatigue and fatigue < breath) then
+        Track.count("W-337")                                  -- W-337 drowned
+    elseif fatigue then
+        Track.count("W-338")                                  -- W-338 fatigue
+    end
     if IsGuard(killer, mob) then Track.count("W-339") end     -- W-339 guards
     if Track.enabled("probe") then
         for _, id in ipairs(ns.FamiliesOf(killer, mob and mob.ctype, mob and mob.family)) do
@@ -277,7 +307,7 @@ local function OnDeath(rec, extra)
     if EscortUnderWay(now) then Track.count("W-346") end      -- W-346 during an escort
     if now < sickUntil then Track.count("W-347") end          -- W-347 with Resurrection Sickness
     if now - spiritRezAt <= 120 then Track.count("W-348") end -- W-348 soon after a spirit healer
-    local pvp = Str(Call("GetZonePVPInfo"))
+    local pvp = ZonePvP()
     if pvp == "sanctuary" or (Resting() and pvp ~= "hostile") then
         Track.count("W-349")                                  -- W-349 in a sanctuary or friendly town
     end
@@ -458,6 +488,7 @@ On("PLAYER_ENTERING_WORLD", function(isInitialLogin, isReload)
     elseif isReload then
         if Ghost() then ghostSince = GetTime() end
         wasFull = RestedFull()
+        ReadMirrors()                                         -- still under water or in deep water
     end
 end)
 On("PLAYER_LOGOUT", OnLogout)
