@@ -40,13 +40,13 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 ## Paladin
 1. `BUILT` `PAL-01` Time with each seal active (Righteousness, Crusader, Command, Wisdom, Light, Justice) (started by the seal cast, ended by Judgement, 30s or death; buff re-checked out of combat only)
 2. `BUILT` `PAL-02` Judgements cast, by seal judged
-3. `BUILT` `PAL-03` Time with each aura active (Devotion, Retribution, Concentration, resist auras) (stance-bar form changes plus aura casts; buff re-checked out of combat only)
-4. `BUILT` `PAL-04` Blessings cast, by blessing; cast on others vs self `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target; unknown if SECRET)
+3. `BUILT` `PAL-03` Time with each aura active (Devotion, Retribution, Concentration, resist auras) (stance-bar form changes plus aura casts; buff re-checked out of combat only; with no stance-bar forms, as in Classic, a form change doesn't end it, and an aura of yours that's up but untimed is picked up out of combat)
+4. `BUILT` `PAL-04` Blessings cast, by blessing; cast on others vs self `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target, compared without the "-Realm" the game adds; unknown if SECRET)
 5. `BUILT` `PAL-05` Lay on Hands uses
 6. `BUILT` `PAL-06` Divine Shield / Divine Protection uses
 7. `BUILT` `PAL-07` Bubble hearths: Divine Shield followed by a Hearthstone cast within 10 seconds
 8. `BUILT` `PAL-08` Hammer of Justice casts
-9. `BUILT` `PAL-09` Heals cast: Holy Light, Flash of Light; casts on self vs others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target; unknown if SECRET)
+9. `BUILT` `PAL-09` Heals cast: Holy Light, Flash of Light; casts on self vs others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target, compared without the "-Realm" the game adds; unknown if SECRET)
 10. `BUILT` `PAL-10` Redemption casts (players resurrected) (casts; whether the player accepted is not known)
 11. `BUILT` `PAL-11` Exorcism and Turn Undead casts
 12. `BUILT` `PAL-12` Consecration casts
@@ -70,7 +70,7 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 13. `BUILT` `HUN-13` Shots cast: Arcane, Aimed, Multi-Shot, Concussive, Scatter, Serpent Sting
 14. `BUILT` `HUN-14` Hunter's Mark casts
 15. `BUILT` `HUN-15` Beast abilities learned through taming, and level learned (from learned-spell messages (#95); beast training wording unconfirmed)
-16. `BUILT` `HUN-16` Tracking types used and time in each (Beasts, Humanoids, etc.) (time from the last Track cast)
+16. `BUILT` `HUN-16` Tracking types used and time in each (Beasts, Humanoids, etc.) (time from the last Track cast; Find Herbs, Find Minerals and Find Treasure end it)
 17. `BUILT` `HUN-17` Eyes of the Beast and Scare Beast uses
 
 ## Rogue
@@ -91,10 +91,10 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 15. `BUILT` `ROG-15` Thistle Tea or other rogue consumables used
 
 ## Priest
-1. `BUILT` `PRI-01` Power Word: Shield casts, and on self vs others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target; unknown if SECRET)
+1. `BUILT` `PRI-01` Power Word: Shield casts, and on self vs others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target, compared without the "-Realm" the game adds; unknown if SECRET)
 2. `BUILT` `PRI-02` Renew, Lesser Heal, Heal, Flash Heal, Greater Heal casts
 3. `BUILT` `PRI-03` Resurrection casts (casts; whether the player accepted is not known)
-4. `BUILT` `PRI-04` Power Word: Fortitude and Divine Spirit cast on others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target; unknown if SECRET)
+4. `BUILT` `PRI-04` Power Word: Fortitude and Divine Spirit cast on others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target, compared without the "-Realm" the game adds; unknown if SECRET)
 5. `BUILT` `PRI-05` Time in Shadowform (Shadowform as a shapeshift form)
 6. `BUILT` `PRI-06` Shadow Word: Pain, Mind Blast, Mind Flay casts
 7. `BUILT` `PRI-07` Psychic Scream and Fade casts
@@ -134,7 +134,7 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 7. `BUILT` `MAG-07` Polymorph casts, by variant (Sheep, Pig, Turtle)
 8. `BUILT` `MAG-08` Frost Nova, Blink, Ice Block, Ice Barrier casts
 9. `BUILT` `MAG-09` Counterspell casts, successful interrupts `[probe]` (interrupt counted if the target cast stops within 0.5s of yours; heuristic)
-10. `BUILT` `MAG-10` Arcane Intellect cast on others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target; unknown if SECRET)
+10. `BUILT` `MAG-10` Arcane Intellect cast on others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target, compared without the "-Realm" the game adds; unknown if SECRET)
 11. `BUILT` `MAG-11` Evocation uses
 12. `BUILT` `MAG-12` Mana gems conjured and used
 13. `BUILT` `MAG-13` Main nuke breakdown: Fireball, Frostbolt, Arcane Missiles, Scorch, Fire Blast
@@ -159,7 +159,7 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 15. `BUILT` `WLK-15` Fear, Howl of Terror, Death Coil casts
 16. `BUILT` `WLK-16` DoTs cast: Corruption, Curse of Agony, Immolate, Siphon Life
 17. `BUILT` `WLK-17` Enslave Demon and Eye of Kilrogg uses
-18. `BUILT` `WLK-18` Unending Breath and Detect Invisibility casts on others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target; unknown if SECRET)
+18. `BUILT` `WLK-18` Unending Breath and Detect Invisibility casts on others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target, compared without the "-Realm" the game adds; unknown if SECRET)
 19. `BUILT` `WLK-19` Level the warlock mount (Felsteed) was learned, and times summoned (level from learned-spell data (#95), summons from casts)
 
 ## Druid
@@ -167,9 +167,9 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 2. `BUILT` `DRU-02` Form shifts total, and most common shift
 3. `BUILT` `DRU-03` Level each form was learned (Bear and Aquatic quests, Cat, Travel) (level from learned-spell data (#95))
 4. `BUILT` `DRU-04` Time in Prowl (IsStealthed via UPDATE_STEALTH; Shadowmeld kept separate)
-5. `BUILT` `DRU-05` Healing casts: Healing Touch, Regrowth, Rejuvenation; self vs others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target; unknown if SECRET)
+5. `BUILT` `DRU-05` Healing casts: Healing Touch, Regrowth, Rejuvenation; self vs others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target, compared without the "-Realm" the game adds; unknown if SECRET)
 6. `BUILT` `DRU-06` Rebirth casts (battle resurrections) and Innervate casts
-7. `BUILT` `DRU-07` Mark of the Wild and Thorns cast on others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target; unknown if SECRET)
+7. `BUILT` `DRU-07` Mark of the Wild and Thorns cast on others `[probe]` (self vs others from the UNIT_SPELLCAST_SENT target, compared without the "-Realm" the game adds; unknown if SECRET)
 8. `BUILT` `DRU-08` Caster damage: Wrath, Moonfire, Starfire, Insect Swarm casts
 9. `BUILT` `DRU-09` Cat abilities: Claw, Shred, Rake, Rip, Ferocious Bite, Ravage, Pounce
 10. `BUILT` `DRU-10` Bear abilities: Maul, Swipe, Growl, Demoralizing Roar, Bash, Feral Charge
@@ -184,14 +184,14 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 2. `BUILT` `ALL-02` Potions used, by type (healing, mana, other) (potions used, typed by name (Healing / Mana / other))
 3. `BUILT` `ALL-03` Healthstones used that another warlock made
 4. `BUILT` `ALL-04` Conjured mage food/water consumed from other players (Conjured items used by non-mages)
-5. `BUILT` `ALL-05` Food and drink consumed, by item (items used with a Food or Drink cast)
+5. `BUILT` `ALL-05` Food and drink consumed, by item (items used with a Food or Drink cast, or consumable food and drink used; not your pet's food)
 6. `BUILT` `ALL-06` Buffs received from other classes, by spell (Fortitude, Mark of the Wild, Arcane Intellect, Blessings) `[probe]` (new buffs from UNIT_AURA; the game may block aura data in combat)
 7. `BUILT` `ALL-07` Times resurrected by another player, by their class `[probe]` (rezzer class looked up in your group; Unknown otherwise)
 8. `BUILT` `ALL-08` Times summoned by a warlock (accepted summons (ConfirmSummon hook))
 9. `BUILT` `ALL-09` Racial abilities used (Forever gives each race two active and two passive racials, including Skyborne; read them from the spellbook at login instead of hardcoding Classic racials) (Classic racial names; Skyborne racials to add once their names are known)
 10. `BUILT` `ALL-10` Wand shots fired (for wand-using classes)
 11. `BUILT` `ALL-11` Class trainer visits and gold spent per visit (class trainers only (IsTradeskillTrainer excludes profession trainers))
-12. `BUILT` `ALL-12` Class quests completed and the level each was done (quests given or taken by a class trainer you have trained with; heuristic)
+12. `BUILT` `ALL-12` Class quests completed and the level each was done (quests given or taken by a class trainer you have trained with, known by NPC ID; heuristic)
 13. `VERIFIED` `ALL-13` Estimated healing done, by heal spell (average heal from each cast's tooltip, since health is SECRET; Lay on Hands = your max health; ignores +healing gear, crits and overhealing) (confirmed in game)
 
 ## Changelog
@@ -201,3 +201,4 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 - 2026-10-01: Window shows times cast only (all ranks together); per-rank and self vs others counts are still saved for the website but no longer shown. Fixed a Lua error on the Class Stats page when the game returns nothing for an unknown spell.
 - 2026-10-01: Added ALL-13 estimated healing (requested in testing), shown on the Abilities page and added to ding snapshots.
 - 2026-10-01: VERIFIED in game: ALL-13 (estimated healing).
+- 2026-10-05: Fixes from a bug review (addon 0.6.2). ALL-05 counted two-handed maces, cloth and cooking recipes leaving your bags (item subclass 5 is food and drink only for consumables) and your pet's food. Self vs others never found "self", because the game names you "Name-Realm"; names are now compared without the realm (PAL-04, PAL-09, PRI-01, PRI-04, MAG-10, DRU-05, DRU-07, WLK-18; counts from before stay as they were). PAL-03 aura time stopped at the first shapeshift event (learning a spell fires one), since Classic paladin auras aren't stance-bar forms; an aura of yours that's up but untimed is now picked up out of combat. A pet dismissed as you die or take a flight no longer counts as dead (HUN-06, WLK-12). Class totals in each ding snapshot added every item bought, banked or sold to the casts; now only items used, once. ALL-12 trainers are known by NPC ID instead of the full GUID that changes when the server restarts (saved ones converted). HUN-16 tracking time ends on Find Herbs, Find Minerals or Find Treasure. Bag changes can't be booked twice when another file's listener errors. Checked outside the game (fengari, real saved data): 45 checks, and every window page for all nine classes.

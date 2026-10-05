@@ -81,7 +81,7 @@ Every 10 levels, the addon saves your journey as it was when you got there, and 
 ## Privacy
 
 - Exports never include your character's name or realm, other players' names, or chat.
-- Other players' names are never saved, and chat is never stored: the addon counts the messages you send and the words you type most, nothing else.
+- Other players' names are never saved, and chat is never stored: the addon counts the messages you send and the words you type most (not in whispers, and never a name), nothing else.
 - Nothing leaves the game by itself. Addons can't reach the internet or the rest of your computer, so your data stays in your saved variables until you choose to share an export.
 - Pasting an export on the website saves it so it counts toward the rankings. Anyone you give your recap's link to can see it, but never your name or realm.
 

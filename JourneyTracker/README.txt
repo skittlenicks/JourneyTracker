@@ -75,8 +75,9 @@ WHAT'S COLLECTED
   while AFK...), loot rolls, emotes, the red error messages you hit,
   fishing, cooking, reputation, PvP, dungeon wipes, your firsts and your
   play habits.
-- How many chat messages you send, by channel, and the words you type most.
-  Only counts: never a whole message, and never anything other players say.
+- How many chat messages you send, by channel, and the words you type most
+  (not in whispers, and never a name: yours or another player's). Only
+  counts: never a whole message, and never anything other players say.
 - A random ID made up by the addon, so I can tell your exports apart over
   time. It isn't based on your name or anything else about you.
 
