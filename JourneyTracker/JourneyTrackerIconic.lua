@@ -69,7 +69,8 @@ local FAMILIES = {
     { id = "W-051", label = "Kodos", names = { "Kodo" } },
     { id = "W-052", label = "Big cats", names = { "Panther", "Tiger", "Lion", "Nightsaber", "Frostsaber", "Saber",
         "Cougar", "Puma", "Lynx" }, families = { "Cat" } },
-    { id = "W-053", label = "Whelps and dragonkin", names = { "Whelp", "Drake", "Dragon" }, types = { "Dragonkin" } },
+    { id = "W-053", label = "Whelps and dragonkin", names = { "Whelp", "Drake", "Dragon" }, except = { "Dragonmaw" },
+        types = { "Dragonkin" } },
     { id = "W-054", label = "Elementals", types = { "Elemental" } },
     { id = "W-055", label = "Demons", types = { "Demon" } },
     { id = "W-056", label = "Yetis", names = { "Yeti" } },
@@ -279,8 +280,13 @@ end
 -- Kills without experience: the target you attacked died and no
 -- experience message named it. Checked twice a second while you fight it.
 local recentXP = {}       -- [name] = GetTime() of its experience message
-local counted = {}        -- [guid] = true, kills without XP already counted
+local counted = {}        -- [guid] = true, kills already counted (with or without XP)
 local watched, watchTicker
+
+-- Kills without experience, for the other files (ns.OnNoXPKill): at 60
+-- every kill is one (enemy guards and faction leaders, JourneyTrackerPvP.lua).
+local noXPListeners = {}
+function ns.OnNoXPKill(fn) table.insert(noXPListeners, Protect(fn)) end
 
 local function CountNoXP(guid, info)
     if not guid or counted[guid] then return end
@@ -290,8 +296,10 @@ local function CountNoXP(guid, info)
     local function Decide()
         local seen = info.name and recentXP[info.name]
         if seen and math.abs(GetTime() - seen) < 3 then return end
-        CountKill({ name = info.name, ctype = info.ctype, family = info.family, class = info.class,
-                    mobLevel = info.level, level = ns.Level(), zone = ns.Zone(), subzone = ns.SubZone(), noXP = true })
+        local k = { name = info.name, ctype = info.ctype, family = info.family, class = info.class,
+                    mobLevel = info.level, level = ns.Level(), zone = ns.Zone(), subzone = ns.SubZone(), noXP = true }
+        CountKill(k)
+        for _, fn in ipairs(noXPListeners) do fn(k) end
     end
     if C_Timer and C_Timer.After then C_Timer.After(1, Protect(Decide)) else Decide() end
 end
@@ -304,6 +312,7 @@ end
 local function CheckWatched()
     if not watched then return StopWatch() end
     if Str(Call("UnitGUID", "target")) ~= watched.guid then return StopWatch() end
+    if Call("UnitIsTapDenied", "target") == true then return StopWatch() end -- someone else's kill
     if Call("UnitIsDead", "target") == true then
         CountNoXP(watched.guid, watched)
         StopWatch()
@@ -320,6 +329,9 @@ local function WatchTarget()
                 family = Str(Call("UnitCreatureFamily", "target")), class = Str(Call("UnitClassification", "target")),
                 level = Num(Call("UnitLevel", "target")) }
     if IsRare(watched.class) then SeenRare(guid) end
+    -- A corpse (looted, skinned, or killed before you looked) or a mob
+    -- someone else has tagged isn't a kill of yours to wait for.
+    if Call("UnitIsDead", "target") == true or Call("UnitIsTapDenied", "target") == true then watched = nil end
 end
 
 -- You attacked it: auto-attack started, or a spell went off at it.
@@ -370,9 +382,24 @@ local function OnDeath(rec, extra)
     if mob and IsElite(mob.class) then Track.count("W-136") end              -- W-136 elite deaths
 end
 
+-- W-094/W-096 an elevator ride counts a few seconds after the zone
+-- changes, unless a long fall lands first: jumping off isn't a ride.
+local pendingRide
+local function ElevatorRide(id, key)
+    local ride = {}
+    pendingRide = ride
+    local function Count()
+        if pendingRide ~= ride then return end
+        pendingRide = nil
+        Track.count(id, key)
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(10, Protect(Count)) else Count() end
+end
+
 -- W-096 falls off Thunder Bluff: a long fall landing in Mulgore just after
 -- being up on the bluffs.
 local function OnFall(fall)
+    if fall.yards >= 30 then pendingRide = nil end
     if Faction() == "Horde" and fall.zone == "Mulgore" and fall.yards >= 30
         and GetTime() - lastInThunderBluff < 15 then
         Track.count("W-096", "falls")
@@ -383,25 +410,42 @@ end
 -- Places: visits, elevators, portals, boats and zeppelins
 ---------------------------------------------------------------------------
 
-local lastSeen = {}       -- [id .. place] = GetTime() last seen there (visits)
 local lastZone, lastSubZone, lastSubZoneAt
 local lastDock            -- { name, t } the last boat or zeppelin dock seen
-local travelMark = 0      -- GetTime() of the last flight or hearth (rides can't follow one)
+local travelMark = 0      -- GetTime() of the last flight, hearth, teleport or summon (rides can't follow one)
 
-local function Visit(e, place)
+-- Visits (W-072..W-125): when each place was last seen (time()), kept in
+-- db.wrapped (visitsSeen) so a /reload or relog where you stand isn't a
+-- new visit. Seen again every 5 seconds while you're there; dropped once
+-- older than VISIT_GAP.
+local function SeenPlaces()
+    local seen = Track.get("visitsSeen")
+    if type(seen) ~= "table" then
+        seen = {}
+        Track.set("visitsSeen", seen)
+    end
+    return seen
+end
+
+-- `already`: you were there already (logging in), so it isn't a visit.
+local function Visit(seen, e, place, already)
     local key = e.id .. "|" .. place
-    local now = GetTime()
-    local away = not lastSeen[key] or now - lastSeen[key] > VISIT_GAP
-    lastSeen[key] = now
-    if not away then return end
+    local now = time()
+    local away = not seen[key] or now - seen[key] > VISIT_GAP
+    seen[key] = now
+    if not away or already then return end
     if e.by then Track.count(e.id, place) else Track.count(e.id) end
 end
 
-local function CheckVisits(zone, subzone)
+local function CheckVisits(zone, subzone, already)
+    local seen, now = SeenPlaces(), time()
+    for key, at in pairs(seen) do
+        if now - at > VISIT_GAP then seen[key] = nil end
+    end
     for _, e in ipairs(VISITS) do
         if ForMe(e) then
-            if IsIn(zone, e.zones) then Visit(e, zone) end
-            if IsIn(subzone, e.subzones) then Visit(e, subzone) end
+            if IsIn(zone, e.zones) then Visit(seen, e, zone, already) end
+            if IsIn(subzone, e.subzones) then Visit(seen, e, subzone, already) end
         end
     end
 end
@@ -411,11 +455,15 @@ local function DockOf(zone, subzone)
 end
 
 -- A ride: from one dock to another on a known route, with no flight or
--- hearth in between.
+-- hearth in between. On a flight path nothing below is a dock you're at.
 local function CheckRide(zone, subzone)
+    local now = GetTime()
+    if Call("UnitOnTaxi", "player") == true then
+        travelMark = now
+        return
+    end
     local dock = DockOf(zone, subzone)
     if not dock then return end
-    local now = GetTime()
     if lastDock and lastDock.name ~= dock and now - lastDock.t <= RIDE_WINDOW and lastDock.t > travelMark then
         local a, b = lastDock.name, dock
         local kind = ROUTES[a .. "|" .. b] or ROUTES[b .. "|" .. a]
@@ -448,23 +496,30 @@ local function CheckLeftHome(from, to)
     end
 end
 
-local function OnZone()
+-- Zone changes, and every 5 seconds (Tick) to keep "last seen here" times
+-- fresh while you stay put. `already`: just logged in where you are.
+local function OnZone(already)
     local zone, subzone = ns.Zone(), ns.SubZone()
+    if zone == "Unknown" then return end -- the zone's name read empty for a moment: not a place (W-082)
     local now = GetTime()
+    local onTaxi = Call("UnitOnTaxi", "player") == true
     if zone ~= lastZone then
         local from = lastZone
         if from then
             CheckLeftHome(from, zone)
-            -- W-094 Undercity elevators: between the ruins and the city
-            if Faction() == "Horde" and ((from == "Undercity" and zone == "Tirisfal Glades")
+            -- W-094 Undercity elevators (between the ruins and the city) and
+            -- W-096 Thunder Bluff's (between the bluffs and Mulgore): not by
+            -- air, not just after a hearth or teleport, not falling off (OnFall)
+            local walked = not onTaxi and now - travelMark > 30
+            if Faction() == "Horde" and walked and ((from == "Undercity" and zone == "Tirisfal Glades")
                 or (from == "Tirisfal Glades" and zone == "Undercity")) then
-                Track.count("W-094")
+                ElevatorRide("W-094")
             end
-            -- W-096 Thunder Bluff elevators: between the bluffs and Mulgore, not by air
-            if Faction() == "Horde" and Call("UnitOnTaxi", "player") ~= true
+            if Faction() == "Horde" and walked
                 and ((from == "Thunder Bluff" and zone == "Mulgore") or (from == "Mulgore" and zone == "Thunder Bluff")) then
-                Track.count("W-096", "elevator rides")
+                ElevatorRide("W-096", "elevator rides")
             end
+            if from == "Thunder Bluff" then lastInThunderBluff = now end
             -- W-076 the Rut'theran portal: Darnassus moments after Rut'theran
             if Faction() == "Alliance" and zone == "Darnassus" and lastSubZone == "Rut'theran Village"
                 and lastSubZoneAt and now - lastSubZoneAt < 15 then
@@ -477,9 +532,12 @@ local function OnZone()
     if zone == "Thunder Bluff" then lastInThunderBluff = now end
     if subzone ~= lastSubZone then lastSubZone = subzone end
     lastSubZoneAt = now
-    CheckVisits(zone, subzone)
+    if not onTaxi then CheckVisits(zone, subzone, already) end -- towns flown over aren't visits
     CheckRide(zone, subzone)
 end
+
+-- A flight, hearth, teleport, portal or summon: a boat ride can't follow one.
+local function Traveled() travelMark = GetTime() end
 
 ---------------------------------------------------------------------------
 -- Quests, loot, chat
@@ -542,6 +600,7 @@ end
 ---------------------------------------------------------------------------
 
 local function Tick(dt)
+    OnZone() -- still here: visits, the dock you're at, Rut'theran and Thunder Bluff stay fresh
     local zone = ns.Zone()
     local s = math.floor(dt + 0.5)
     if Call("UnitIsAFK", "player") == true then
@@ -654,7 +713,7 @@ ns.OnDeathRecord(OnDeath)
 ns.OnFall(OnFall)
 ns.OnLootItem(OnLoot)
 
-On("PLAYER_ENTERING_WORLD", function()
+On("PLAYER_ENTERING_WORLD", function(isInitialLogin, isReload)
     wanted = Track.get("wanted")
     if not lastZone and Track.get("W-082") == nil and not Track.get("outsideHome") then
         -- A character the tracker has already seen away from home left it
@@ -668,7 +727,7 @@ On("PLAYER_ENTERING_WORLD", function()
             end
         end
     end
-    OnZone()
+    OnZone(isInitialLogin or isReload)
 end)
 On("ZONE_CHANGED_NEW_AREA", OnZone)
 On("ZONE_CHANGED", OnZone)
@@ -684,7 +743,10 @@ On("PLAYER_REGEN_DISABLED", Attacked)
 On("CHAT_MSG_COMBAT_XP_GAIN", function(msg)
     msg = Str(Safe(msg))
     local mob = msg and msg:match(ns.PATTERNS.kill)
-    if mob then recentXP[mob] = GetTime() end
+    if not mob then return end
+    recentXP[mob] = GetTime()
+    -- the target being watched gave experience: the main tracker has it
+    if watched and watched.name == mob then counted[watched.guid] = true end
 end)
 On("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
 On("QUEST_ACCEPTED", OnQuestAccepted)
@@ -692,19 +754,59 @@ On("QUEST_TURNED_IN", OnQuestTurnedIn)
 On("CHAT_MSG_CHANNEL", OnChannel)
 ns.OnCast(Protect(function(name)
     if watched and Str(Call("UnitGUID", "target")) == watched.guid then Attacked() end
-    if name == "Hearthstone" or (name and name:find("Teleport", 1, true)) then travelMark = GetTime() end
+    if name == "Hearthstone" or name == "Astral Recall" then
+        Traveled()
+        lastSubZoneAt = nil -- hearthed away: arriving in Darnassus next isn't the Rut'theran portal (W-076)
+    elseif name and (name:find("Teleport", 1, true) or name:find("^Portal")) then
+        Traveled()
+    end
 end))
-ns.Hook("TakeTaxiNode", Protect(function() travelMark = GetTime() end))
+ns.Hook("TakeTaxiNode", Protect(Traveled))
+if not ns.Hook("C_SummonInfo.ConfirmSummon", Protect(Traveled)) then
+    ns.Hook("ConfirmSummon", Protect(Traveled))               -- an accepted summon
+end
 ns.WrappedTick(Tick)
 -- W-081 / W-103 racial mount bought: a mount (item class 15, subclass 5)
--- from a vendor, with what it cost.
-local mountSpend = 0
-ns.OnMoneyChange(function(delta, where)
-    if where == "merchant" and delta < 0 then mountSpend = -delta end
-end)
+-- from a vendor, with what it cost. Each purchase and its payment are
+-- paired up whichever comes first (within 3 seconds) and used once, so a
+-- mount never takes the price of something bought before it.
+local spend, bought
+local function PairPurchase()
+    if not (spend and bought) or math.abs(spend.t - bought.t) > 3 then return end
+    local c, cost = bought.c, spend.amount
+    spend, bought = nil, nil
+    if c.classID ~= 15 or c.subClassID ~= 5 then return end
+    local faction = Faction()
+    if faction == "Alliance" or faction == "Horde" then  -- (a Skyborne who hasn't chosen has neither)
+        Track.first(faction == "Horde" and "W-103" or "W-081", { name = c.name, cost = cost })
+    end
+    Track.count("W-375", nil, cost)                           -- W-375 gold spent on mounts
+end
+ns.OnMoneyChange(Protect(function(delta, where)
+    if where ~= "merchant" or delta >= 0 or Call("InRepairMode") == true then return end
+    spend = { amount = -delta, t = GetTime() }
+    PairPurchase()
+end))
 ns.OnItemChange(Protect(function(c)
-    if c.kind ~= "bought" or c.classID ~= 15 or c.subClassID ~= 5 then return end
-    local id = Faction() == "Horde" and "W-103" or "W-081"
-    Track.first(id, { name = c.name, cost = mountSpend })
-    Track.count("W-375", nil, mountSpend)                     -- W-375 gold spent on mounts
+    if c.kind ~= "bought" then return end
+    bought = { c = c, t = GetTime() }
+    PairPurchase()
+end))
+-- W-022..W-059 began with the wrapped stats (0.6.0), but the main tracker
+-- has every experience kill by name since it began (#28): at load, a
+-- family is raised to what its names add up to there, never lowered.
+-- Families known only by creature type (undead, elementals, demons,
+-- critters) can't be told from a name and are left as they are.
+ns.OnLoad(Protect(function(db)
+    if not Track.enabled("probe") then return end
+    local total = {}
+    for name, n in pairs(db.kills and db.kills.byName or {}) do
+        if type(name) == "string" and type(n) == "number" and n > 0 then
+            for _, id in ipairs(FamiliesOf(name)) do total[id] = (total[id] or 0) + n end
+        end
+    end
+    for id, n in pairs(total) do
+        local have = Track.get(id)
+        if n > (type(have) == "number" and have or 0) then Track.set(id, n) end
+    end
 end))

@@ -85,6 +85,8 @@ local function NumberedPattern(fmt, english)
 end
 
 local HONOR_KILL = ns.PatternFrom(COMBATLOG_HONORGAIN, "%s dies, honorable kill Rank: %s (Estimated Honor Points: %d)")
+-- (a victim with no PvP rank, where the client has the string for it)
+local HONOR_KILL_NO_RANK = type(COMBATLOG_HONORGAIN_NO_RANK) == "string" and ns.PatternFrom(COMBATLOG_HONORGAIN_NO_RANK)
 local DISHONOR_KILL = ns.PatternFrom(COMBATLOG_DISHONORGAIN, "%s dies, dishonorable kill.")
 local HONOR_AWARD = ns.PatternFrom(COMBATLOG_HONORAWARD, "You have been awarded %d honor points.")
 local DUEL_WIN, DUEL_WIN_ORDER = NumberedPattern(DUEL_WINNER_KNOCKOUT, "%1$s has defeated %2$s in a duel")
@@ -103,16 +105,31 @@ end
 -- Killing enemy players
 ---------------------------------------------------------------------------
 
-local recentKills = {}    -- [name] = GetTime(), so one kill isn't counted twice
+local recentKills = {}    -- [GUID or name] = GetTime(), so one kill isn't counted twice (this session only)
+local lastKill            -- { t, guid, name } the last kill counted
 local streak = 0          -- W-169 enemy players killed since you last died
 local stealthOpen = false -- the current fight began from stealth (W-142)
 
-local function PvPKill(name, info)
+-- W-140 one kill can arrive three ways (the honor message, your target
+-- dying, the combat log), with a GUID or not, and a name with or without
+-- its realm, or none: it's the same kill by GUID or name within 10
+-- seconds, and one with no name to compare is the kill just before it,
+-- within 2.
+local function SameKill(guid, name, now)
+    if guid and recentKills[guid] and now - recentKills[guid] < 10 then return true end
+    if name and recentKills[name] and now - recentKills[name] < 10 then return true end
+    local last = lastKill
+    return last ~= nil and now - last.t < 2 and not (name and last.name)
+        and not (guid and last.guid and guid ~= last.guid)
+end
+
+local function PvPKill(name, info, guid)
     local now = GetTime()
-    if name then
-        if recentKills[name] and now - recentKills[name] < 10 then return end
-        recentKills[name] = now
-    end
+    name = name and (name:match("^(.-)%-") or name)
+    if SameKill(guid, name, now) then return end
+    if guid then recentKills[guid] = now end
+    if name then recentKills[name] = now end
+    lastKill = { t = now, guid = guid, name = name }
     info = info or (name and ns.PlayerInfo(name)) or {}
     local me, zone, subzone = ns.Level(), ns.Zone(), ns.SubZone()
     local level, class = info.level, info.class
@@ -161,12 +178,13 @@ local function CheckWatched()
     if Call("UnitIsDeadOrGhost", "target") == true then
         local w = watched
         StopWatch()
-        if GetTime() - attackedAt < 30 then PvPKill(w.name, w) end
+        if GetTime() - attackedAt < 30 then PvPKill(w.name, w, w.guid) end
     end
 end
 local function WatchTarget()
     StopWatch()
     if Call("UnitIsPlayer", "target") ~= true or Call("UnitIsEnemy", "player", "target") ~= true then return end
+    if Call("UnitIsDeadOrGhost", "target") == true then return end -- already dead: not a kill to watch for
     local guid = Str(Call("UnitGUID", "target"))
     if not guid then return end
     local _, class = Call("UnitClass", "target")
@@ -189,7 +207,10 @@ local function OnDeath(rec, extra)
     streak = 0
     local killer = rec.killer or ""
     local f = Faction()
-    if HasAny(killer, GUARDS[Enemy()]) then Track.count("W-161") end -- W-161 killed by enemy guards
+    local mob = extra and extra.mob
+    if HasAny(killer, GUARDS[Enemy()]) and mob and mob.faction == Enemy() then
+        Track.count("W-161")                                  -- W-161 killed by enemy guards (of their faction)
+    end
     if killer ~= "Player (PvP)" then return end
     local p = extra and extra.player or {}
     local me, level, class = ns.Level(), p.level, p.class
@@ -216,16 +237,17 @@ local function OnDeath(rec, extra)
             if name ~= "Player (PvP)" then Track.count("W-165"); break end
         end
     end
-    -- W-146 corpse camped: the same class and level three times in 10 minutes
-    local key = (class or "?") .. "|" .. tostring(level or "?")
+    -- W-146 corpse camped: the same class and level three times in 10
+    -- minutes, out in the world (a killer not seen can't be matched)
+    local key = world and class and level and (class .. "|" .. level) or nil
     local now = time()
     local n = 1
     for i = #pvpDeaths, 1, -1 do
         if now - pvpDeaths[i].t > CAMP_WINDOW then table.remove(pvpDeaths, i)
-        elseif pvpDeaths[i].key == key then n = n + 1 end
+        elseif key and pvpDeaths[i].key == key then n = n + 1 end
     end
     table.insert(pvpDeaths, { key = key, t = now })
-    if n == 3 then Track.count("W-146") end
+    if key and n == 3 then Track.count("W-146") end
 end
 
 -- W-147 spirit healer rezzes taken to get away from players: a spirit
@@ -252,8 +274,11 @@ local function CheckFlag()
     if wasPvP == false and pvp then
         if GetTime() < manualUntil then
             Track.count("W-157")                              -- W-157 flagged yourself
-        elseif Str(Call("GetZonePVPInfo")) ~= "contested" then
-            Track.count("W-158")                              -- W-158 by accident (contested zones are W-021)
+        else
+            local zoneType = Str(Call("GetZonePVPInfo"))
+            if zoneType ~= "contested" and zoneType ~= "hostile" then
+                Track.count("W-158")                          -- W-158 by accident (contested and enemy zones are W-021)
+            end
         end
     end
     wasPvP = pvp
@@ -263,7 +288,8 @@ local lastTownAttack = {}
 local function OnCombatStart()
     stealthOpen = Call("IsStealthed") == true
     Attacked()
-    local town = ns.SubZone() or ns.Zone()
+    -- (a capital is one town, whichever district you're in)
+    local town = IsIn(ns.Zone(), CAPITALS[Enemy()]) and ns.Zone() or ns.SubZone() or ns.Zone()
     if IsIn(town, TOWNS[Enemy()]) or IsIn(ns.Zone(), TOWNS[Enemy()]) then
         local now = GetTime()
         if not lastTownAttack[town] or now - lastTownAttack[town] > TOWN_GAP then
@@ -273,8 +299,13 @@ local function OnCombatStart()
     end
 end
 
+-- Kills from the main tracker, and those without experience (Iconic's
+-- ns.OnNoXPKill: every kill at 60).
 local function OnKill(k)
-    if HasAny(k.name, GUARDS[Enemy()]) then Track.count("W-160") end -- W-160 enemy guards killed
+    local mob = ns.MobInfo(k.name)
+    if HasAny(k.name, GUARDS[Enemy()]) and mob and mob.faction == Enemy() then
+        Track.count("W-160")                                  -- W-160 enemy guards killed (a Blackrock Grunt isn't one)
+    end
     if IsIn(k.name, LEADERS) then Track.count("W-163", k.name) end  -- W-163 faction leaders
 end
 
@@ -304,6 +335,7 @@ local function OnCombatMessage(msg)
     msg = Str(Safe(msg))
     if not msg then return end
     local victim, _, honor = msg:match(HONOR_KILL)
+    if not victim and HONOR_KILL_NO_RANK then victim, honor = msg:match(HONOR_KILL_NO_RANK) end
     if victim then
         PvPKill(victim)
         if tonumber(honor) then Track.count("W-182", nil, tonumber(honor)) end -- W-182 honor
@@ -353,21 +385,30 @@ end
 -- Battlegrounds
 ---------------------------------------------------------------------------
 
-local match -- { name, decided } for the battleground you're in
+-- { name, decided, wantScore } for the battleground you're in, kept in
+-- db.wrapped (bgMatch) so a /reload there carries on with the same match.
+local match
 
 local function OnZone()
     if InBattleground() then
         local name = Str(Call("GetInstanceInfo")) or ns.Zone()
         if not match or match.name ~= name then
-            match = { name = name }
-            Track.count("W-170", name)                        -- W-170 battlegrounds entered
-            local level = ns.Level()
-            local bracket = math.floor(level / 10) * 10
-            Track.count("W-181", name .. " " .. bracket .. "-" .. (bracket + 9)) -- W-181 brackets
-            Track.first("W-479", { battleground = name })     -- W-479 first battleground
+            local saved = Track.get("bgMatch")
+            if type(saved) == "table" and saved.name == name then
+                match = saved                                 -- back after a /reload: not a new one
+            else
+                match = { name = name }
+                Track.set("bgMatch", match)
+                Track.count("W-170", name)                    -- W-170 battlegrounds entered
+                local level = ns.Level()
+                local bracket = math.floor(level / 10) * 10
+                Track.count("W-181", name .. " " .. bracket .. "-" .. (bracket + 9)) -- W-181 brackets
+                Track.first("W-479", { battleground = name }) -- W-479 first battleground
+            end
         end
-    elseif match then
+    else
         match = nil
+        Track.set("bgMatch", nil)
     end
 end
 
@@ -514,7 +555,8 @@ ns.WrappedPage("Wrapped Stats", "Battlegrounds & Duels", DrawBattlegrounds)
 
 ns.OnDeathRecord(OnDeath)
 ns.OnKill(OnKill)
-ns.OnPartyKill(function(guid, name) PvPKill(name) end)
+ns.OnPartyKill(function(guid, name) PvPKill(name, nil, guid) end)
+ns.OnNoXPKill(OnKill) -- at 60 no kill gives experience
 ns.OnCast(Protect(function(name)
     OnCast(name)
     if watched and Str(Call("UnitGUID", "target")) == watched.guid then Attacked() end
@@ -549,9 +591,12 @@ On("UPDATE_BATTLEFIELD_SCORE", function()
     if match and match.wantScore and ReadScore() then match.wantScore = false end
 end)
 On("PLAYER_XP_UPDATE", OnXP)
-On("DUEL_REQUESTED", function()
+On("DUEL_REQUESTED", function(challenger)
     Track.count("W-190")                                      -- W-190 challenged to a duel
-    duel = { class = DuelTarget() }
+    -- W-187 the challenger's class, from the session's cache (your target may be anyone)
+    challenger = Str(Safe(challenger))
+    challenger = challenger and (challenger:match("^(.-)%-") or challenger)
+    duel = { class = (ns.PlayerInfo(challenger) or {}).class }
 end)
 On("DUEL_FINISHED", function()
     if C_Timer and C_Timer.After then

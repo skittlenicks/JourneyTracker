@@ -120,7 +120,8 @@ local function BuildSummary(db, milestone)
     -- Settings and bookkeeping the wrapped trackers keep for themselves.
     for _, key in ipairs({ "flags", "wasNeutral", "autoFlagged", "uiFolded", "logout", "rewardIDs", "bagsSeen",
                          "lootedRecipes", "professionsKnown", "questsTurnedIn", "goldSeen", "goldFromStart",
-                         "bracketsSeen", "bindName", "bindPlace" }) do
+                         "bracketsSeen", "bindName", "bindPlace", "visitsSeen", "dungeonRun", "bgMatch", "wanted",
+                         "outsideHome", "legacyApi" }) do
         wrapped[key] = nil
     end
     -- W-292 your most typed words: the website shows the top one, so only

@@ -29,8 +29,16 @@ local FINAL_BOSSES = {
     ["Scholomance"] = "Darkmaster Gandling",
 }
 -- Wings, told apart by the bosses killed in them (W-208, W-209); a wing's
--- last boss also ends it for clear times.
+-- last boss also ends it for clear times. Blackrock Spire is one instance
+-- to the game, so its halves are told apart the same way.
 local WINGS = {
+    ["Blackrock Spire"] = {
+        { "Upper", { "Pyroguard Emberseer", "Solakar Flamewreath", "Goraluk Anvilcrack", "Warchief Rend Blackhand",
+            "The Beast", "General Drakkisath" }, "General Drakkisath" },
+        { "Lower", { "Highlord Omokk", "Shadow Hunter Vosh'gajin", "War Master Voone", "Mother Smolderweb",
+            "Urok Doomhowl", "Quartermaster Zigris", "Halycon", "Gizrul the Slavener", "Overlord Wyrmthalak" },
+            "Overlord Wyrmthalak" },
+    },
     ["Scarlet Monastery"] = {
         { "Graveyard", { "Interrogator Vishas", "Bloodmage Thalnos" }, "Bloodmage Thalnos" },
         { "Library", { "Houndmaster Loksey", "Arcanist Doan" }, "Arcanist Doan" },
@@ -65,8 +73,8 @@ local LEVELS = { ["Ragefire Chasm"] = { 13, 18 }, ["Wailing Caverns"] = { 17, 24
     ["Scarlet Monastery"] = { 34, 45 }, ["Razorfen Downs"] = { 37, 46 }, ["Uldaman"] = { 41, 51 },
     ["Zul'Farrak"] = { 42, 46 }, ["Maraudon"] = { 46, 55 }, ["The Temple of Atal'Hakkar"] = { 50, 56 },
     ["Sunken Temple"] = { 50, 56 }, ["Blackrock Depths"] = { 52, 60 }, ["Lower Blackrock Spire"] = { 55, 60 },
-    ["Upper Blackrock Spire"] = { 55, 60 }, ["Dire Maul"] = { 55, 60 }, ["Stratholme"] = { 58, 60 },
-    ["Scholomance"] = { 58, 60 } }
+    ["Upper Blackrock Spire"] = { 55, 60 }, ["Blackrock Spire"] = { 55, 60 }, ["Dire Maul"] = { 55, 60 },
+    ["Stratholme"] = { 58, 60 }, ["Scholomance"] = { 58, 60 } }
 for name, range in pairs(NEW_DUNGEONS) do LEVELS[name] = range end
 -- W-220 the Zul'Farrak stair event ends with these two coming down.
 local ZF_STAIRS = { ["Nekrum Gutchewer"] = true, ["Shadowpriest Sezz'ziz"] = true }
@@ -79,12 +87,16 @@ local BLUE = 3
 -- Runs
 ---------------------------------------------------------------------------
 
-local run -- the run you're in: { name, kind, start, level, bosses = {}, ... }
+-- The run you're in: { name, kind, start, level, killed = { [boss] = time() }, ... },
+-- kept in db.wrapped (dungeonRun) with real times, so a /reload or a relog
+-- inside carries on with the same run (W-192..W-235).
+local run
 local lastXP, lastXPMax
 local hearthAt = 0
 local encounter -- the encounter in progress: name
 local lastBossKillAt = 0
-local lastHitBy -- the last spell that hit you, from the combat log where readable
+local lastHitBy, lastHitAt -- the last spell that hit you and when, from the combat log where readable
+local deadAt = {} -- party deaths in a fight, in order, for W-225 and W-226
 
 local function InInstance()
     local inInstance, kind = Call("IsInInstance")
@@ -146,8 +158,10 @@ end
 local function StartRun(kind)
     local name = Str(Call("GetInstanceInfo")) or ns.Zone()
     if run and run.name == name then return end
-    run = { name = name, kind = kind, start = GetTime(), t = time(), level = ns.Level(), bosses = {}, killed = {},
+    run = { name = name, kind = kind, start = time(), t = time(), level = ns.Level(), bosses = {}, killed = {},
             deaths = 0, wipes = 0, xp = 0, role = Role() }
+    Track.set("dungeonRun", run)
+    deadAt = {}
     lastXP, lastXPMax = Num(Call("UnitXP", "player")), Num(Call("UnitXPMax", "player"))
     LookAtGroup()
 end
@@ -155,8 +169,9 @@ end
 local function FinishRun()
     local r = run
     run = nil
+    Track.set("dungeonRun", nil)
     if not r then return end
-    local duration = GetTime() - r.start
+    local duration = time() - r.start
     local wing, wingFinal = WingOf(r.name, r.killed)
     local key = wing and (r.name .. ": " .. wing) or r.name
     local final = wingFinal or FINAL_BOSSES[r.name]
@@ -167,7 +182,7 @@ local function FinishRun()
         clear = r.lastBoss - r.start                          -- dungeons not listed: to the last boss
     end
     if r.kind == "party" then
-        if wing and WINGS[r.name] then
+        if wing and r.name ~= "Blackrock Spire" then
             Track.count(r.name == "Scarlet Monastery" and "W-208" or "W-209", key) -- W-208 SM wings, W-209 DM and Strat
         end
         if clear then
@@ -197,6 +212,12 @@ local function FinishRun()
 end
 
 local function OnZone()
+    -- After a /reload or relog: the run you were in, to carry on (still
+    -- inside) or finish (back outside).
+    if not run and type(Track.get("dungeonRun")) == "table" then
+        run = Track.get("dungeonRun")
+        lastXP, lastXPMax = Num(Call("UnitXP", "player")), Num(Call("UnitXPMax", "player"))
+    end
     local kind = InInstance()
     if kind then
         StartRun(kind)
@@ -209,17 +230,15 @@ end
 -- Bosses, wipes and deaths
 ---------------------------------------------------------------------------
 
--- Party deaths during a wipe, in order, for W-225 and W-226.
-local deadAt = {}
 local wipeTicker
 
 local function BossKilled(name)
     -- An encounter's end and its kill message both land here: once a run.
     if not run or not name or run.killed[name] then return end
-    local now = GetTime()
+    local now = time()
     run.killed[name] = now
     run.lastBoss = now
-    lastBossKillAt = now
+    lastBossKillAt = GetTime()
     local level = ns.Level()
     -- W-239 by Legacy bracket
     local bracket = level <= 25 and "15-25" or level <= 45 and "26-45" or "46-60"
@@ -282,12 +301,13 @@ local function CheckWipe()
             if Call("UnitIsDeadOrGhost", unit) == true then
                 deadAt[guid] = deadAt[guid] or now
             else
+                deadAt[guid] = nil                            -- alive again: a later death is a new one
                 allDead = false
             end
         end
     end
     local meDead = Call("UnitIsDeadOrGhost", "player") == true
-    if meDead then deadAt.me = deadAt.me or now end
+    if meDead then deadAt.me = deadAt.me or now else deadAt.me = nil end
     if not any then return end
     if allDead and meDead and not run.wiped then
         run.wiped = true
@@ -314,7 +334,9 @@ local function OnDeath(rec, extra)
         Track.count("W-245", run.name)                        -- W-245 deaths in raids
         local killer = rec.killer or ""
         if killer:find("Whelp", 1, true) then Track.count("W-245", "Onyxian whelps") end
-        if lastHitBy == "Deep Breath" then Track.count("W-245", "Deep Breath") end
+        if lastHitBy == "Deep Breath" and GetTime() - (lastHitAt or 0) < 5 then
+            Track.count("W-245", "Deep Breath")                -- the breath hit you moments before
+        end
     end
 end
 
@@ -366,16 +388,21 @@ local function OnQuestTurnedIn(questID)
 end
 
 local TOO_MANY = "too many instances"
+local lockoutAt = -10
 local function OnMessage(msg)
     msg = Str(Safe(msg))
-    if msg and msg:lower():find(TOO_MANY, 1, true) then Track.count("W-236") end -- W-236 instance lockouts
+    if not msg or not msg:lower():find(TOO_MANY, 1, true) then return end
+    -- The red error and the chat line are one lockout.
+    if GetTime() - lockoutAt > 1 then Track.count("W-236") end -- W-236 instance lockouts
+    lockoutAt = GetTime()
 end
 
--- W-214 Naralex awakened: his disciple's last words in Wailing Caverns.
+-- W-214 Naralex awakened: his disciple's last words in Wailing Caverns
+-- ("awake" itself: on the way there they talk of awakening him).
 local function OnMonsterSay(msg, speaker)
     msg, speaker = Str(Safe(msg)), Str(Safe(speaker))
     if not msg or not speaker or not run or run.name ~= "Wailing Caverns" then return end
-    if speaker:find("Naralex", 1, true) and msg:lower():find("awake", 1, true) and not run.naralex then
+    if speaker:find("Naralex", 1, true) and msg:lower():find("%f[%a]awake%f[%A]") and not run.naralex then
         run.naralex = true
         Track.count("W-214", "Naralex awakened")
     end
@@ -389,7 +416,7 @@ local function OnCombatLog()
     local _, sub, _, _, _, _, _, dst, _, _, _, _, spell = CombatLogGetCurrentEventInfo()
     if IsSecret(sub) or IsSecret(dst) or sub ~= "SPELL_DAMAGE" then return end
     myGUID = myGUID or Str(Call("UnitGUID", "player"))
-    if dst == myGUID and not IsSecret(spell) then lastHitBy = spell end
+    if dst == myGUID and not IsSecret(spell) then lastHitBy, lastHitAt = spell, GetTime() end
 end
 
 ---------------------------------------------------------------------------

@@ -220,6 +220,7 @@ end
 local currentZone
 local function OnZone()
     local zone = ns.Zone()
+    if zone == "Unknown" then return end -- the zone's name read empty for a moment: you haven't gone anywhere
     if currentZone == ZEPHRAS and zone ~= ZEPHRAS then
         Track.first("W-001", { to = zone })                   -- W-001 left Zephras Isle
     end
@@ -351,8 +352,12 @@ local function CampTick()
     if at ~= nil then Track.time("W-009", at and "Camp" or nil) end
 end
 
--- W-010 camp vendors and repairs (Engineering's bots).
+-- W-010 camp vendors and repairs (Engineering's bots). MERCHANT_SHOW and
+-- the interaction manager both report one vendor window: once a second.
+local merchantAt = -10
 local function OnMerchant()
+    if GetTime() - merchantAt < 1 then return end
+    merchantAt = GetTime()
     if IsAtCamp() then Track.count("W-010", "vendor") end
 end
 

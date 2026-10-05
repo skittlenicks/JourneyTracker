@@ -9,7 +9,8 @@
 -- Chat is counted, never kept. What you send is read once as it goes out
 -- (to count channels and a few words), and no message text, and no other
 -- player's name, is ever stored. Your own most-typed words are kept as a
--- word count map (W-292), capped like every name map.
+-- word count map (W-292), capped like every name map, leaving out
+-- whispers and any word that's a name (yours, or a player's you've seen).
 
 local ADDON_NAME, ns = ...
 local Track = ns.Track
@@ -20,9 +21,11 @@ local HEARTHSTONE_ITEM = 6948
 local GZ_WINDOW = 60       -- seconds after a ding that a guild "gz" counts (W-290)
 
 local function MyName() return Str(Call("UnitName", "player")) end
--- A message in lower case without color codes or link wrappers (one value).
+-- A message in lower case without color codes (|cffffffff, and Forever's
+-- item colors like |cnIQ4:) or link wrappers (one value).
 local function Words(text)
-    return (text:lower():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|h.-|h(.-)|h", "%1"))
+    return (text:lower():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|cn[^:]*:", ""):gsub("|r", "")
+        :gsub("|h.-|h(.-)|h", "%1"))
 end
 
 -- Whole-word match, case-insensitive.
@@ -99,8 +102,11 @@ end
 ---------------------------------------------------------------------------
 
 local grouped = nil       -- were you in a group at the last roster update
+local removedAt = -10     -- GetTime() of "You have been removed from the group" (W-255)
+-- Your own party or raid: a battleground's raid isn't a group you joined.
+local function InGroup() return Call("IsInGroup", LE_PARTY_CATEGORY_HOME) == true end
 local function OnRoster()
-    local now = Call("IsInGroup") == true
+    local now = InGroup()
     if grouped == false and now then
         Track.count("W-254")                                  -- W-254 groups joined
         if Call("UnitIsGroupLeader", "player") == true then Track.count("W-256") end -- W-256 formed as leader
@@ -126,7 +132,11 @@ local function OnRoster()
             end))
         end
     elseif grouped and not now then
-        Track.count("W-255", "left")                          -- W-255 groups left
+        -- W-255 groups left, a moment later: being removed is counted as that alone
+        local function Left()
+            if GetTime() - removedAt > 3 then Track.count("W-255", "left") end
+        end
+        if C_Timer and C_Timer.After then C_Timer.After(2, Protect(Left)) else Left() end
     end
     grouped = now
 end
@@ -156,7 +166,7 @@ local BLOOPERS = {
     { "W-265", Strings(SPELL_FAILED_MOVING, "Can't do that while moving") },
     { "W-266", Strings(ERR_INVALID_ATTACK_TARGET, "You cannot attack that target.",
         SPELL_FAILED_BAD_TARGETS, "Invalid target") },
-    { "W-267", Strings(ERR_ABILITY_COOLDOWN, "Ability is not ready yet.", ERR_GENERIC_NO_TARGET, "You have no target.",
+    { "W-267", Strings(ERR_ABILITY_COOLDOWN, "Ability is not ready yet.",
         SPELL_FAILED_SPELL_IN_PROGRESS, "Another action is in progress") },
     { "W-269", Strings(SPELL_FAILED_LINE_OF_SIGHT, "Target not in line of sight") },
     { "W-270", Strings(ERR_TOOFARAWAY, "You are too far away!", ERR_USE_TOO_FAR, "You are too far away.") },
@@ -174,11 +184,25 @@ local function IsOneOf(msg, list)
     return false
 end
 
-local function OnError(_, msg)
+-- The text W-276.byMessage keeps: the game's own string for the error, so
+-- one with a part filled in ("%s is busy right now.") never keeps a name.
+-- Without the error's name to look it up, only the bloopers above are kept.
+local function ErrorText(errorType, msg)
+    local global = Str(Call("GetGameMessageInfo", Num(Safe(errorType))))
+    local text = global and Str(_G[global])
+    if text then return text end
+    if IsOneOf(msg, ITEM_NOT_READY) then return msg end
+    for _, b in ipairs(BLOOPERS) do
+        if IsOneOf(msg, b[2]) then return msg end
+    end
+end
+
+local function OnError(errorType, msg)
     msg = Str(Safe(msg))
     if not msg then return end
     Track.count("W-276", nil)                                 -- W-276 total errors
-    Track.count("W-276.byMessage", msg)                       -- and which (the most common is the top one)
+    local text = ErrorText(errorType, msg)
+    if text then Track.count("W-276.byMessage", text) end     -- and which (the most common is the top one)
     for _, b in ipairs(BLOOPERS) do
         if IsOneOf(msg, b[2]) then Track.count(b[1]) end
     end
@@ -212,6 +236,39 @@ for w in ("the and you for that this with have are was not but all can just like
     STOP[w] = true
 end
 
+-- Names that are never "your word" (W-292), in lower case: yours, your
+-- realm's words, and other players' this session (who you've seen talk,
+-- your group, guild and friends; never saved). A Legacy message with one
+-- in it isn't kept either (W-013).
+local names = {}
+local function AddName(name)
+    name = Str(Safe(name))
+    if not name then return end
+    name = (name:match("^(.-)%-") or name):lower()
+    names[name] = true
+    local words = Track.get("W-292")
+    if type(words) == "table" then words[name] = nil end -- tallied before it was known to be a name
+end
+
+-- You, your realm, your group and your friends, as they are now.
+local function AddKnownNames()
+    AddName(MyName())
+    for word in (Str(Call("GetRealmName")) or ""):gmatch("[%a']+") do
+        if #word >= 3 then AddName(word) end
+    end
+    local n = Num(Call("GetNumGroupMembers")) or 0
+    local raid = Call("IsInRaid") == true
+    for i = 1, raid and n or (n - 1) do AddName(Call("UnitName", (raid and "raid" or "party") .. i)) end
+    for i = 1, Num(Call("C_FriendList.GetNumFriends")) or Num(Call("GetNumFriends")) or 0 do
+        local info = Call("C_FriendList.GetFriendInfoByIndex", i)
+        AddName(type(info) == "table" and Safe(info.name) or Call("GetFriendInfo", i))
+    end
+end
+
+local function IsName(word)
+    return names[word] or (word:find("'s$") and names[word:sub(1, -3)]) or false
+end
+
 -- A message you sent: counted by where it went, a few words matched, and
 -- your own words tallied. Nothing is kept but the counts.
 local function OnSent(msg, chatType, _, target)
@@ -235,8 +292,11 @@ local function OnSent(msg, chatType, _, target)
     for _, t in ipairs(TYPED) do
         if HasWord(text, t[2]) then Track.count(t[1]) end     -- W-284..W-289
     end
+    -- W-292 your words: not from whispers, and never a name
+    if chatType == "WHISPER" or chatType == "BN_WHISPER" then return end
+    AddKnownNames()
     for word in text:gmatch("[%a']+") do
-        if #word >= 3 and not STOP[word] then Track.count("W-292", word) end -- W-292 your words
+        if #word >= 3 and not STOP[word] and not IsName(word) then Track.count("W-292", word) end -- W-292 your words
     end
 end
 
@@ -259,6 +319,8 @@ end
 local tradeOpen, tradeUntil = false, 0
 local function InTrade() return tradeOpen or GetTime() < tradeUntil end
 
+-- Seeded by the check 10 seconds after login (IsInGuild can read false for
+-- a moment before that); only later changes count.
 local wasInGuild
 local function CheckGuild()
     local inGuild = Call("IsInGuild") == true
@@ -301,7 +363,14 @@ end
 
 local function OnSystemForLegacy(msg)
     msg = Str(Safe(msg))
-    if not msg or not msg:find("Legacy", 1, true) then return end
+    if not msg or not msg:find("%f[%a]Legacy%f[%A]") then return end
+    -- Never a message with a player in it: a player link, [Name] or a
+    -- <Guild> (/who), or the name of anyone you know of (yours included).
+    if msg:find("|Hplayer:", 1, true) or msg:find("%[.-%]") or msg:find("<.->") then return end
+    AddKnownNames()
+    for word in msg:lower():gmatch("[%a']+") do
+        if IsName(word) then return end
+    end
     local kind = (msg:lower():find("perk", 1, true) and "W-015") or (msg:lower():find("point", 1, true) and "W-014")
         or "W-013"
     Track.list(kind, { text = msg:sub(1, 120), level = ns.Level(), t = time() }, 60)
@@ -396,10 +465,11 @@ ns.WrappedPage("Wrapped Stats", "Bloopers", DrawBloopers)
 ---------------------------------------------------------------------------
 
 On("PLAYER_ENTERING_WORLD", function(isInitialLogin, isReload)
-    if grouped == nil then grouped = Call("IsInGroup") == true end
+    if grouped == nil then grouped = InGroup() end
     if isInitialLogin or isReload then
         if C_Timer and C_Timer.After then C_Timer.After(10, Protect(CheckGuild)) end
         FindLegacyApi()
+        AddKnownNames()
     end
 end)
 On("GROUP_ROSTER_UPDATE", OnRoster)
@@ -415,6 +485,7 @@ On("CHAT_MSG_SYSTEM", function(msg)
         return
     end
     if msg == (type(ERR_UNINVITE_YOU) == "string" and ERR_UNINVITE_YOU or "You have been removed from the group.") then
+        removedAt = GetTime()
         Track.count("W-255", "removed")                       -- W-255 removed from a group
     elseif msg == (type(ERR_TRADE_COMPLETE) == "string" and ERR_TRADE_COMPLETE or "Trade complete.") then
         Track.count("W-296")                                  -- W-296 trades completed
@@ -431,6 +502,16 @@ end
 On("CHAT_MSG_WHISPER", function() Track.count("W-282") end)                    -- W-282 whispers received
 On("CHAT_MSG_GUILD", OnGuildChat)
 On("CHAT_MSG_TEXT_EMOTE", OnTextEmote)
+-- Who you've seen talk, and your guild, as names that aren't your words (W-292)
+for _, event in ipairs({ "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID",
+        "CHAT_MSG_RAID_LEADER", "CHAT_MSG_RAID_WARNING", "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_INSTANCE_CHAT_LEADER",
+        "CHAT_MSG_GUILD", "CHAT_MSG_OFFICER", "CHAT_MSG_WHISPER", "CHAT_MSG_CHANNEL", "CHAT_MSG_EMOTE",
+        "CHAT_MSG_TEXT_EMOTE" }) do
+    On(event, function(_, sender) AddName(sender) end)
+end
+On("GUILD_ROSTER_UPDATE", function()
+    for i = 1, Num(Call("GetNumGuildMembers")) or 0 do AddName(Call("GetGuildRosterInfo", i)) end
+end)
 On("PLAYER_LEVEL_UP", function() lastDing, dingGz = GetTime(), 0 end)
 On("INSPECT_READY", function(guid)
     guid = Str(Safe(guid))
@@ -439,7 +520,7 @@ On("INSPECT_READY", function(guid)
         Track.count("W-295")                                  -- W-295 players inspected
     end
 end)
-On("PLAYER_GUILD_UPDATE", CheckGuild)
+On("PLAYER_GUILD_UPDATE", function() if wasInGuild ~= nil then CheckGuild() end end) -- after the login check
 On("TRADE_SHOW", function() tradeOpen = true end)
 On("TRADE_CLOSED", function() tradeOpen, tradeUntil = false, GetTime() + 2 end)
 ns.OnMoneyChange(function(delta)
@@ -450,14 +531,30 @@ ns.OnItemChange(Protect(function(c)
     if c.kind == "traded" and c.delta < 0 then Track.count("W-299", nil, -c.delta) end -- W-299 items given
 end))
 ns.WrappedTick(Tick)
+-- Chat and friends (W-277..W-294): the global may just call the C_ one, so
+-- one message (or friend added) can come through both hooks. The same
+-- arguments again in the same moment (within 0.1 seconds) are one call.
+local function Once(fn)
+    local lastArgs, lastAt = nil, -1
+    return function(...)
+        local parts = {}
+        for i = 1, select("#", ...) do parts[i] = tostring(Safe((select(i, ...)))) end
+        while parts[#parts] == "nil" do parts[#parts] = nil end -- (a wrapper may pass on empty ones)
+        local args, now = table.concat(parts, "\0"), GetTime()
+        if args == lastArgs and now - lastAt < 0.1 then return end
+        lastArgs, lastAt = args, now
+        return fn(...)
+    end
+end
 ns.OnLoad(function()
-    local function Sent(msg, chatType, language, target) OnSent(msg, chatType, language, target) end
+    local Sent = Once(function(msg, chatType, language, target) OnSent(msg, chatType, language, target) end)
     ns.Hook("SendChatMessage", Protect(Sent))
     ns.Hook("C_ChatInfo.SendChatMessage", Protect(Sent))
     ns.Hook("RollOnLoot", Protect(OnRollChoice))
     ns.Hook("DoEmote", Protect(OnEmote))
-    ns.Hook("AddFriend", Protect(function() Track.count("W-294") end))        -- W-294 friends added
-    ns.Hook("C_FriendList.AddFriend", Protect(function() Track.count("W-294") end))
+    local Friend = Once(function() Track.count("W-294") end)  -- W-294 friends added
+    ns.Hook("AddFriend", Protect(Friend))
+    ns.Hook("C_FriendList.AddFriend", Protect(Friend))
     ns.Hook("UseContainerItem", Protect(function(bag, slot)
         local _, _, _, _, _, _, _, _, _, id = Call("GetContainerItemInfo", bag, slot)
         UsedItem(id)

@@ -22,7 +22,7 @@ Built for WoW Forever: all Classic dungeons plus the 9 new ones, Forever's battl
 ## WoW Forever exclusives
 _Content that only exists in Forever. Zone names via GetZoneText/GetSubZoneText. Verify system APIs (camping, Legacy, transmog) in the probe addon, since they're new._
 
-1. `BUILT` `W-001` Skyborne: time on Zephras Isle and level you left it (level you left from zone changes; time on the isle from #66)
+1. `BUILT` `W-001` Skyborne: time on Zephras Isle and level you left it (level you left from zone changes, not the zone's name reading empty for a moment; time on the isle from #66)
 2. `BUILT` `W-002` Skyborne faction alignment chosen (Alliance or Horde) (first Alliance/Horde faction after being Neutral, or at first login as a Skyborne)
 3. `VERIFIED` `W-003` New race/class combo played (Gnome Priest, Human Hunter, Dwarf Shaman, Orc Mage, Troll Warlock, Undead Paladin, any Skyborne class) (race and class checked at login against the new combos) (confirmed in game)
 4. `SKIP` `W-004` Riverglades: level of first arrival, time spent, quests completed (covered by #63 (first arrival level), #66 (time) and #55 (quests per zone); shown on the WoW Forever page)
@@ -34,7 +34,7 @@ _Content that only exists in Forever. Zone names via GetZoneText/GetSubZoneText.
 10. `BUILT` `W-010` Camp vendors and repairs used (vendor windows opened and Repair All used while at a camp)
 11. `VERIFIED` `W-011` Camp buffs received (camp buffs landing on you (UNIT_AURA), by name) (confirmed in game)
 12. `BUILT` `W-012` Camping objects crafted with professions (camp objects and campfires created, by item)
-13. `BUILT` `W-013` Legacy challenges completed while leveling (class levels 25/45/60, tradeskills 150/225/300, etc.) (Legacy API unknown; /jprobe api will find its functions and events) ([probe] the game's system messages that mention Legacy, kept with level and date (newest 60), until the Legacy API is known; the Legacy-named functions this client has are listed in db.wrapped.legacyApi (JourneyTrackerSocial.lua))
+13. `BUILT` `W-013` Legacy challenges completed while leveling (class levels 25/45/60, tradeskills 150/225/300, etc.) (Legacy API unknown; /jprobe api will find its functions and events) ([probe] the game's system messages that mention Legacy, kept with level and date (newest 60), until the Legacy API is known; never one with a player in it (a player link, a [name] or <guild> as in /who, or a name seen this session, yours included); the Legacy-named functions this client has are listed in db.wrapped.legacyApi (JourneyTrackerSocial.lua))
 14. `BUILT` `W-014` Legacy points earned and when (Legacy API unknown; waiting on /jprobe api) ([probe] Legacy messages that mention points, as W-013)
 15. `BUILT` `W-015` Legacy perks chosen, by tree (Professions, Adventure, Resourcefulness), and the level each was picked (Legacy API unknown; waiting on /jprobe api) ([probe] Legacy messages that mention perks, as W-013)
 16. `BUILT` `W-016` Lord Valthalak questline progress (quests with Valthalak in the title or turned in to Bodley)
@@ -47,7 +47,7 @@ _Content that only exists in Forever. Zone names via GetZoneText/GetSubZoneText.
 ## Creature kills: meme families
 _[probe] Kill attribution by mob name/type. Match on name keywords plus UnitCreatureType/UnitCreatureFamily cached at target time._
 
-22. `BUILT` `W-022` Murlocs slain (kills matched on name keywords, creature type or beast family from FAMILIES in JourneyTrackerIconic.lua; kills without experience counted when a target you attacked dies, or from the combat log where Forever allows it)
+22. `BUILT` `W-022` Murlocs slain (kills matched on name keywords, creature type or beast family from FAMILIES in JourneyTrackerIconic.lua; kills without experience counted when a target you attacked dies (not a corpse, or a mob someone else tagged), or from the combat log where Forever allows it; at load, each family is raised to what its names add up to in the whole journey's kills by name (#28), never lowered (families known only by creature type can't be))
 23. `BUILT` `W-023` Most murlocs in a single combat (the classic murloc train) (murloc kills per fight, best kept with level and zone)
 24. `BUILT` `W-024` Kobolds slain (FAMILIES keywords)
 25. `BUILT` `W-025` Gnolls slain (FAMILIES keywords)
@@ -78,7 +78,7 @@ _[probe] Kill attribution by mob name/type. Match on name keywords plus UnitCrea
 50. `BUILT` `W-050` Scorpids slain (Scorpid family or name)
 51. `BUILT` `W-051` Kodos slain (name)
 52. `BUILT` `W-052` Big cats slain (panthers, tigers, lions, nightsabers) (Cat family or cat names)
-53. `BUILT` `W-053` Whelps and dragonkin slain (creature type Dragonkin or whelp/drake/dragon names)
+53. `BUILT` `W-053` Whelps and dragonkin slain (creature type Dragonkin or whelp/drake/dragon names, not Dragonmaw)
 54. `BUILT` `W-054` Elementals slain (creature type Elemental)
 55. `BUILT` `W-055` Demons slain (creature type Demon)
 56. `BUILT` `W-056` Yetis slain (name)
@@ -102,16 +102,16 @@ _Only active for Alliance characters. [probe] for anything keyed on a mob name._
 70. `BUILT` `W-070` Mor'Ladim killed (Duskwood) (first kill)
 71. `BUILT` `W-071` Worgen slain in Duskwood (worgen and Nightbane names, in Duskwood)
 72. `BUILT` `W-072` Deeprun Tram rides (entering the Deeprun Tram zone; a new visit after 10 minutes away)
-73. `BUILT` `W-073` Times entered Ironforge, Stormwind, and Darnassus (entries by city, a new visit after 10 minutes away)
+73. `BUILT` `W-073` Times entered Ironforge, Stormwind, and Darnassus (entries by city, a new visit after 10 minutes away; like every visit, not flown over on a flight path, and not logging in or reloading where you are: when each place was last seen is kept in db.wrapped.visitsSeen and refreshed every 5 seconds)
 74. `BUILT` `W-074` Time AFK in Ironforge (5-second ticks AFK in Ironforge)
-75. `BUILT` `W-075` Boat rides: Menethil to Auberdine, Menethil to Theramore, Auberdine to Rut'theran (dock to dock on a known route within 8 minutes, with no flight or hearth between (subzones Menethil Harbor, Auberdine, Theramore Isle, Rut'theran Village))
-76. `BUILT` `W-076` Rut'theran portal uses to Darnassus (Darnassus moments after Rut'theran Village)
+75. `BUILT` `W-075` Boat rides: Menethil to Auberdine, Menethil to Theramore, Auberdine to Rut'theran (dock to dock on a known route within 8 minutes of leaving the dock, with no flight, hearth, teleport, portal or summon between; docks flown over don't count (subzones Menethil Harbor, Auberdine, Theramore Isle, Rut'theran Village))
+76. `BUILT` `W-076` Rut'theran portal uses to Darnassus (Darnassus moments after being in Rut'theran Village, not by hearth)
 77. `BUILT` `W-077` Times visited Southshore (subzone visits)
 78. `BUILT` `W-078` Times visited Theramore (subzone visits)
 79. `BUILT` `W-079` Times you entered Orgrimmar, Thunder Bluff, or Undercity (enemy capitals) (entries by city)
 80. `BUILT` `W-080` Horde players killed in Southshore or Hillsbrad [probe] (enemy players killed in Hillsbrad Foothills (JourneyTrackerPvP.lua))
-81. `BUILT` `W-081` Racial mount bought: horse, ram, mechanostrider, or nightsaber (a mount item (class 15, subclass 5) bought from a vendor, with its price)
-82. `BUILT` `W-082` Level you left your starting zone (first move from your race's starting zone and capital to anywhere else; not recorded if the tracker already saw you elsewhere)
+81. `BUILT` `W-081` Racial mount bought: horse, ram, mechanostrider, or nightsaber (a mount item (class 15, subclass 5) bought from a vendor, with its price: the payment paired with it, either order, within 3 seconds; not for a Skyborne who hasn't chosen a side)
+82. `BUILT` `W-082` Level you left your starting zone (first move from your race's starting zone and capital to anywhere else, not the zone's name reading empty for a moment; not recorded if the tracker already saw you elsewhere)
 83. `BUILT` `W-083` Dragonmaw orcs slain in the Wetlands (Dragonmaw names, in the Wetlands)
 
 ## Horde iconic
@@ -127,9 +127,9 @@ _Only active for Horde characters. [probe] for anything keyed on a mob name._
 91. `BUILT` `W-091` Alliance players killed in the Crossroads [probe] (enemy players killed in the Crossroads)
 92. `BUILT` `W-092` Gamon slain in Orgrimmar (kills by name, with or without experience)
 93. `BUILT` `W-093` Zeppelin rides by route: Orgrimmar to Undercity, Orgrimmar to Grom'gol, Undercity to Grom'gol (zeppelin docks: Durotar, Tirisfal Glades, Grom'gol Base Camp; same rules as W-075)
-94. `BUILT` `W-094` Undercity elevator rides (moving between Undercity and Tirisfal Glades)
+94. `BUILT` `W-094` Undercity elevator rides (moving between Undercity and Tirisfal Glades, not on a flight path or within 30 seconds of a hearth, teleport or summon; a 30+ yard fall landing in the next 10 seconds makes it a fall, not a ride)
 95. `BUILT` `W-095` Deaths falling from the Undercity elevator [probe] (deaths by falling in Undercity or the Ruins of Lordaeron)
-96. `BUILT` `W-096` Thunder Bluff elevator rides and falls off Thunder Bluff (moving between Thunder Bluff and Mulgore not by air; falls of 30+ yards landing in Mulgore within 15 seconds of being in Thunder Bluff)
+96. `BUILT` `W-096` Thunder Bluff elevator rides and falls off Thunder Bluff (moving between Thunder Bluff and Mulgore as W-094; falls of 30+ yards landing in Mulgore within 15 seconds of being in Thunder Bluff)
 97. `BUILT` `W-097` Times entered Orgrimmar, Thunder Bluff, and Undercity (entries by city)
 98. `BUILT` `W-098` Time AFK in Orgrimmar (5-second ticks AFK in Orgrimmar)
 99. `BUILT` `W-099` Times visited Tarren Mill (subzone visits)
@@ -185,13 +185,13 @@ _[probe] Use UnitClassification and nameplate/target info._
 ## World PvP and ganking
 _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel, stealth state at combat start, UnitIsDeadOrGhost after combat. Store levels and classes only, never names._
 
-140. `BUILT` `W-140` Enemy players killed total (honorable or not) (honorable kill messages, enemy player targets you attacked dying, and the combat log where Forever allows it; the same player within 10 seconds counts once; class and level kept, never names (JourneyTrackerPvP.lua))
+140. `BUILT` `W-140` Enemy players killed total (honorable or not) (honorable kill messages, enemy player targets you attacked dying, and the combat log where Forever allows it; the same player (by GUID, or name without its realm) within 10 seconds counts once, and one with no name to compare is the kill just before it within 2 seconds; a target already dead isn't watched; class and level kept, never names (JourneyTrackerPvP.lua))
 141. `BUILT` `W-141` Lowbies ganked: enemy players 10+ levels below you killed (victims 10+ levels below you)
 142. `BUILT` `W-142` Stealth ganks: lowbies killed where you opened from stealth (rogue/druid) (lowbie kills in a fight that began while you were stealthed)
 143. `BUILT` `W-143` Biggest level gap in a gank (your level minus theirs) (biggest gap, with the victim's class)
 144. `BUILT` `W-144` Times you were ganked: killed by an enemy player 10+ levels above you (deaths to a player 10+ levels above you (or a skull))
 145. `BUILT` `W-145` Biggest level gap when you got ganked (biggest gap, with the killer's class)
-146. `BUILT` `W-146` Times corpse camped: killed by the same enemy player class/level combo 3+ times within 10 minutes (three deaths to the same class and level within 10 minutes)
+146. `BUILT` `W-146` Times corpse camped: killed by the same enemy player class/level combo 3+ times within 10 minutes (three deaths to the same class and level within 10 minutes, outside battlegrounds; a killer whose class or level wasn't seen doesn't count)
 147. `BUILT` `W-147` Spirit healer rezzes taken to escape a camp (spirit healer after two or more PvP deaths in 10 minutes)
 148. `BUILT` `W-148` Fair fights won: enemy players within 3 levels killed (kills of players within 3 levels)
 149. `BUILT` `W-149` Fair fights lost (deaths to players within 3 levels)
@@ -203,12 +203,12 @@ _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel,
 155. `BUILT` `W-155` Zone with the most world PvP deaths (deaths by zone, outside battlegrounds)
 156. `BUILT` `W-156` Time spent PvP flagged (UnitIsPVP) (5-second ticks with UnitIsPVP)
 157. `BUILT` `W-157` Times you flagged yourself for PvP (flag turned on within 3 seconds of TogglePVP or SetPVP)
-158. `BUILT` `W-158` Times you accidentally flagged (attacked a flagged player or entered a hostile town) (flag turned on without that, outside contested zones (those are W-021))
+158. `BUILT` `W-158` Times you accidentally flagged (attacked a flagged player or entered a hostile town) (flag turned on without that, outside contested and enemy zones (those are W-021))
 159. `BUILT` `W-159` Dishonorable kills (civilian NPCs killed) (dishonorable kill messages)
-160. `BUILT` `W-160` Enemy guards killed (kills of the other faction's guards, by name)
-161. `BUILT` `W-161` Times killed by enemy guards (deaths to the other faction's guards)
-162. `BUILT` `W-162` Times you attacked an enemy town (entering combat in an enemy town, once per town per 10 minutes)
-163. `BUILT` `W-163` Faction leaders killed (Thrall, Cairne, Sylvanas, Bolvar, Magni, Tyrande, etc.) (kills by name, by leader)
+160. `BUILT` `W-160` Enemy guards killed (kills of the other faction's guards: a guard's name and the mob's faction seen as the other side's; at 60, where no kill gives experience, from the kills without it (W-022))
+161. `BUILT` `W-161` Times killed by enemy guards (deaths to the other faction's guards, name and faction as W-160)
+162. `BUILT` `W-162` Times you attacked an enemy town (entering combat in an enemy town, once per town per 10 minutes; a capital is one town)
+163. `BUILT` `W-163` Faction leaders killed (Thrall, Cairne, Sylvanas, Bolvar, Magni, Tyrande, etc.) (kills by name, by leader; at 60 as W-160)
 164. `BLOCKED` `W-164` Enemy players killed while you were at less than 20% health (clutch wins) (your health is SECRET on Forever (probe), so it can't be read at a kill)
 165. `BUILT` `W-165` Times you died to an enemy player while fighting a mob (third-partied) (deaths to a player in a fight that also had a mob)
 166. `BUILT` `W-166` Times you killed an enemy player who was fighting a mob (enemy players who were targeting a mob when they died on your target)
@@ -219,7 +219,7 @@ _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel,
 ## Battlegrounds and duels
 _Forever battlegrounds: Warsong Gulch (10v10, brackets from 10-19), Arathi Basin (15v15, from 20-29), Darkspear Islands (15v15, from 30-39), Alterac Valley (40v40, 51-60). No arenas. Use GetBattlefieldStatus, GetBattlefieldWinner, UPDATE_BATTLEFIELD_SCORE, and duel events._
 
-170. `BUILT` `W-170` Battlegrounds entered, by battleground (WSG, AB, Darkspear Islands, AV) (entering a pvp instance, by name)
+170. `BUILT` `W-170` Battlegrounds entered, by battleground (WSG, AB, Darkspear Islands, AV) (entering a pvp instance, by name; the match is kept in db.wrapped.bgMatch, so a /reload inside doesn't enter, win or read the scoreboard again)
 171. `BUILT` `W-171` Battleground wins and losses, by battleground (GetBattlefieldWinner at the end, by battleground)
 172. `BUILT` `W-172` Time spent in battlegrounds (5-second ticks in a battleground, by name)
 173. `BUILT` `W-173` Time spent in battleground queues (5-second ticks while any queue says queued)
@@ -236,7 +236,7 @@ _Forever battlegrounds: Warsong Gulch (10v10, brackets from 10-19), Arathi Basin
 184. `BUILT` `W-184` XP earned in battlegrounds, if Forever grants it (XP gained while in a battleground)
 185. `BUILT` `W-185` Duels requested and accepted (StartDuel (asked) and AcceptDuel (accepted) hooks)
 186. `BUILT` `W-186` Duels won and lost (duel result messages compared with your own name)
-187. `BUILT` `W-187` Duels won and lost by opponent class (won and lost by the opponent's class (your target at the challenge, or the session's cache))
+187. `BUILT` `W-187` Duels won and lost by opponent class (won and lost by the opponent's class (your target when you challenge, the challenger's from the session's cache when you're challenged, or the cache at the result))
 188. `BUILT` `W-188` Duels fled (left the area) ('has fled from' messages where you're the one who fled)
 189. `BUILT` `W-189` Longest duel (from entering combat during the duel to the result)
 190. `BUILT` `W-190` Times someone challenged you to a duel (DUEL_REQUESTED)
@@ -245,7 +245,7 @@ _Forever battlegrounds: Warsong Gulch (10v10, brackets from 10-19), Arathi Basin
 _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo and ENCOUNTER_START/END. Read boss names from the encounter events instead of hardcoding, since the new dungeons' full boss rosters aren't published yet and Forever may rename Classic bosses._
 
 191. `SKIP` `W-191` Runs per dungeon: Classic (RFC, WC, Deadmines, SFK, BFD, Stockade, Gnomeregan, RFK, SM wings, RFD, Uldaman, ZF, Maraudon, Temple of Atal'Hakkar, BRD, LBRS, UBRS, Dire Maul wings, Stratholme, Scholomance) and new (see below) (covered by #73: dungeons entered, by name, every run)
-192. `BUILT` `W-192` Clear time per dungeon run (enter to final boss) (time from entering to the final boss's kill, each run kept (newest 100) with your level; final bosses listed in JourneyTrackerDungeons.lua, wings by their bosses, Forever's new dungeons to their last boss)
+192. `BUILT` `W-192` Clear time per dungeon run (enter to final boss) (time from entering to the final boss's kill, each run kept (newest 100) with your level; final bosses listed in JourneyTrackerDungeons.lua, wings by their bosses (Blackrock Spire's Upper and Lower halves too, as the game calls both Blackrock Spire), Forever's new dungeons to their last boss; the run in progress is kept in db.wrapped.dungeonRun with real times, so a /reload or relog inside carries on with it)
 193. `BUILT` `W-193` Fastest clear per dungeon (fastest clear per dungeon or wing)
 194. `BUILT` `W-194` Wipes per dungeon (failed encounters per dungeon)
 195. `BUILT` `W-195` Dungeon runs abandoned (left before final boss) (runs that ended without the final boss (or with no boss at all for an unlisted dungeon))
@@ -267,7 +267,7 @@ _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo an
 211. `SKIP` `W-211` Mograine and Whitemane killed (covered by #28 and #41)
 212. `SKIP` `W-212` Arugal killed (Shadowfang Keep) (covered by #28 and #41)
 213. `SKIP` `W-213` Mr. Smite and Cookie killed (Deadmines) (covered by #28 and #41)
-214. `BUILT` `W-214` Mutanus the Devourer killed and Naralex awakened (Wailing Caverns) (Naralex awakened: his disciple's last words in Wailing Caverns; Mutanus kills are #28 and #41)
+214. `BUILT` `W-214` Mutanus the Devourer killed and Naralex awakened (Wailing Caverns) (Naralex awakened: "awake" in his or his disciple's last words in Wailing Caverns, not the talk of awakening him on the way; Mutanus kills are #28 and #41)
 215. `SKIP` `W-215` Aku'mai killed (Blackfathom Deeps) (covered by #28 and #41)
 216. `SKIP` `W-216` Mekgineer Thermaplugg killed (Gnomeregan) (covered by #28 and #41)
 217. `SKIP` `W-217` Charlga Razorflank killed (Razorfen Kraul) (covered by #28 and #41)
@@ -278,7 +278,7 @@ _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo an
 222. `SKIP` `W-222` Princess Theradras killed (Maraudon) (covered by #28 and #41)
 223. `SKIP` `W-223` Shade of Eranikus killed (Temple of Atal'Hakkar) (covered by #28 and #41)
 224. `SKIP` `W-224` Emperor Dagran Thaurissan killed (BRD) (covered by #28 and #41)
-225. `BUILT` `W-225` Times you were the last party member alive in a wipe (everyone in the group dead and you last, from each member's death time, checked every second in instance fights)
+225. `BUILT` `W-225` Times you were the last party member alive in a wipe (everyone in the group dead and you last, from each member's death time (forgotten once they're up again), checked every second in instance fights)
 226. `BUILT` `W-226` Times you died first in a wipe (the same, you first)
 227. `BUILT` `W-227` Dungeon deaths by boss (your deaths during an encounter, by its name)
 228. `BUILT` `W-228` Dungeon XP earned per run (Forever shifts XP toward quests, so this is interesting to compare) (XP gained during each run (newest 100))
@@ -289,7 +289,7 @@ _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo an
 233. `BUILT` `W-233` Party compositions run with (class counts only) (class lists, sorted, per run)
 234. `BUILT` `W-234` Tank, healer, or DPS role per run (by spec or self-assigned) (UnitGroupRolesAssigned, or your class and biggest talent tree)
 235. `BUILT` `W-235` Times you hearthed out of a dungeon (Hearthstone within 20 seconds of a run ending)
-236. `BUILT` `W-236` Instance lockouts hit ('too many instances') ('too many instances' messages)
+236. `BUILT` `W-236` Instance lockouts hit ('too many instances') ('too many instances' messages; the red error and the chat line within a second are one)
 237. `SKIP` `W-237` Times you released and corpse-ran into a dungeon (covered by #48 and #49: each death's dungeon and how you came back)
 238. `SKIP` `W-238` Dungeon you ran most at each 10-level bracket (derived from #74's run list (name and level))
 239. `BUILT` `W-239` Dungeon bosses defeated per Legacy bracket (15-25, 26-45, 46-60) (boss kills by bracket (15-25, 26-45, 46-60))
@@ -302,7 +302,7 @@ _Raids open December 9, 2026: Onyxia's Lair (40-player), The Barrow Deeps (10-pl
 242. `BUILT` `W-242` Onyxia killed: /played and days after hitting 60 (first Onyxia kill, with /played and days after 60)
 243. `SKIP` `W-243` Raid wipes by boss (covered by #42: wipes by boss, raids included)
 244. `BUILT` `W-244` Time from hitting 60 to first raid boss kill (first raid boss kill, days after 60)
-245. `BUILT` `W-245` Deaths in raids, and deaths to Onyxia's Deep Breath and whelps (deaths in raids by raid; deaths to whelps; Deep Breath from the combat log where Forever allows it)
+245. `BUILT` `W-245` Deaths in raids, and deaths to Onyxia's Deep Breath and whelps (deaths in raids by raid; deaths to whelps; Deep Breath from the combat log where Forever allows it, when it hit you in the 5 seconds before)
 
 ## Loot rolls and group life
 _START_LOOT_ROLL, CHAT_MSG_LOOT, CHAT_MSG_SYSTEM for /roll results, GROUP_ROSTER_UPDATE._
@@ -315,8 +315,8 @@ _START_LOOT_ROLL, CHAT_MSG_LOOT, CHAT_MSG_SYSTEM for /roll results, GROUP_ROSTER
 251. `BUILT` `W-251` /roll uses and average /roll result (your /roll results: how many and their total (the average is total over rolls))
 252. `BUILT` `W-252` Blue items won on Need (blue items you won on Need)
 253. `BUILT` `W-253` Items you passed on that someone else won (items you passed on that someone else won)
-254. `BUILT` `W-254` Groups joined (going from no group to a group)
-255. `BUILT` `W-255` Groups left and times removed from a group (leaving a group, and 'You have been removed from the group')
+254. `BUILT` `W-254` Groups joined (going from no group to a group of your own, not a battleground's)
+255. `BUILT` `W-255` Groups left and times removed from a group (leaving a group, and 'You have been removed from the group'; being removed isn't also counted as leaving)
 256. `BUILT` `W-256` Groups you formed as leader (joined as the group's leader)
 257. `BUILT` `W-257` Time spent in a group with guild members (count, no names) (5-second ticks in a group with a member of your guild (UnitIsInMyGuild))
 258. `BUILT` `W-258` Times you were the highest level in your party (highest level in a new group, checked 3 seconds after joining)
@@ -341,12 +341,12 @@ _UI_ERROR_MESSAGE gives the error type/text. Pure counts, very cheap, and great 
 273. `BUILT` `W-273` Hearthstone pressed while on cooldown ('Item is not ready yet' within a second of using the Hearthstone (bags, action bar or by name))
 274. `BUILT` `W-274` 'Not enough money' (tried to buy something you couldn't afford) (as W-260)
 275. `BUILT` `W-275` 'Can't carry any more of those items' (unique items) (as W-260)
-276. `BUILT` `W-276` Total errors and your single most common blooper (every error message; by message as W-276.byMessage, the most common being its top)
+276. `BUILT` `W-276` Total errors and your single most common blooper (every error message; by the game's own string for it as W-276.byMessage (GetGameMessageInfo), so a name filled into one is never kept, and without that only the known bloopers by text; the most common being its top)
 
 ## Social and chat
 _Counts only. Never store message contents or other players' names. Chat may be restricted in combat, so queue and process after combat._
 
-277. `BUILT` `W-277` Messages you sent in /say (SendChatMessage hook (and C_ChatInfo's); counted, text never kept)
+277. `BUILT` `W-277` Messages you sent in /say (SendChatMessage hook (and C_ChatInfo's; one message seen by both counts once); counted, text never kept)
 278. `BUILT` `W-278` Messages you sent in /yell (as W-277)
 279. `BUILT` `W-279` Messages you sent in party chat (party, raid and instance chat, as W-277)
 280. `BUILT` `W-280` Messages you sent in guild chat (guild and officer chat, as W-277)
@@ -361,9 +361,9 @@ _Counts only. Never store message contents or other players' names. Chat may be 
 289. `BUILT` `W-289` Times you typed 'brb' or 'afk' (brb, afk)
 290. `BUILT` `W-290` Guild 'gz' messages received within 60 seconds of your ding (guild messages with gz, grats, congrats or ding from someone else within 60 seconds of your level-up)
 291. `BUILT` `W-291` Most 'gz' received on a single ding (the most of those on one level-up)
-292. `BUILT` `W-292` Your most typed word (top word from your own messages, stored as a word count map, capped) (your own words of 3+ letters, minus very common ones, as a capped count map)
+292. `BUILT` `W-292` Your most typed word (top word from your own messages, stored as a word count map, capped) (your own words of 3+ letters, minus very common ones and never from whispers, as a capped count map; no name: yours, your realm's words, or another player's seen this session (who talked, your group, guild roster and friends, held in memory only), and one tallied before it was known as a name is taken out)
 293. `BUILT` `W-293` Messages sent per hour played (the sent counts (W-277..W-283) over /played, worked out on the website)
-294. `BUILT` `W-294` Friends added (AddFriend hooks)
+294. `BUILT` `W-294` Friends added (AddFriend hooks; one friend seen by both counts once)
 295. `BUILT` `W-295` Players inspected (INSPECT_READY) (INSPECT_READY, once per player a session (by GUID, not kept))
 296. `BUILT` `W-296` Trades completed ('Trade complete' messages)
 297. `BUILT` `W-297` Gold given away in trades (money down while a trade window is open (or just closed))
