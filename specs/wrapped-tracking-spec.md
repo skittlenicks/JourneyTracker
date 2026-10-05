@@ -390,56 +390,56 @@ _CHAT_MSG_TEXT_EMOTE from the player, and emotes targeted at you (count only)._
 ## Movement and world mechanics
 _IsSwimming, IsFalling, IsFlying, IsIndoors, IsOutdoors, MIRROR_TIMER_START (BREATH, EXHAUSTION, FEIGNDEATH), sampled positions._
 
-313. `TODO` `W-313` Time spent swimming
-314. `TODO` `W-314` Distance swum
-315. `TODO` `W-315` Time underwater (breath bar active)
-316. `TODO` `W-316` Times your breath bar ran out
-317. `TODO` `W-317` Times you entered fatigue (deep water)
-318. `TODO` `W-318` Time spent falling
-319. `TODO` `W-319` Longest single fall (time airborne)
-320. `TODO` `W-320` Times you fell more than 5 seconds
-321. `TODO` `W-321` Fall damage taken out of combat (health drop on landing) [probe]
-322. `TODO` `W-322` Distance traveled on foot vs mounted
-323. `TODO` `W-323` Times your hearthstone location changed (HEARTHSTONE_BOUND)
-324. `TODO` `W-324` Inn you bound to most
-325. `TODO` `W-325` Time spent at your bound inn
-326. `TODO` `W-326` Times you logged out in an inn vs in the field
-327. `TODO` `W-327` Rested XP gained while logged out
-328. `TODO` `W-328` Times you hit max rested XP
+313. `BUILT` `W-313` Time spent swimming (IsSwimming on the 5-second tick (JourneyTrackerWorld.lua))
+314. `BUILT` `W-314` Distance swum (distance between 5-second position samples while swimming, out of combat like #71)
+315. `BUILT` `W-315` Time underwater (breath bar active) (the BREATH mirror timer counting down, until it stops or starts filling back up)
+316. `BUILT` `W-316` Times your breath bar ran out (the BREATH timer reaching its end before you got out)
+317. `BUILT` `W-317` Times you entered fatigue (deep water) (the EXHAUSTION mirror timer starting)
+318. `BUILT` `W-318` Time spent falling (seconds in the air of each fall, from the main tracker's fall timer (#101))
+319. `BUILT` `W-319` Longest single fall (time airborne) (the most seconds in the air, with the fall's yards; #102 keeps the longest survived by distance)
+320. `BUILT` `W-320` Times you fell more than 5 seconds (falls with more than 5 seconds in the air)
+321. `BLOCKED` `W-321` Fall damage taken out of combat (health drop on landing) [probe] (your health is secret on Forever)
+322. `BUILT` `W-322` Distance traveled on foot vs mounted (distance between position samples out of combat, mounted or on foot (swimming is W-314, ghosts W-334); together they add up to #71's ground distance)
+323. `BUILT` `W-323` Times your hearthstone location changed (HEARTHSTONE_BOUND) (HEARTHSTONE_BOUND to a different place than before)
+324. `BUILT` `W-324` Inn you bound to most (HEARTHSTONE_BOUND by GetBindLocation; the top one is the inn you bound to most)
+325. `BUILT` `W-325` Time spent at your bound inn (5-second ticks resting where you bound your hearthstone, or in the place it's named after)
+326. `BUILT` `W-326` Times you logged out in an inn vs in the field (resting or not at PLAYER_LOGOUT, counted at the next login so a /reload isn't)
+327. `BUILT` `W-327` Rested XP gained while logged out (rested XP at login minus rested XP at logout)
+328. `BUILT` `W-328` Times you hit max rested XP (rested XP reaching a level and a half, while playing or while logged out)
 329. `BUILT` `W-329` Boat rides total (boat rides from the dock-to-dock detector in JourneyTrackerIconic.lua)
 330. `BUILT` `W-330` Zeppelin rides total (zeppelin rides, same detector)
-331. `TODO` `W-331` Portal uses (mage portals, Rut'theran, etc.)
-332. `TODO` `W-332` Summons accepted
-333. `TODO` `W-333` Times you used a meeting stone
-334. `TODO` `W-334` Corpse run distance total
-335. `TODO` `W-335` Times you got lost: time in a subzone with no quest objective or kill for 5+ minutes
+331. `BUILT` `W-331` Portal uses (mage portals, Rut'theran, etc.) (the 'Portal Effect' spell a clicked portal casts on you, by destination (unverified on Forever), and the Rut'theran portal (W-076); your own teleports and portals are MAG-04, MAG-05 and DRU-12)
+332. `SKIP` `W-332` Summons accepted (covered by ALL-08 (accepted summons, ConfirmSummon hook))
+333. `BUILT` `W-333` Times you used a meeting stone (Meeting Stone Summon casts)
+334. `BUILT` `W-334` Corpse run distance total (distance between position samples while a ghost)
+335. `BUILT` `W-335` Times you got lost: time in a subzone with no quest objective or kill for 5+ minutes (five minutes in one subzone moving 150+ yards with no kill, loot, money or quest progress, outside towns, instances and fights, not AFK; by subzone)
 
 ## Death memes
 _Build on PLAYER_DEAD plus context cached before death. [probe] where cause needs combat info._
 
-336. `TODO` `W-336` Deaths by falling [probe]
-337. `TODO` `W-337` Deaths by drowning (breath timer ran out before death)
-338. `TODO` `W-338` Deaths by fatigue
-339. `TODO` `W-339` Deaths to guards
-340. `TODO` `W-340` Deaths to elites
-341. `TODO` `W-341` Deaths to murlocs [probe]
-342. `TODO` `W-342` Deaths to critters (yes, it happens) [probe]
-343. `TODO` `W-343` Deaths within 10 seconds of dinging
-344. `TODO` `W-344` Deaths within 60 seconds of logging in
-345. `TODO` `W-345` Deaths while AFK
-346. `TODO` `W-346` Deaths during escort quests
-347. `TODO` `W-347` Deaths with Resurrection Sickness still active
-348. `TODO` `W-348` Deaths right after a spirit healer rez (within 2 minutes)
-349. `TODO` `W-349` Deaths in a sanctuary or friendly town
-350. `TODO` `W-350` Deaths with a full health bar 5 seconds earlier (one-shots) [probe]
-351. `TODO` `W-351` Deaths while a healthstone or potion was in your bags and off cooldown
-352. `TODO` `W-352` Deaths with Hearthstone off cooldown
-353. `TODO` `W-353` Deaths while mounted (dismounted and killed)
-354. `TODO` `W-354` Times you died twice in one minute
-355. `TODO` `W-355` Longest time alive without dying (/played)
-356. `TODO` `W-356` Death count at each 10 levels
-357. `TODO` `W-357` Death clock: average /played between deaths
-358. `TODO` `W-358` Ghost time: time spent as a ghost total
+336. `SKIP` `W-336` Deaths by falling [probe] (covered by #102 (fatal falls are counted in db.falls.fatal and show as Falling in the #47 death log))
+337. `BUILT` `W-337` Deaths by drowning (breath timer ran out before death) (the BREATH timer had run out with you still under (within 30 seconds of the death))
+338. `BUILT` `W-338` Deaths by fatigue (the EXHAUSTION timer had run out, the same way)
+339. `BUILT` `W-339` Deaths to guards (killer named like a town guard (Guard, Grunt, Deathguard, Bluffwatcher, Kor'kron, Mountaineer, Sentinel, Watchman, Brave, Bruiser) and of the other faction, or a goblin town's Bruiser; with no faction seen, in hostile territory)
+340. `SKIP` `W-340` Deaths to elites (covered by W-136 (deaths to an elite, rare elite or boss))
+341. `BUILT` `W-341` Deaths to murlocs [probe] ([probe] killer in the murloc family (FAMILIES, as W-022))
+342. `BUILT` `W-342` Deaths to critters (yes, it happens) [probe] ([probe] killer's creature type is Critter)
+343. `BUILT` `W-343` Deaths within 10 seconds of dinging (death within 10 seconds of PLAYER_LEVEL_UP)
+344. `BUILT` `W-344` Deaths within 60 seconds of logging in (death within 60 seconds of logging in (not a /reload))
+345. `BUILT` `W-345` Deaths while AFK (UnitIsAFK at the death)
+346. `BUILT` `W-346` Deaths during escort quests (death within 20 minutes of taking a quest whose objectives say escort or protect (English), until it's turned in or dropped)
+347. `BUILT` `W-347` Deaths with Resurrection Sickness still active (death before Resurrection Sickness ends: read from the debuff out of combat, or a minute per level over 10 (up to 10) after a spirit healer)
+348. `BUILT` `W-348` Deaths right after a spirit healer rez (within 2 minutes) (death within 2 minutes of a spirit healer resurrection (#49))
+349. `BUILT` `W-349` Deaths in a sanctuary or friendly town (GetZonePVPInfo says sanctuary, or resting in a zone that isn't hostile)
+350. `BLOCKED` `W-350` Deaths with a full health bar 5 seconds earlier (one-shots) [probe] (your health is secret on Forever)
+351. `BUILT` `W-351` Deaths while a healthstone or potion was in your bags and off cooldown (a Healthstone or Healing Potion in your bags with no cooldown)
+352. `BUILT` `W-352` Deaths with Hearthstone off cooldown (the Hearthstone in your bags with no cooldown)
+353. `BUILT` `W-353` Deaths while mounted (dismounted and killed) (mounted when the fight started (PLAYER_REGEN_DISABLED) and killed in it)
+354. `BUILT` `W-354` Times you died twice in one minute (a death within 60 seconds of the one before)
+355. `BUILT` `W-355` Longest time alive without dying (/played) (/played now kept on each death record; the longest gap between two, with level and zone)
+356. `SKIP` `W-356` Death count at each 10 levels (covered by #45 (deaths per level); the website adds them up by 10 levels)
+357. `BUILT` `W-357` Death clock: average /played between deaths (/played on each death record (W-355); the website averages the gaps)
+358. `BUILT` `W-358` Ghost time: time spent as a ghost total (from release (PLAYER_ALIVE as a ghost) to PLAYER_UNGHOST)
 
 ## Economy, vendors, AH, mail
 _PLAYER_MONEY deltas with context (merchant open, mail open, AH open, trade, quest)._
@@ -638,3 +638,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-05: Sections 7-8 (world PvP, battlegrounds and duels) done in the new JourneyTrackerPvP.lua, with the iconic PvP items (W-080, W-091, W-100) and the PvP firsts (W-468, W-469, W-479, W-480). W-140..W-190 `BUILT` except W-164 `BLOCKED` (health is secret on Forever). Enemy players killed come from honorable kill messages, enemy player targets you attacked dying, and the combat log where allowed; one player within 10 seconds counts once, and only class and level are kept. Battleground objectives come from your scoreboard row at the end, column by column, so Darkspear Islands' columns are kept whatever they're called. Duel results come from the system messages; the client's format there uses numbered parts (%1$s), so the pattern builder handles those. Checked outside the game: a stealth gank and an honorable kill (and the same player not counted twice), a corpse camp, two duels, a Warsong Gulch win with its scoreboard, and every page.
 - 2026-10-05: Sections 9-10 (dungeons deep dive, raids) done in the new JourneyTrackerDungeons.lua. `BUILT`: clear times, fastest clears, wipes and abandoned runs per dungeon, first final-boss kills, Forever vs Classic runs, Scarlet Monastery, Dire Maul and Stratholme wings (told apart by the bosses killed), Naralex awakened, the Zul'Farrak stairs, last one standing and first to fall in a wipe, deaths by boss, XP per run, blue boss drops, dungeon quests by dungeon, runs over level or boosted, party compositions (classes only), your role, hearthing out, lockouts, bosses by Legacy bracket, Onyxia and the first raid boss after 60, deaths in raids. `SKIP`: runs per dungeon and the nine new dungeons' runs (#73), each named boss (#28, #41), corpse runs into dungeons (#48-49), most-run dungeon per bracket (#74), raid runs, kills and wipes (#73, #41-42). The window can now draw maps of records (the Forever vs Classic split) as rows. Checked outside the game: a Deadmines run with a trash wipe, a death on Mr. Smite, VanCleef, a blue drop, a dungeon quest and a hearth out; a Scarlet Monastery Armory run from Herod's kill; Shadowfang Keep left early; a lockout; Onyxia. No stray globals.
 - 2026-10-05: Sections 11-14 (loot rolls and group life, bloopers, social and chat, emotes) done in the new JourneyTrackerSocial.lua, all `BUILT`, plus W-013..W-015 (Legacy) as a [probe]: the game's system messages that mention Legacy are kept with level and date, and the Legacy-named functions the client has are listed, until the Legacy API is known. Chat is counted, never kept: what you send is read once as it goes out (SendChatMessage hook) to count channels and a few words, and only your own words are tallied (capped); whispers and emotes aimed at you are counted without the sender. Bloopers match the client's own error strings. Your interrupted casts are counted on a frame of their own, because the class tracker listens to the same event for your target and the shared frame keeps one unit filter per event. Checked outside the game: rolls won and passed, /roll, a group, errors, chat and typed words, guild gz after a ding, emotes, a trade, a Legacy message, joining a guild. No stray globals.
+- 2026-10-05: Sections 15-16 (movement and world mechanics, death memes) done in the new JourneyTrackerWorld.lua. `BUILT`: time and yards swimming, time underwater, breath running out, fatigue, falls by seconds in the air (from the main tracker's fall timer), yards on foot and mounted (with swimming they add up to #71's ground distance), hearthstone moves and binds by inn, time at your bound inn, where you logged out and rested XP gained while away (counted at the next login, so a /reload isn't a logout), rested XP reaching its cap, portals clicked and the Rut'theran portal, meeting stones, corpse run yards, getting lost; deaths by drowning, fatigue, town guards, murlocs and critters ([probe]), and deaths within 10 seconds of a ding, within a minute of logging in, while AFK, during an escort, with Resurrection Sickness, soon after a spirit healer, in a friendly town, with a healthstone, potion or Hearthstone ready, mounted when the fight began, twice in a minute, plus the longest stretch alive and time as a ghost. Each death record now keeps /played (for the longest stretch and the website's death clock), and the main tracker remembers a mob's faction for the session, to tell town guards from mobs with the same name. `SKIP`: summons (ALL-08), deaths by falling (#102), deaths to elites (W-136), deaths by 10 levels (#45). `BLOCKED`: fall damage and one-shots (health is secret on Forever). Checked outside the game: a corpse run, a spirit healer and a death with Resurrection Sickness, drowning, fatigue, a guard and a grunt that isn't one, a murloc, a rat, a ding, a mounted fight, an escort, a 6-second fall, swimming, walking, riding and a teleport, getting lost, binding at an inn, rested XP across a logout, a portal and a meeting stone. No stray globals.

@@ -13,6 +13,7 @@ JourneyTrackerIconic.lua
 JourneyTrackerPvP.lua
 JourneyTrackerDungeons.lua
 JourneyTrackerSocial.lua
+JourneyTrackerWorld.lua
 JourneyTrackerStats.lua
 JourneyTrackerSerialize.lua
 JourneyTrackerExport.lua

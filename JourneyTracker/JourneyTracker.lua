@@ -551,6 +551,7 @@ local function CacheUnit(unit)
         ctype = Str(Call("UnitCreatureType", unit)),
         family = Str(Call("UnitCreatureFamily", unit)),
         level = Num(Call("UnitLevel", unit)),
+        faction = Str(Call("UnitFactionGroup", unit)),        -- guards (wrapped W-339)
     }
 end
 

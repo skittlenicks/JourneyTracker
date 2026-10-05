@@ -197,6 +197,8 @@ local function FamiliesOf(name, ctype, family)
     return out
 end
 
+ns.FamiliesOf = FamiliesOf -- the death memes (JourneyTrackerWorld.lua) ask about killers
+
 local function IsElite(class) return class == "elite" or class == "rareelite" or class == "worldboss" end
 local function IsRare(class) return class == "rare" or class == "rareelite" end
 
@@ -466,6 +468,7 @@ local function OnZone()
             if Faction() == "Alliance" and zone == "Darnassus" and lastSubZone == "Rut'theran Village"
                 and lastSubZoneAt and now - lastSubZoneAt < 15 then
                 Track.count("W-076")
+                Track.count("W-331", "Rut'theran to Darnassus")  -- W-331 portals used
             end
         end
         lastZone = zone
