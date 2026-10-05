@@ -62,13 +62,19 @@ WHAT'S COLLECTED
 - Where on each zone's map you spend your time: the rough square you're in,
   every few seconds (not on flights or while AFK). The website draws its
   heat map from it.
+- The little things: murlocs slain, how you died (drowned, town guards,
+  while AFK...), loot rolls, emotes, the red error messages you hit,
+  fishing, cooking, reputation, PvP, dungeon wipes, your firsts and your
+  play habits.
+- How many chat messages you send, by channel, and the words you type most.
+  Only counts: never a whole message, and never anything other players say.
 - A random ID made up by the addon, so I can tell your exports apart over
   time. It isn't based on your name or anything else about you.
 
 WHAT'S NOT COLLECTED
 --------------------
 - Your character's name or realm, and other players' names.
-- Chat messages.
+- Chat messages themselves (only the counts above).
 - Anything outside the game. The addon can't see your computer or the
   internet, and it can't send anything anywhere by itself.
 
@@ -91,4 +97,6 @@ COMMANDS
                    10 levels)
 /journey backup    Save a backup copy of your data
 /journey stats     Show what's been read from the game's Statistics pane
+/journey screenshots  Take a screenshot at every ding (type it again to
+                   stop)
 /journey version   Show which version you have

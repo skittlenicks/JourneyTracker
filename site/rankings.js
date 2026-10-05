@@ -527,11 +527,64 @@ var RANKINGS = (function () {
 
     // ---- Iconic moments ----
     R("vanCleef", "W-063", "iconic", "VanCleef's first visitors", "killed Edwin VanCleef at level {n}", "-", 24, 0.1, "The Defias never stood a chance.", F("Alliance", { family: "vanCleef" })),
-    R("boat", "W-075", "iconic", "sailors", "{n} boat rides between Auberdine and Menethil", "+", 6, 0.5, "You know the boat schedule by heart.", F("Alliance")),
+    R("hogger", "W-060", "iconic", "Hogger hunters", "killed Hogger at level {n}", "-", 11, 0.12, "Elwynn can sleep at night again.", F("Alliance")),
+    R("boat", "W-075", "iconic", "sailors", "{n} boat rides", "+", 6, 0.5, "You know the boat schedule by heart.", F("Alliance")),
+    R("zeppelins", "W-330", "iconic", "zeppelin riders", "{n} zeppelin rides", "+", 8, 0.6, "Goblin engineering: terrifying, but on time.", F("Horde")),
     R("bangalash", "W-111", "iconic", "big game hunters", "killed King Bangalash at level {n}", "-", 43, 0.05, "The king of the jungle bowed to you."),
     R("mankrik", "W-084", "iconic", "friends of Mankrik", "found Mankrik's wife at level {n}", "-", 18, 0.15, "Barrens chat can finally rest.", F("Horde")),
     R("echeyakee", "W-086", "iconic", "Barrens hunters", "killed Echeyakee at level {n}", "-", 19, 0.1, "The white lion of the Barrens met its match.", F("Horde")),
-    R("elevator", "W-095", "iconic", "elevator jumpers", "died falling off the Undercity elevator {n} times", "+", 0.8, 0.9, "Wait for the platform. Next time. Maybe.", F("Horde"))
+    R("elevator", "W-095", "iconic", "elevator jumpers", "died falling off the Undercity elevator {n} times", "+", 0.8, 0.9, "Wait for the platform. Next time. Maybe.", F("Horde")),
+    R("murlocs", "W-022", "iconic", "murloc hunters", "{n} murlocs slain", "+", 150, 0.6, "Mrglglgl. (That's a complaint.)"),
+    R("murlocTrain", "W-023", "iconic", "murloc train survivors", "{n} murlocs in a single fight", "+", 4, 0.35, "You heard the gurgle and stayed anyway."),
+
+    // ---- The little things (wrapped W-022..W-500) ----
+    // Combat and deaths
+    R("soloElites", "W-135", "combat", "elite soloists", "{n} elites killed without a group", "+", 40, 0.7, "\"Group recommended\" was a suggestion."),
+    R("guardDeaths", "W-339", "deaths", "guard magnets", "killed by town guards {n} times", "+", 1, 0.9, "The guards were just doing their job."),
+    R("afkDeaths", "W-345", "deaths", "AFK casualties", "{n} deaths while AFK", "+", 0.5, 1, "Be right back. Your corpse won't be."),
+    R("dingDeaths", "W-343", "deaths", "short-lived celebrations", "{n} deaths within 10 seconds of a ding", "+", 0.5, 1, "Ding! Oh no."),
+    R("loginDeaths", "W-344", "deaths", "rough landings", "{n} deaths within a minute of logging in", "+", 0.5, 1, "You had barely loaded in."),
+    R("aliveStretch", "W-355", "deaths", "long-lived adventurers", "{t} of /played without dying", "+", 72000, 0.6, "Not a scratch for days on end.", { family: "streak" }),
+    // Travel
+    R("swimming", "W-313", "travel", "swimmers", "{t} swimming", "+", 3600, 0.7, "Gills would have been handy."),
+    R("lost", "W-335", "travel", "scenic route takers", "got lost {n} times", "+", 8, 0.8, "Not lost. Exploring. Loudly."),
+    // PvP and dungeons
+    R("ganks", "W-141", "pvp", "lowbie hunters", "{n} players ganked 10+ levels below you", "+", 5, 1, "They were green. You were not."),
+    R("corpseCamped", "W-146", "pvp", "corpse-camp survivors", "corpse camped {n} times", "+", 1, 1, "They waited. You waited longer."),
+    R("killStreak", "W-169", "pvp", "unstoppables", "{n} players killed in a row", "+", 3, 0.8, "One after another after another."),
+    R("firstToFall", "W-226", "dungeons", "floor inspectors", "first to die in {n} wipes", "+", 3, 0.8, "Someone has to check the floor first."),
+    R("lastStanding", "W-225", "dungeons", "last ones standing", "last one alive in {n} wipes", "+", 2, 0.8, "You saw it all go wrong. Every time."),
+    // Groups, chat and bloopers
+    R("rollWins", "W-247", "social", "lucky rollers", "{n} loot rolls won", "+", 60, 0.6, "Lady Luck owes you nothing."),
+    R("chatty", "W-277", "social", "chatterboxes", "{n} chat messages sent", "+", 800, 0.9, "Your keyboard got as much use as your hotbar."),
+    R("gz", "W-285", "social", "congratulators", "said 'gz' {n} times", "+", 40, 1, "Every ding in earshot got your blessing."),
+    R("guildGz", "W-290", "social", "guild favorites", "{n} 'gz' from your guild on your dings", "+", 30, 0.9, "Your guild cheered every step."),
+    R("typedLol", "W-284", "fun", "lol typers", "typed 'lol' {n} times", "+", 60, 1, "Laughing out loud, or at least typing it."),
+    R("emotes", "W-302", "fun", "emoters", "{n} emotes", "+", 150, 0.8, "/dance, /cheer, /hug: a full vocabulary."),
+    R("bloopers", "W-276", "fun", "button mashers", "{n} red error messages", "+", 1500, 0.6, "Not enough rage. Out of range. Not in line of sight."),
+    R("hearthCooldown", "W-273", "fun", "impatient hearthers", "pressed your Hearthstone on cooldown {n} times", "+", 3, 1, "It's still not ready."),
+    R("reloads", "W-492", "fun", "UI tinkerers", "{n} /reloads", "+", 40, 0.9, "Just one more addon tweak."),
+    R("screenshots", "W-493", "fun", "photographers", "{n} screenshots", "+", 30, 1, "Pics, or it didn't happen."),
+    // Gold, gear and professions
+    R("junkSold", "W-359", "gold", "junk dealers", "{n} gray items sold", "+", 1100, 0.5, "Every gray has a price."),
+    R("bigPurchase", "W-362", "gold", "splurgers", "{g} on one vendor purchase", "+", 50000, 0.9, "Some things are worth every copper."),
+    R("broke", "W-378", "gold", "broke adventurers", "went broke {n} times", "+", 2, 0.9, "Under a silver to your name. Again."),
+    R("repairBill", "W-400", "gold", "repair bill record holders", "a {g} repair bill", "+", 30000, 0.7, "That one hurt.", { family: "repairs" }),
+    R("chests", "W-381", "loot", "chest crackers", "{n} treasure chests opened", "+", 20, 0.7, "If it has a lid, you opened it."),
+    R("itemsEquipped", "W-394", "loot", "gear swappers", "{n} items equipped", "+", 250, 0.4, "Upgrade, upgrade, upgrade."),
+    R("enchanted", "W-401", "loot", "enchanted adventurers", "{n} enchants on your gear", "+", 6, 0.8, "A little sparkle on everything."),
+    R("fishingSession", "W-425", "crafts", "patient anglers", "fished for {t} in one go", "+", 1800, 0.7, "The fish weren't biting. You stayed anyway."),
+    R("cooked", "W-426", "crafts", "camp cooks", "{n} dishes cooked", "+", 120, 0.8, "Something smells good."),
+    R("explosives", "W-432", "crafts", "demolition experts", "{n} explosives thrown", "+", 40, 0.9, "Fire in the hole!", T("Engineering")),
+    R("gems", "W-415", "crafts", "gem finders", "{n} gems found mining", "+", 25, 0.8, "Something shiny in every vein.", T("Mining")),
+    // Reputation and habits
+    R("repGained", "W-439", "social", "faction favorites", "{n} reputation earned", "+", 60000, 0.5, "Everyone knows your name."),
+    R("bloodsail", "W-442", "fun", "pirates at heart", "{n} Bloodsail reputation gains", "+", 5, 1.2, "Yarr. Booty Bay is not amused."),
+    R("sessionKills", "W-490", "pace", "session slayers", "{n} kills in one session", "+", 300, 0.5, "One sitting, one very long kill list."),
+    R("xpHour", "W-496", "pace", "power hours", "{n} XP in one hour", "+", 60000, 0.4, "The best hour of your whole journey."),
+    R("lateDings", "W-487", "pace", "midnight dingers", "{n} dings after midnight", "+", 2, 0.9, "Level up now, sleep later."),
+    R("firstGold", "W-467", "gold", "early earners", "your first gold at level {n}", "-", 14, 0.25, "The first gold is the hardest."),
+    R("firstFlight", "W-471", "travel", "early flyers", "your first flight at level {n}", "-", 10, 0.3, "Walking was never your thing.")
   ];
 })();
 // The site's functions load it too (site/api/ranks.js).

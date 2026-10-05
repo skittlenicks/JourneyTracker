@@ -61,6 +61,16 @@ Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap.
 **Social**
 
 - Time grouped vs solo, how many different players you've grouped with (a count, never names), the level you joined a guild, and how many times you jumped
+- Loot rolls won and lost, groups joined, chat messages sent and your most-typed words (counts only), emotes, and reputation with every faction
+
+**The little things**
+
+- Creature families: murlocs, kobolds, gnolls, quilboar and dozens more, and the biggest murloc train you survived
+- Iconic moments: Hogger, VanCleef, Mankrik's wife, boats and zeppelins, the Undercity elevator
+- How you died: drowned, town guards, while AFK, seconds after a ding, twice in one minute, and your longest stretch alive
+- PvP and dungeons: ganks, corpse camps, duels, battlegrounds, wipes, and who fell first
+- Bloopers: every red error message, and the one you hit most
+- Fishing, cooking, gems, explosives and gadgets, firsts (first quest, flight, green item, gold), and your play habits
 
 ## See your recap
 
@@ -71,7 +81,7 @@ Every 10 levels, the addon saves your journey as it was when you got there. Shar
 ## Privacy
 
 - Exports never include your character's name or realm, other players' names, or chat.
-- Other players' names are never saved, and chat is never stored.
+- Other players' names are never saved, and chat is never stored: the addon counts the messages you send and the words you type most, nothing else.
 - Nothing leaves the game by itself. Addons can't reach the internet or the rest of your computer, so your data stays in your saved variables until you choose to share an export.
 - Pasting an export on the website saves it so it counts toward the rankings. Anyone you give your recap's link to can see it, but never your name or realm.
 
@@ -89,4 +99,5 @@ Every 10 levels, the addon saves your journey as it was when you got there. Shar
 - **/journey export 30**: your journey as it was at level 30 (saved every 10 levels)
 - **/journey backup**: save a backup copy of your data
 - **/journey stats**: show what's been read from the game's Statistics pane
+- **/journey screenshots**: take a screenshot at every ding (type it again to stop)
 - **/journey version**: show which version you have

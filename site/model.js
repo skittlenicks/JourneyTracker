@@ -9,7 +9,8 @@ var JourneyModel = (function () {
   // Bump when a ranked value changes meaning or the rankings gain keys:
   // profiles saved under an older model get worked out again (site/api/ranks.js).
   // 2: ranked per milestone; "played" and "days" are the time to it.
-  var MODEL = 2;
+  // 3: the wrapped stats' rankings (addon 0.6.0).
+  var MODEL = 3;
   // A place needs this many players on the ranking, you included: being 1st
   // of 2 says nothing.
   var MIN_PLAYERS = 3;
@@ -212,6 +213,7 @@ var JourneyModel = (function () {
     mark(named(st.firstMount).level, "First mount");
     mark(named(wr["W-001"]).level, "Left Zephras Isle");
     mark(named(wr["W-006"]).level, "Reached Mount Hyjal");
+    ICONIC_MARKS.forEach(function (m) { mark(named(wr[m[0]]).level, m[1]); });
     if (reachedMax) mark(60, "Level 60");
     J.milestones = marks.sort(function (x, y) { return x[0] - y[0]; });
 
@@ -431,8 +433,186 @@ var JourneyModel = (function () {
     J.guildLevel = number(social.guildJoinLevel) || null;
     J.guildBefore = !!social.guildBeforeTracking;
     J.jumps = number(social.jumps);
+    // Everything else the wrapped stats hold, for the page's chapters
+    J.little = littleOf(wr);
     return J;
   }
+
+  // ---- The little things: the addon's wrapped stats ----
+  // db.wrapped is keyed by spec item ID (wrapped-tracking-spec.md). The page
+  // shows these, chapter by chapter, as [id, label, how]. An id can add up
+  // several ("W-277+W-278"). How to read each:
+  //   n  a count (a map's counts add up)   t  seconds   g  copper
+  //   max, tmax, gmax  a record's value (a count, seconds or copper)
+  //   sec  a record's value in seconds, to a tenth
+  //   top  a map's biggest entry, with its count
+  //   lvl  a record's level (a first), with its name if it has one
+  //   rec:<k>  the level of one record in a map of them ("1g")
+  //   key:<k>  one entry of a map    ends:<s>  the entries whose key ends so
+  //   keys  how many entries a map has    list  how many a list has
+  //   avg:<total>:<count>  one entry of a map over another
+  var LITTLE = {
+    combat: [["W-023", "Most murlocs in one fight", "max"], ["W-135", "Elites soloed", "n"],
+      ["W-137", "Highest-level elite soloed", "max"], ["W-138", "Mobs killed 5+ levels above you", "n"],
+      ["W-130", "Rares spotted", "key:seen"], ["W-061", "Fights with Hogger", "key:attempts"]],
+    deaths: [["W-337", "Drowned", "n"], ["W-338", "Swam into fatigue", "n"], ["W-339", "Town guards", "n"],
+      ["W-136", "Elites", "n"], ["W-341", "Murlocs", "n"], ["W-342", "Critters", "n"], ["W-118", "Devilsaurs", "n"],
+      ["W-343", "Within 10 seconds of a ding", "n"], ["W-344", "Within a minute of logging in", "n"],
+      ["W-345", "While AFK", "n"], ["W-346", "During an escort", "n"], ["W-347", "With Resurrection Sickness", "n"],
+      ["W-354", "Twice in one minute", "n"], ["W-352", "With your Hearthstone ready", "n"],
+      ["W-355", "Longest stretch alive", "tmax"], ["W-358", "Time as a ghost", "t"]],
+    travel: [["W-313", "Time swimming", "t"], ["W-315", "Time underwater", "t"], ["W-316", "Breath ran out", "n"],
+      ["W-319", "Longest fall", "sec"], ["W-335", "Times you got lost", "n"], ["W-329", "Boat rides", "n"],
+      ["W-330", "Zeppelin rides", "n"], ["W-331", "Portals taken", "n"], ["W-333", "Meeting stones used", "n"],
+      ["W-324", "Inn you bound to most", "top"], ["W-327", "Rested XP gained while away", "n"]],
+    gold: [["W-359", "Junk sold", "n"], ["W-359.gold", "Gold from junk", "g"], ["W-362", "Biggest vendor purchase", "gmax"],
+      ["W-367", "Auctions posted", "n"], ["W-370", "Best auction sale", "gmax"], ["W-371", "Biggest auction buy", "gmax"],
+      ["W-378", "Times you went broke", "n"], ["W-381", "Treasure chests opened", "n"], ["W-382", "Gold from chests", "g"],
+      ["W-380", "Lockboxes looted", "n"], ["W-376", "Spent on respecs", "g"]],
+    gear: [["W-394", "Items equipped", "n"], ["W-401", "Enchants applied", "n"], ["W-392", "Favorite suffix", "top"],
+      ["W-397", "First two-hander", "lvl"], ["W-398", "Items broken", "n"], ["W-400", "Biggest repair bill", "gmax"],
+      ["W-363", "Items destroyed", "n"], ["W-403", "BoE gear sold unworn", "n"], ["W-407", "Talent respecs", "n"]],
+    skills: [["W-421", "Fishing casts", "key:casts"], ["W-421", "Catches", "key:catches"], ["W-424", "Pools fished", "n"],
+      ["W-425", "Longest fishing session", "tmax"], ["W-426", "Dishes cooked", "n"], ["W-426", "Favorite dish", "top"],
+      ["W-417", "Cloth looted", "n"], ["W-415", "Gems found mining", "n"], ["W-430", "Items disenchanted", "n"],
+      ["W-436", "Potions and elixirs made", "n"], ["W-432", "Explosives thrown", "n"], ["W-435", "Gadgets used", "n"]],
+    social: [["W-254", "Groups joined", "n"], ["W-246", "Need rolls", "key:need"], ["W-247", "Loot rolls won", "key:won"],
+      ["W-248", "Highest roll", "max"], ["W-277+W-278+W-279+W-280+W-281+W-283", "Chat messages sent", "n"],
+      ["W-302", "Emotes used", "n"], ["W-303", "Favorite emote", "top"], ["W-311", "Emotes aimed at you", "n"],
+      ["W-296", "Trades", "n"], ["W-439", "Reputation earned", "n"], ["W-439", "Best friends with", "top"],
+      ["W-442", "Bloodsail reputation gains", "n"], ["W-455", "Darkmoon Faire visits", "n"]],
+    fun: [["W-276", "Red error messages", "n", "errors"], ["W-276.byMessage", "Most common error", "top", "topError"],
+      ["W-264", "Inventory full", "n"], ["W-273", "Hearthstone on cooldown", "n"],
+      ["W-268", "Casts interrupted", "n"], ["W-284", "Typed 'lol'", "n", "lols"], ["W-285", "Typed 'gz'", "n"],
+      ["W-290", "Guild 'gz' on your dings", "n"], ["W-292", "Your most typed word", "top"],
+      ["W-090", "Barrens chat about Chuck Norris", "n"]],
+    pvp: [["W-140", "Enemy players killed", "n", "pvpKills"], ["W-141", "Lowbies ganked", "n"], ["W-144", "Times you got ganked", "n"],
+      ["W-146", "Times corpse camped", "n"], ["W-169", "Longest kill streak", "max"], ["W-160", "Enemy guards killed", "n"],
+      ["W-186", "Duels won", "key:won", "duelsWon"], ["W-186", "Duels lost", "key:lost"], ["W-171", "Battlegrounds won", "ends: won"],
+      ["W-171", "Battlegrounds lost", "ends: lost"], ["W-182", "Honor earned", "n"], ["W-156", "Time flagged for PvP", "t"]],
+    dungeons: [["W-194", "Wipes", "n", "wipes"], ["W-195", "Runs left before the last boss", "n"],
+      ["W-226", "First to fall in a wipe", "n"], ["W-225", "Last one standing", "n"], ["W-229", "Blue boss drops", "n"],
+      ["W-235", "Hearthed out of a dungeon", "n"], ["W-197", "Last bosses killed", "keys"], ["W-242", "Onyxia, first kill", "lvl"]],
+    firsts: [["W-462", "First quest", "lvl", "firstQuest"], ["W-464", "First group", "lvl"], ["W-466", "First green item", "lvl"],
+      ["W-471", "First flight", "lvl"], ["W-476", "First talent point", "lvl"], ["W-133", "First rare killed", "lvl"],
+      ["W-468", "First enemy player killed", "lvl"], ["W-469", "First death to a player", "lvl"],
+      ["W-472", "First boat or zeppelin", "lvl"], ["W-479", "First battleground", "lvl"],
+      ["W-480", "First duel won", "lvl"], ["W-475", "First time Exalted", "lvl"], ["W-481", "First full rested bar", "lvl"]],
+    habits: [["W-490", "Most kills in one session", "max", "sessionKills"], ["W-489", "Most deaths in one session", "max"],
+      ["W-491", "Average time to your first kill", "avg:seconds:sessions"], ["W-496", "Most XP in one hour", "max"],
+      ["W-498", "Time questing", "key:questing"], ["W-498", "Time grinding", "key:grinding"],
+      ["W-487", "Dings after midnight", "list"], ["W-492", "Reloads", "n"], ["W-493", "Screenshots", "n"]]
+  };
+  // What each of those reads as: seconds, copper, a level, a name with a
+  // count, or a plain number.
+  var LITTLE_KIND = { t: "t", tmax: "t", "key:questing": "t", "key:grinding": "t", avg: "t", g: "g", gmax: "g",
+                      sec: "s", lvl: "lvl", top: "top" };
+  // Creature families (W-022..W-059), as the addon names them.
+  var FAMILIES = { "W-022": "Murlocs", "W-024": "Kobolds", "W-025": "Gnolls", "W-026": "Defias", "W-027": "Harpies",
+    "W-028": "Centaurs", "W-029": "Quilboar", "W-030": "Trolls", "W-031": "Ogres", "W-032": "Naga", "W-033": "Satyrs",
+    "W-034": "Furbolgs", "W-035": "Troggs", "W-036": "Dark Iron dwarves", "W-037": "Scarlet Crusade",
+    "W-038": "Syndicate", "W-039": "Venture Co.", "W-040": "Bloodsail pirates", "W-041": "Burning Blade",
+    "W-042": "Undead", "W-043": "Spiders", "W-044": "Raptors", "W-045": "Crocolisks", "W-046": "Wolves",
+    "W-047": "Boars", "W-048": "Bears", "W-049": "Gorillas", "W-050": "Scorpids", "W-051": "Kodos",
+    "W-052": "Big cats", "W-053": "Dragonkin", "W-054": "Elementals", "W-055": "Demons", "W-056": "Yetis",
+    "W-057": "Critters", "W-058": "Chickens", "W-059": "Rabbits and squirrels" };
+  // Iconic firsts for the hero's milestones.
+  var ICONIC_MARKS = [["W-060", "Killed Hogger"], ["W-063", "Killed VanCleef"], ["W-084", "Found Mankrik's wife"],
+    ["W-086", "Killed Echeyakee"], ["W-111", "Killed King Bangalash"], ["W-242", "Killed Onyxia"],
+    ["W-468", "First enemy player killed"], ["W-480", "First duel won"]];
+
+  // One wrapped value, read as `how` says (see LITTLE).
+  function littleValue(wr, id, how) {
+    if (id.indexOf("+") >= 0) {
+      return sum(id.split("+").map(function (one) { return number(littleValue(wr, one, how)); }));
+    }
+    var v = own(wr, id), map = named(v), rec = named(v);
+    var kind = how.split(":")[0], arg = how.slice(kind.length + 1);
+    if (kind === "n" || kind === "t" || kind === "g") return typeof v === "number" ? number(v) : addUp(map);
+    if (kind === "max" || kind === "tmax" || kind === "gmax") return number(rec.value);
+    if (kind === "sec") return Math.round(number(rec.value) * 10) / 10;
+    if (kind === "key") return number(own(map, arg));
+    if (kind === "ends") {
+      return Object.keys(map).reduce(function (t, k) { return t + (k.slice(-arg.length) === arg ? number(map[k]) : 0); }, 0);
+    }
+    if (kind === "keys") return Object.keys(map).length;
+    if (kind === "list") return listOf(v).length;
+    if (kind === "avg") {
+      var total = number(own(map, arg.split(":")[0])), count = number(own(map, arg.split(":")[1]));
+      return count > 0 ? total / count : 0;
+    }
+    if (kind === "top") {
+      var top = topRows(map, 1)[0];
+      // An emote's token ("DANCE") reads as its name.
+      return top ? { name: /^[A-Z]+$/.test(top[0]) ? capFirst(top[0].toLowerCase()) : top[0], n: top[1] } : null;
+    }
+    if (kind === "rec") rec = named(own(map, arg));   // one record of a map of them ("1g")
+    if (kind === "lvl" || kind === "rec") {
+      if (!(number(rec.level) > 0) || rec.before) return null;
+      return { level: number(rec.level), name: typeof rec.name === "string" ? rec.name : null, late: !!rec.late };
+    }
+    return 0;
+  }
+  // The wrapped stats as the page shows them: { chapter: [[label, value,
+  // kind]] } with only what has something in it, the creature families as
+  // bars, the values a row's fourth field names for the chapter titles
+  // (`at`), and the values the rankings read (`v`, `best`).
+  function littleOf(wr) {
+    wr = named(wr);
+    var out = { families: [], v: Object.create(null), at: Object.create(null) };
+    Object.keys(LITTLE).forEach(function (chapter) {
+      out[chapter] = [];
+      LITTLE[chapter].forEach(function (r) {
+        var value = littleValue(wr, r[0], r[2]);
+        if (r[3]) out.at[r[3]] = value;
+        if (value && (typeof value !== "number" || value > 0)) {
+          out[chapter].push([r[1], value, own(LITTLE_KIND, r[2]) || own(LITTLE_KIND, r[2].split(":")[0]) || "n"]);
+        }
+      });
+    });
+    // The firsts in the order they happened.
+    out.firsts.sort(function (a, b) { return a[1].level - b[1].level; });
+    out.families = Object.keys(FAMILIES).map(function (id) { return [FAMILIES[id], number(own(wr, id))]; })
+      .filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 8);
+    Object.keys(LITTLE_RANKED).forEach(function (key) {
+      var spec = LITTLE_RANKED[key], value = littleValue(wr, spec[0], spec[1]);
+      if (value && typeof value === "object") value = value.late ? undefined : value.level;
+      if (typeof value === "number" && value > 0) out.v[key] = value;
+    });
+    out.best = Object.create(null);
+    Object.keys(LITTLE_BEST).forEach(function (key) {
+      var value = littleValue(wr, LITTLE_BEST[key][0], LITTLE_BEST[key][1]);
+      if (value > 0) out.best[key] = value;
+    });
+    return out;
+  }
+  // Rankings the Statistics pane answers that the wrapped stats count too:
+  // the bigger of the two counts (both start partway through a character).
+  var LITTLE_BEST = {
+    drownings: ["W-337", "n"], fatigueDeaths: ["W-338", "n"], duelsWon: ["W-186", "key:won"],
+    duelsLost: ["W-186", "key:lost"], bgsWon: ["W-171", "ends: won"], needRolls: ["W-246", "key:need"],
+    greedRolls: ["W-246", "key:greed"], portalsTaken: ["W-331", "n"], respecs: ["W-407", "n"],
+    auctionsPosted: ["W-367", "n"], hugs: ["W-303", "key:HUG"], lols: ["W-303", "key:LOL"],
+    cheers: ["W-303", "key:CHEER"], waves: ["W-303", "key:WAVE"], respecGold: ["W-376", "g"]
+  };
+  // The wrapped values the rankings use (site/rankings.js), by ranking key.
+  var LITTLE_RANKED = {
+    murlocs: ["W-022", "n"], murlocTrain: ["W-023", "max"], hogger: ["W-060", "lvl"], vanCleef: ["W-063", "lvl"],
+    mankrik: ["W-084", "lvl"], echeyakee: ["W-086", "lvl"], bangalash: ["W-111", "lvl"], elevator: ["W-095", "n"],
+    boat: ["W-075", "n"], zeppelins: ["W-330", "n"], soloElites: ["W-135", "n"],
+    guardDeaths: ["W-339", "n"], afkDeaths: ["W-345", "n"], dingDeaths: ["W-343", "n"], loginDeaths: ["W-344", "n"],
+    aliveStretch: ["W-355", "tmax"], swimming: ["W-313", "t"], lost: ["W-335", "n"],
+    ganks: ["W-141", "n"], corpseCamped: ["W-146", "n"], killStreak: ["W-169", "max"],
+    firstToFall: ["W-226", "n"], lastStanding: ["W-225", "n"], rollWins: ["W-247", "key:won"],
+    chatty: ["W-277+W-278+W-279+W-280+W-281+W-283", "n"], typedLol: ["W-284", "n"], gz: ["W-285", "n"],
+    guildGz: ["W-290", "n"], emotes: ["W-302", "n"], bloopers: ["W-276", "n"], hearthCooldown: ["W-273", "n"],
+    junkSold: ["W-359", "n"], bigPurchase: ["W-362", "gmax"], broke: ["W-378", "n"], chests: ["W-381", "n"],
+    itemsEquipped: ["W-394", "n"], repairBill: ["W-400", "gmax"], enchanted: ["W-401", "n"],
+    fishingSession: ["W-425", "tmax"], cooked: ["W-426", "n"], explosives: ["W-432", "n"], gems: ["W-415", "n"],
+    repGained: ["W-439", "n"], bloodsail: ["W-442", "n"], sessionKills: ["W-490", "max"], xpHour: ["W-496", "max"],
+    reloads: ["W-492", "n"], screenshots: ["W-493", "n"], lateDings: ["W-487", "list"],
+    firstGold: ["W-467", "rec:1g"], firstFlight: ["W-471", "lvl"]
+  };
 
   // ---- What a journey is ranked on ----
   // Class rankings an export can answer, from what the class tracker saved:
@@ -621,11 +801,16 @@ var JourneyModel = (function () {
       });
       classValues(J, p.values);
     }
-    // Every ranking from the game's Statistics pane, by statistic ID.
+    // The wrapped stats' own rankings.
+    var little = J.little || { v: {}, best: {} };
+    Object.keys(little.v).forEach(function (k) { p.values[k] = little.v[k]; });
+    // Every ranking from the game's Statistics pane, by statistic ID, or the
+    // wrapped stats' count of the same thing if that's bigger.
     rankings.forEach(function (r) {
       var id = /^P-(\d+)$/.exec(r.source);
       if (id && J.pane[id[1]] !== undefined) p.values[r.key] = J.pane[id[1]];
     });
+    Object.keys(little.best).forEach(function (k) { p.values[k] = Math.max(number(p.values[k]), little.best[k]); });
     return p;
   }
 
@@ -755,7 +940,7 @@ var JourneyModel = (function () {
     addUp: addUp, topRows: topRows, tally: tally, capFirst: capFirst, dayOf: dayOf, own: own, itemOf: itemOf,
     milestoneOf: milestoneOf,
     paneNumber: paneNumber, CLASS_NAMES: CLASS_NAMES, RACE_NAMES: RACE_NAMES,
-    journeyFromExport: journeyFromExport, profileOf: profileOf, saved: saved, applies: applies,
+    journeyFromExport: journeyFromExport, littleOf: littleOf, profileOf: profileOf, saved: saved, applies: applies,
     cohortLabel: cohortLabel, placesFor: placesFor, ordinal: ordinal, fill: fill, standing: standing,
     picksFor: picksFor, bestFirst: bestFirst
   };

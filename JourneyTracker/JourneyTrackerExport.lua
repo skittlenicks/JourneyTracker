@@ -73,6 +73,19 @@ local function BuildSummary(db, milestone)
                          "bracketsSeen" }) do
         wrapped[key] = nil
     end
+    -- The website turns away an export with a negative number in it, and no
+    -- wrapped stat is negative: drop any that slipped in rather than lose
+    -- the whole export.
+    local function DropNegatives(t)
+        for k, v in pairs(t) do
+            if type(v) == "number" and v < 0 then
+                t[k] = nil
+            elseif type(v) == "table" then
+                DropNegatives(v)
+            end
+        end
+    end
+    DropNegatives(wrapped)
 
     -- W-505 the Statistics pane: the names lookup, the baseline, the latest
     -- snapshot and what changed at each level (JourneyTrackerStats.lua).

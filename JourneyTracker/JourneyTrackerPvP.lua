@@ -118,7 +118,10 @@ local function PvPKill(name, info)
     local level, class = info.level, info.class
     local world = not InBattleground()
     Track.count("W-140")                                      -- W-140 enemy players killed
-    Track.first("W-468", { class = class, theirLevel = level }) -- W-468 first enemy player killed
+    -- (A level of -1 is a skull: 10 or more above you. Exports carry no
+    -- negative numbers, so it's kept as `skull`.)
+    Track.first("W-468", { class = class, theirLevel = level and level > 0 and level or nil,
+                           skull = level == -1 or nil })      -- W-468 first enemy player killed
     streak = streak + 1
     Track.max("W-169", streak)                                -- W-169 longest kill streak
     if level and level > 0 then
@@ -191,11 +194,14 @@ local function OnDeath(rec, extra)
     local p = extra and extra.player or {}
     local me, level, class = ns.Level(), p.level, p.class
     local world = not InBattleground()
-    Track.first("W-469", { class = class, theirLevel = level }) -- W-469 first killed by a player
+    Track.first("W-469", { class = class, theirLevel = level and level > 0 and level or nil,
+                           skull = level == -1 or nil })      -- W-469 first killed by a player
     if level and level > 0 then
         if level - me >= GANK_GAP then Track.count("W-144") end -- W-144 ganked
         if math.abs(level - me) <= FAIR_GAP then Track.count("W-149") end -- W-149 fair fights lost
-        Track.max("W-145", level - me, { class = class })     -- W-145 biggest gap when ganked
+        if level > me then
+            Track.max("W-145", level - me, { class = class }) -- W-145 biggest gap when ganked
+        end
     elseif level == -1 then
         Track.count("W-144")                                  -- a skull is at least 10 above you
     end

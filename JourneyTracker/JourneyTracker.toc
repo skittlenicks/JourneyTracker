@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: Journey Tracker
 ## Notes: Records your character's 1-60 journey: time, XP, kills, deaths, quests, travel, gold, loot and more.
-## Version: 0.5.0
+## Version: 0.6.0
 ## SavedVariablesPerCharacter: JourneyTrackerDB, JourneyTrackerBackup
 
 Libs\LibStub\LibStub.lua

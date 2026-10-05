@@ -799,6 +799,10 @@ kbd {
         <p class="label">Most killed</p>
         <ul class="bars" id="mobs"></ul>
       </div>
+      <div>
+        <p class="label">By kind of foe</p>
+        <ul class="bars" id="families"></ul>
+      </div>
       <dl class="stats" id="combat-stats"></dl>
     </div>
   </section>
@@ -820,6 +824,10 @@ kbd {
         </div>
       </div>
       <dl class="stats" id="death-stats"></dl>
+      <div>
+        <p class="label">How it happened</p>
+        <dl class="stats" id="death-memes"></dl>
+      </div>
     </div>
   </section>
 
@@ -901,6 +909,7 @@ kbd {
         <p class="label">Items looted, by quality</p>
         <ul class="bars" id="loot"></ul>
       </div>
+      <dl class="stats" id="gear-stats"></dl>
     </div>
   </section>
 
@@ -937,6 +946,54 @@ kbd {
     <div class="chapter-body">
       <dl class="stats cols-2" id="forever-stats"></dl>
       <dl class="stats cols-2" id="social-stats"></dl>
+      <div>
+        <p class="label">Groups, chat and reputation</p>
+        <dl class="stats" id="group-stats"></dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="chapter-pvp" aria-labelledby="pvp-title">
+    <div class="chapter-head">
+      <p class="eyebrow">PvP and dungeons</p>
+      <h2 id="pvp-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <div>
+        <p class="label">Against other players</p>
+        <dl class="stats" id="pvp-stats"></dl>
+      </div>
+      <div>
+        <p class="label">Dungeons and raids</p>
+        <dl class="stats" id="dungeon-stats"></dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="chapter-fun" aria-labelledby="fun-title">
+    <div class="chapter-head">
+      <p class="eyebrow">The little things</p>
+      <h2 id="fun-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <dl class="stats" id="fun-stats"></dl>
+    </div>
+  </section>
+
+  <section class="chapter" id="chapter-firsts" aria-labelledby="firsts-title">
+    <div class="chapter-head">
+      <p class="eyebrow">Firsts and habits</p>
+      <h2 id="firsts-title"></h2>
+    </div>
+    <div class="chapter-body">
+      <div>
+        <p class="label">Your firsts</p>
+        <dl class="stats cols-2" id="first-stats"></dl>
+      </div>
+      <div>
+        <p class="label">Your habits</p>
+        <dl class="stats" id="habit-stats"></dl>
+      </div>
     </div>
   </section>
 
@@ -1058,8 +1115,61 @@ kbd {
       { zone: "Un'Goro Crater", map: 1449, from: 50, to: 53, spots: [["Marshal's Refuge", 44, 9, 170, 2.2], ["The Slithering Scar", 50, 79, 160, 4.4],
         ["Fire Plume Ridge", 51, 50, 110, 3.8], ["Lakkari Tar Pits", 50, 22, 85, 4], ["Golakka Hot Springs", 34, 54, 70, 3.6]] }
     ],
-    // Iconic moments: the level you first did them, or how many times.
-    iconic: { vanCleefLevel: 21, boatTrips: 14, bangalashLevel: 41 },
+    // The addon's wrapped stats, by spec item ID, as an export has them
+    // (site/model.js's littleOf reads them for the page and the rankings).
+    wrapped: {
+      // Creature families, the murloc train, elites and rares
+      "W-022": 412, "W-023": { value: 6, level: 14 }, "W-024": 388, "W-025": 296, "W-026": 214, "W-027": 167,
+      "W-028": 120, "W-030": 403, "W-034": 352, "W-042": 520, "W-043": 241, "W-044": 189, "W-052": 377,
+      "W-135": 58, "W-137": { value: 49, level: 47, name: "Un'Goro Thunderer" }, "W-138": 34, "W-130": { seen: 31, killed: 9 },
+      // Iconic moments
+      "W-063": { level: 21 }, "W-111": { level: 41 },
+      "W-075": { "Menethil Harbor to Auberdine": 7, "Auberdine to Menethil Harbor": 7 },
+      // How you died
+      "W-337": 2, "W-339": 1, "W-136": 6, "W-341": 3, "W-343": 1, "W-344": 1, "W-345": 1, "W-354": 4, "W-352": 29,
+      "W-355": { value: 151200, level: 44 }, "W-358": 13900,
+      // Getting around
+      "W-313": 9840, "W-315": 2210, "W-316": 3, "W-319": { value: 6.4, level: 38 }, "W-335": 11, "W-329": 22,
+      "W-331": { "Rut'theran to Darnassus": 19, Stormwind: 3 }, "W-333": 2, "W-324": { Gadgetzan: 5, Auberdine: 3 },
+      "W-327": 412000,
+      // Gold
+      "W-359": 1640, "W-359.gold": 384220, "W-362": { value: 120000, level: 52, name: "Runecloth Bag" }, "W-367": 64,
+      "W-370": { value: 412000, level: 57, name: "Devilsaur Leather" }, "W-371": { value: 255000, level: 55, name: "Pattern: Devilsaur Gauntlets" },
+      "W-378": 2, "W-381": 27, "W-382": 61480, "W-380": { "Battered Junkbox": 3 }, "W-376": 10000,
+      // Gear and talents
+      "W-394": 312, "W-401": 11, "W-392": { "of the Monkey": 14, "of the Eagle": 9, "of the Owl": 6 },
+      "W-397": { level: 18, name: "Gnarled Ash Staff" }, "W-398": 3, "W-400": { value: 43120, level: 52 }, "W-363": 41,
+      "W-403": 12, "W-407": 1,
+      // Professions
+      "W-421": { casts: 812, catches: 409 }, "W-424": 61, "W-425": { value: 4380, level: 44 },
+      "W-426": { "Roasted Quail": 40, "Spiced Wolf Meat": 38, "Monster Omelet": 31 },
+      "W-417": { "Linen Cloth": 212, "Wool Cloth": 340, "Silk Cloth": 410, "Mageweave Cloth": 388, Runecloth: 466 },
+      // Groups, chat and reputation
+      "W-254": 71, "W-246": { need: 88, greed: 412, pass: 140 }, "W-247": { won: 203, lost: 437 }, "W-248": { value: 100, level: 33 },
+      "W-277": 410, "W-279": 1290, "W-280": 1880, "W-281": 520, "W-283": 214,
+      "W-302": 388, "W-303": { DANCE: 61, HUG: 57, CHEER: 44, LOL: 39, WAVE: 31 }, "W-311": 92, "W-296": 33,
+      "W-439": { "Timbermaw Hold": 36000, Darnassus: 21000, "Cenarion Circle": 14000, "Booty Bay": 9000 }, "W-455": 3,
+      // Bloopers and typed words
+      "W-276": 4381, "W-276.byMessage": { "Out of range.": 1102, "Not enough energy": 840, "Target not in line of sight": 610 },
+      "W-261": 1102, "W-264": 214, "W-273": 6, "W-268": 77, "W-284": 312, "W-285": 128, "W-290": 211,
+      "W-292": { thanks: 140, nice: 88, omw: 61 },
+      // PvP and dungeons
+      "W-140": 118, "W-141": 4, "W-144": 9, "W-146": 1, "W-169": { value: 7, level: 51 }, "W-160": 3,
+      "W-186": { won: 34, lost: 21 }, "W-171": { "Warsong Gulch won": 6, "Warsong Gulch lost": 5, "Arathi Basin won": 2 },
+      "W-156": 38000, "W-194": { "The Deadmines": 3, "Shadowfang Keep": 4, "Zul'Farrak": 6, Maraudon: 5, "Sunken Temple": 4 },
+      "W-195": { Maraudon: 2 }, "W-226": 5, "W-225": 3, "W-229": { "Scarlet Monastery": 4, "Zul'Farrak": 3 },
+      "W-235": { "Sunken Temple": 1 }, "W-197": { "The Deadmines": { level: 21 }, "Shadowfang Keep": { level: 24 },
+        "Blackfathom Deeps": { level: 26 }, "Scarlet Monastery: Armory": { level: 35 }, "Razorfen Downs": { level: 37 },
+        "Zul'Farrak": { level: 45 }, Maraudon: { level: 47 }, "Sunken Temple": { level: 52 } },
+      // Firsts and habits
+      "W-462": { level: 1, name: "The Balance of Nature" }, "W-464": { level: 9 }, "W-466": { level: 3 },
+      "W-467": { "1g": { level: 9 }, "10g": { level: 27 }, "100g": { level: 58 } }, "W-471": { level: 11 },
+      "W-476": { level: 10, name: "Ferocity" }, "W-133": { level: 12, name: "Duskstalker" }, "W-468": { level: 24 },
+      "W-469": { level: 23 }, "W-472": { level: 14 }, "W-479": { level: 31 }, "W-480": { level: 12 }, "W-481": { level: 6 },
+      "W-490": { value: 402, level: 44 }, "W-489": { value: 6, level: 37 }, "W-491": { seconds: 41900, sessions: 92 },
+      "W-496": { value: 88400, level: 57 }, "W-498": { questing: 512000, grinding: 186000 },
+      "W-487": [{ level: 12, hour: 1 }, { level: 33, hour: 2 }, { level: 51, hour: 0 }], "W-492": 61, "W-493": 44
+    },
     // From the game's own Statistics pane, by statistic ID: duels won, hugs,
     // /lols, largest hit dealt and critters killed.
     pane: { 319: 34, 1042: 57, 1066: 312, 193: 2890, 108: 41 },
@@ -1093,6 +1203,7 @@ kbd {
   var M = JourneyModel;
   var sum = M.sum, num = M.num, dur = M.dur, coins = M.coins, named = M.named, number = M.number,
       addUp = M.addUp, topRows = M.topRows, capFirst = M.capFirst, own = M.own;
+  SAMPLE.little = M.littleOf(SAMPLE.wrapped);
 
   function $(id) { return document.getElementById(id); }
   function esc(text) {
@@ -1121,6 +1232,24 @@ kbd {
       return '<div class="stat' + (r[2] ? " " + r[2] : "") + '"><dt>' + esc(r[0]) + "</dt><dd>" + r[1] + "</dd></div>";
     }).join("");
   }
+  // The wrapped stats' rows for a chapter (site/model.js littleOf), as rows
+  // for stats(): a count, a time, money, seconds in the air, a name with
+  // its count, or the level of a first.
+  function littleText(r) {
+    var v = r[1], kind = r[2];
+    if (kind === "t") return dur(v);
+    if (kind === "g") return money(v);
+    if (kind === "s") return v.toFixed(1) + " <small>seconds in the air</small>";
+    if (kind === "top") return esc(v.name) + " <small>(" + num(v.n) + ")</small>";
+    if (kind === "lvl") {
+      return (v.late ? "First seen at level " : "Level ") + v.level + (v.name ? " <small>(" + esc(v.name) + ")</small>" : "");
+    }
+    return num(v);
+  }
+  function littleRows(chapter, little) {
+    return ((little || {})[chapter] || []).map(function (r) { return [r[0], littleText(r)]; });
+  }
+
   // Rows of [name, value, optional color]; bars scale to max (or the biggest value).
   function bars(id, rows, format, max) {
     var top = max || Math.max.apply(null, rows.map(function (r) { return r[1]; })) || 1;
@@ -1203,6 +1332,8 @@ kbd {
   }
 
   var perLevel = S.perLevel, total = S.played;
+  // The wrapped stats, chapter by chapter (site/model.js littleOf).
+  var LT = S.little || M.littleOf({});
   // Levels with a known time (all of them for the sample), and the fastest
   // and slowest of those.
   var knownLevels = [];
@@ -1364,6 +1495,8 @@ kbd {
     (S.topMobs.length ? " " + num(S.topMobs[0][1]) + " of them were " + S.topMobs[0][0] + "s." : "");
   bars("mobs", S.topMobs, num);
   hideBlock("mobs", !S.topMobs.length);
+  bars("families", LT.families, num);
+  hideBlock("families", !LT.families.length);
   stats("combat-stats", [
     ["Elites", num(S.elites)],
     ["Rares", num(S.rares)],
@@ -1371,7 +1504,7 @@ kbd {
     ["Honorable kills", num(S.honorKills)],
     ["Longest fight", dur(S.longestFight)],
     S.bestKill && ["Biggest level gap won", "+" + (S.bestKill.mob - S.bestKill.you) + " <small>(" + S.bestKill.mob + " at " + S.bestKill.you + ")</small>"]
-  ].filter(Boolean));
+  ].filter(Boolean).concat(littleRows("combat", LT)));
 
   // Deaths ("You died 47 times, 11 of them in Stranglethorn Vale.")
   var deathZone = S.deathZones[0];
@@ -1389,6 +1522,8 @@ kbd {
     ["Deaths in dungeons", num(S.dungeonDeaths)],
     ["Time spent dead", dur(S.timeDead)]
   ] : []).concat(S.streak ? [["Longest run without dying", S.streak.levels + " levels <small>(" + S.streak.from + " to " + S.streak.to + ")</small>"]] : []));
+  stats("death-memes", littleRows("deaths", LT));
+  hideBlock("death-memes", !LT.deaths.length);
 
   // Quests and XP
   var Q = S.quests, LQ = S.longestQuest;
@@ -1425,7 +1560,7 @@ kbd {
     ["Hearthstone uses", num(S.travel.hearths)],
     ["Longest fall survived", S.travel.longestFall + " <small>yd</small>"],
     ["Total distance fallen", num(S.travel.fallen) + " <small>yd</small>"]
-  ]);
+  ].concat(littleRows("travel", LT)));
 
   // Gold
   var earned = S.earnedTotal !== undefined ? S.earnedTotal : sum(S.earned.map(function (r) { return r[1]; }));
@@ -1444,7 +1579,7 @@ kbd {
     S.peakGold && ["Most gold at once", money(S.peakGold.copper) + (S.peakGold.level ? " <small>(level " + S.peakGold.level + ")</small>" : "")],
     S.firstMountLevel && ["First mount", "Level " + S.firstMountLevel + " <small>(" +
       dur(S.firstMountPlayed || toLevel(S.firstMountLevel)) + " /played)</small>"]
-  ].filter(Boolean));
+  ].filter(Boolean).concat(littleRows("gold", LT)));
 
   // Gear and loot
   var gear = [
@@ -1466,7 +1601,9 @@ kbd {
   hide("gear-items", !gear.length);
   bars("loot", S.loot, num);
   hideBlock("loot", !S.loot.length);
-  hide("chapter-gear", !gear.length && !S.loot.length);
+  stats("gear-stats", littleRows("gear", LT));
+  hide("gear-stats", !LT.gear.length);
+  hide("chapter-gear", !gear.length && !S.loot.length && !LT.gear.length);
 
   // Professions
   var gathered = [["Herbs picked", S.herbs], ["Ore mined", S.ore], ["Creatures skinned", S.skinned], ["Fish caught", S.fish]]
@@ -1479,8 +1616,8 @@ kbd {
   stats("skill-stats", [
     ["Items crafted", num(S.crafted)],
     ["Weapon skill-ups", num(S.skillUps)]
-  ].concat(S.imported ? gathered.map(function (r) { return [r[0], num(r[1])]; }) : []));
-  hide("chapter-skills", !S.professions.length && !gathered.length && !S.crafted);
+  ].concat(S.imported ? gathered.map(function (r) { return [r[0], num(r[1])]; }) : []).concat(littleRows("skills", LT)));
+  hide("chapter-skills", !S.professions.length && !gathered.length && !S.crafted && !LT.skills.length);
 
   // Class
   $("class-eyebrow").textContent = S.className;
@@ -1536,6 +1673,33 @@ kbd {
     ["Joined a guild", S.guildLevel ? "Level " + S.guildLevel : S.guildBefore ? "Before tracking began" : "Not yet"],
     ["Jumps", num(S.jumps) + (S.jumps ? " <small>(one every " + Math.round(trackedTime / S.jumps) + "s)</small>" : "")]
   ]);
+  stats("group-stats", littleRows("social", LT));
+  hideBlock("group-stats", !LT.social.length);
+
+  // PvP and dungeons, the little things, firsts and habits: the wrapped
+  // stats' own chapters, each left out when there's nothing in it.
+  var AT = LT.at || {};
+  $("pvp-title").textContent = AT.pvpKills ? num(AT.pvpKills) + " enemy players down" +
+      (AT.duelsWon ? " and " + num(AT.duelsWon) + " duels won." : ".") :
+    AT.duelsWon ? num(AT.duelsWon) + " duels won." :
+    AT.wipes ? num(AT.wipes) + " wipes, and you went back in every time." : "Out in the world, and down in the dungeons.";
+  stats("pvp-stats", littleRows("pvp", LT));
+  stats("dungeon-stats", littleRows("dungeons", LT));
+  hideBlock("pvp-stats", !LT.pvp.length);
+  hideBlock("dungeon-stats", !LT.dungeons.length);
+  hide("chapter-pvp", !LT.pvp.length && !LT.dungeons.length);
+  $("fun-title").textContent = AT.errors ? num(AT.errors) + " red error messages" +
+      (AT.topError ? ', and "' + AT.topError.name.replace(/\.$/, "") + '" was the most common.' : ".") :
+    AT.lols ? "You typed 'lol' " + num(AT.lols) + " times." : "The little things.";
+  stats("fun-stats", littleRows("fun", LT));
+  hide("chapter-fun", !LT.fun.length);
+  $("firsts-title").textContent = AT.sessionKills ? "Your biggest session: " + num(AT.sessionKills) + " kills." :
+    AT.firstQuest ? "Your first quest was at level " + AT.firstQuest.level + "." : "The firsts, and the habits you picked up.";
+  stats("first-stats", littleRows("firsts", LT));
+  stats("habit-stats", littleRows("habits", LT));
+  hideBlock("first-stats", !LT.firsts.length);
+  hideBlock("habit-stats", !LT.habits.length);
+  hide("chapter-firsts", !LT.firsts.length && !LT.habits.length);
 
   // Your journey through Azeroth, on the game's own world map: Kalimdor, the
   // Eastern Kingdoms or all of Azeroth, with your route numbered in the order
@@ -2455,8 +2619,7 @@ kbd {
     Object.assign(YOU.values, {
       cat: part(formTimes, "Cat Form"), bear: part(formTimes, "Bear Form"), travelForm: part(formTimes, "Travel Form"),
       aquatic: part(formTimes, "Aquatic Form"), casterForm: total - sum(formTimes.map(function (f) { return f[1]; })),
-      shifts: S.shifts, prowl: S.prowl, zoneTime: homeZone && homeZone.seconds,
-      vanCleef: S.iconic.vanCleefLevel, boat: S.iconic.boatTrips, bangalash: S.iconic.bangalashLevel
+      shifts: S.shifts, prowl: S.prowl, zoneTime: homeZone && homeZone.seconds
     });
     YOU.names.fav = homeZone ? homeZone.name : "";
   }

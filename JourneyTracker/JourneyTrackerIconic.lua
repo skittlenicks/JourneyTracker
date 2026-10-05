@@ -236,7 +236,8 @@ local function CountKill(k)
     if IsRare(k.class) then
         Track.count("W-130", "killed")
         Track.count("W-131", k.zone or "?")                   -- W-131 rare kills by zone
-        Track.first("W-133", { name = name, mobLevel = k.mobLevel }) -- W-133 first rare
+        Track.first("W-133", { name = name, mobLevel = k.mobLevel and k.mobLevel > 0 and k.mobLevel or nil,
+                               skull = k.mobLevel == -1 or nil }) -- W-133 first rare
     end
     if wanted and wanted[name] then Track.count("W-132", name) end -- W-132 named bounty targets
     if IsElite(k.class) and not k.grouped then
