@@ -67,7 +67,10 @@ local function BuildSummary(db, milestone)
     end
 
     local wrapped = Copy(db.wrapped or {})
-    wrapped.flags, wrapped.wasNeutral, wrapped.autoFlagged = nil, nil, nil
+    -- Settings and bookkeeping the wrapped trackers keep for themselves.
+    for _, key in ipairs({ "flags", "wasNeutral", "autoFlagged", "uiFolded", "logout", "rewardIDs", "bagsSeen" }) do
+        wrapped[key] = nil
+    end
 
     -- W-505 the Statistics pane: the names lookup, the baseline, the latest
     -- snapshot and what changed at each level (JourneyTrackerStats.lua).

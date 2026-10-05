@@ -444,62 +444,62 @@ _Build on PLAYER_DEAD plus context cached before death. [probe] where cause need
 ## Economy, vendors, AH, mail
 _PLAYER_MONEY deltas with context (merchant open, mail open, AH open, trade, quest)._
 
-359. `TODO` `W-359` Gray (junk) items sold and gold from junk
-360. `TODO` `W-360` Most valuable gray item sold
-361. `TODO` `W-361` Items bought from vendors
-362. `TODO` `W-362` Most expensive vendor purchase
-363. `TODO` `W-363` Items destroyed (deleted)
-364. `TODO` `W-364` Gold spent on bags
-365. `TODO` `W-365` First bag of each size: 6, 8, 10, 12, 14, 16 slot
-366. `TODO` `W-366` Bank slots bought and gold spent
-367. `TODO` `W-367` Auctions posted
-368. `TODO` `W-368` Auctions sold, expired, and cancelled
-369. `TODO` `W-369` Gold lost to auction deposits and cuts
-370. `TODO` `W-370` Most expensive item you sold on the AH
-371. `TODO` `W-371` Most expensive item you bought on the AH
-372. `TODO` `W-372` Mail sent and received
-373. `TODO` `W-373` COD mail sent and received
-374. `TODO` `W-374` Gold sent and received by mail
+359. `BUILT` `W-359` Gray (junk) items sold and gold from junk (gray items sold to a vendor (a bag diff while a merchant is open), and the gold from their sell prices as W-359.gold (JourneyTrackerEconomy.lua))
+360. `BUILT` `W-360` Most valuable gray item sold (the highest sell price among them, with the item)
+361. `BUILT` `W-361` Items bought from vendors (items gained while a merchant is open; by item as W-361.byItem)
+362. `BUILT` `W-362` Most expensive vendor purchase (the biggest merchant payment, paired with the item bought within 3 seconds)
+363. `BUILT` `W-363` Items destroyed (deleted) (items gone right after DeleteCursorItem; by item as W-363.byItem)
+364. `BUILT` `W-364` Gold spent on bags (vendor purchases of bags (item class Container), paired the same way; bags from the AH aren't counted)
+365. `BUILT` `W-365` First bag of each size: 6, 8, 10, 12, 14, 16 slot (each new size of bag in your bag slots, with the bag; sizes you had when tracking began are marked before)
+366. `BUILT` `W-366` Bank slots bought and gold spent (money spent within 3 seconds of PurchaseSlot; the gold as W-366.gold)
+367. `BUILT` `W-367` Auctions posted ('Auction created.' messages)
+368. `BUILT` `W-368` Auctions sold, expired, and cancelled (the game's sold, expired and cancelled messages)
+369. `BUILT` `W-369` Gold lost to auction deposits and cuts (deposits (AH spending paired with 'Auction created.'), and from sale invoices the deposits refunded and the house's cut; lost = deposits - refunded + cuts)
+370. `BUILT` `W-370` Most expensive item you sold on the AH (the biggest bid on a seller invoice, with the item; the buyer isn't read)
+371. `BUILT` `W-371` Most expensive item you bought on the AH (the biggest buyer invoice, or AH spending paired with 'You won an auction for')
+372. `BUILT` `W-372` Mail sent and received (mail sent (MAIL_SEND_SUCCESS), and mail cleared from your inbox (taken, deleted or returned), since new mail can't be counted as it arrives)
+373. `BUILT` `W-373` COD mail sent and received (COD mail sent, and COD paid when taking an item)
+374. `BUILT` `W-374` Gold sent and received by mail (gold attached to mail you sent, and gold taken from mail that isn't from the auction house)
 375. `BUILT` `W-375` Gold spent on mounts (price of a mount bought from a vendor (JourneyTrackerIconic.lua))
-376. `TODO` `W-376` Gold spent on talent respecs
-377. `TODO` `W-377` Gold earned from quests per level
-378. `TODO` `W-378` Times you went broke (under 1 silver)
-379. `TODO` `W-379` Richest moment relative to level (gold per level)
-380. `TODO` `W-380` Lockboxes looted
-381. `TODO` `W-381` Treasure chests looted in the world
-382. `TODO` `W-382` Gold looted from chests
+376. `BUILT` `W-376` Gold spent on talent respecs (the trainer's price (CONFIRM_TALENT_WIPE), counted when the respec is confirmed)
+377. `BUILT` `W-377` Gold earned from quests per level (QUEST_TURNED_IN money, by level; #57 has the total)
+378. `BUILT` `W-378` Times you went broke (under 1 silver) (your money dropping below 1 silver)
+379. `BUILT` `W-379` Richest moment relative to level (gold per level) (the most copper per level you've held, with the money and level)
+380. `BUILT` `W-380` Lockboxes looted (looted items named Lockbox or Junkbox, by name)
+381. `BUILT` `W-381` Treasure chests looted in the world (loot from an object (not a herb, a vein or fishing) holding money or anything but quest items)
+382. `BUILT` `W-382` Gold looted from chests (money looted from those)
 
 ## Gear and character stats
 _Snapshot out of combat at each ding: UnitStat, UnitArmor, UnitAttackPower, GetCritChance, UnitResistance, durability, item links._
 
-383. `TODO` `W-383` Strength, Agility, Stamina, Intellect, Spirit at each ding
-384. `TODO` `W-384` Armor at each ding
-385. `TODO` `W-385` Max health and max mana at each ding
-386. `TODO` `W-386` Attack power and spell power at each ding
-387. `TODO` `W-387` Crit chance at each ding
-388. `TODO` `W-388` Resistances at each ding
-389. `TODO` `W-389` Main hand weapon DPS at each ding
-390. `TODO` `W-390` Average item level at each ding
-391. `TODO` `W-391` Gear rarity breakdown at each ding (grays, whites, greens, blues, purples worn)
-392. `TODO` `W-392` 'of the Monkey', 'of the Bear', 'of the Eagle', 'of the Whale' and other suffix items looted
-393. `TODO` `W-393` Your most common gear suffix
-394. `TODO` `W-394` Items equipped total
-395. `TODO` `W-395` Gear swaps per level
+383. `BUILT` `W-383` Strength, Agility, Stamina, Intellect, Spirit at each ding (UnitStat, read out of combat 3 seconds after each ding into that ding's snapshot (levels.snapshots[level].sheet))
+384. `BUILT` `W-384` Armor at each ding (UnitArmor, in the ding's sheet)
+385. `BUILT` `W-385` Max health and max mana at each ding (UnitHealthMax and UnitPowerMax (mana), in the ding's sheet)
+386. `BUILT` `W-386` Attack power and spell power at each ding (UnitAttackPower (and ranged), the best school's GetSpellBonusDamage and GetSpellBonusHealing, in the ding's sheet)
+387. `BUILT` `W-387` Crit chance at each ding (GetCritChance, the best GetSpellCritChance and GetRangedCritChance, in the ding's sheet)
+388. `BUILT` `W-388` Resistances at each ding (UnitResistance for each school above 0, in the ding's sheet)
+389. `BUILT` `W-389` Main hand weapon DPS at each ding (the main hand weapon's own DPS (its item stats), in the ding's sheet)
+390. `BUILT` `W-390` Average item level at each ding (average item level of what you wear (not the shirt or tabard), in the ding's sheet)
+391. `BUILT` `W-391` Gear rarity breakdown at each ding (grays, whites, greens, blues, purples worn) (items worn by rarity, in the ding's sheet)
+392. `BUILT` `W-392` 'of the Monkey', 'of the Bear', 'of the Eagle', 'of the Whale' and other suffix items looted (looted items with a random suffix, by suffix ('of the Monkey'))
+393. `BUILT` `W-393` Your most common gear suffix (the top of W-392)
+394. `BUILT` `W-394` Items equipped total (PLAYER_EQUIPMENT_CHANGED putting a different item in a slot, after the first look at your gear each session)
+395. `BUILT` `W-395` Gear swaps per level (the same, by level)
 396. `SKIP` `W-396` Longest worn item (by /played) and its slot (covered by #104 in journey-tracking-spec.md, which also tracks levels gained while worn)
-397. `TODO` `W-397` First two-handed weapon equipped
-398. `TODO` `W-398` Times an item broke (durability 0)
-399. `TODO` `W-399` Times your gear went yellow or red (low durability)
-400. `TODO` `W-400` Biggest repair bill
-401. `TODO` `W-401` Enchants applied to your gear
-402. `TODO` `W-402` Armor kits, sharpening stones, and weightstones used
-403. `TODO` `W-403` BoE items sold or vendored instead of equipped
-404. `TODO` `W-404` Quest reward choices: which slot you picked most
-405. `TODO` `W-405` Quest reward items vendored without ever equipping
-406. `TODO` `W-406` Talent points spent, in order, with level spent
-407. `TODO` `W-407` Talent respecs
-408. `TODO` `W-408` Talent tree split at 60
-409. `TODO` `W-409` Spells learned at trainers vs from items/books
-410. `TODO` `W-410` Most cast spell overall
+397. `BUILT` `W-397` First two-handed weapon equipped (the first two-hander in your main hand, with level; marked before if you had one when tracking began)
+398. `BUILT` `W-398` Times an item broke (durability 0) (an item's durability reaching 0)
+399. `BUILT` `W-399` Times your gear went yellow or red (low durability) (your gear's worst state turning yellow or red (GetInventoryAlertStatus, or 20% left if the game can't say))
+400. `BUILT` `W-400` Biggest repair bill (the biggest single repair payment (Repair All or one item))
+401. `BUILT` `W-401` Enchants applied to your gear (an equipped item's enchant changing to a new one; by slot as W-401.bySlot (armor kits included))
+402. `BUILT` `W-402` Armor kits, sharpening stones, and weightstones used (items named Armor Kit, Sharpening Stone or Weightstone used, by name)
+403. `BUILT` `W-403` BoE items sold or vendored instead of equipped (bind-on-equip gear sold to a vendor or put up on the AH without ever being worn (#104's list))
+404. `BUILT` `W-404` Quest reward choices: which slot you picked most (the GetQuestReward choice when there's more than one, by its slot)
+405. `BUILT` `W-405` Quest reward items vendored without ever equipping (gear you got as a quest reward, sold without ever being worn)
+406. `BUILT` `W-406` Talent points spent, in order, with level spent (talent ranks compared on each change: tree, talent, rank and level, in order (newest 150))
+407. `BUILT` `W-407` Talent respecs (ConfirmTalentWipe)
+408. `BUILT` `W-408` Talent tree split at 60 (points in each tree, kept current while you're 60)
+409. `BUILT` `W-409` Spells learned at trainers vs from items/books (each spell or rank learned: at a trainer, after using an item, after a quest, or other)
+410. `SKIP` `W-410` Most cast spell overall (covered by the class tracker's cast counter (db.class[CLASS].casts counts every cast by name; the top one is the most cast))
 
 ## Professions deep dive
 _Item diffs, CHAT_MSG_LOOT, CHAT_MSG_SKILL, TRADE_SKILL events, UNIT_SPELLCAST_SUCCEEDED for gathering._
@@ -639,3 +639,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-05: Sections 9-10 (dungeons deep dive, raids) done in the new JourneyTrackerDungeons.lua. `BUILT`: clear times, fastest clears, wipes and abandoned runs per dungeon, first final-boss kills, Forever vs Classic runs, Scarlet Monastery, Dire Maul and Stratholme wings (told apart by the bosses killed), Naralex awakened, the Zul'Farrak stairs, last one standing and first to fall in a wipe, deaths by boss, XP per run, blue boss drops, dungeon quests by dungeon, runs over level or boosted, party compositions (classes only), your role, hearthing out, lockouts, bosses by Legacy bracket, Onyxia and the first raid boss after 60, deaths in raids. `SKIP`: runs per dungeon and the nine new dungeons' runs (#73), each named boss (#28, #41), corpse runs into dungeons (#48-49), most-run dungeon per bracket (#74), raid runs, kills and wipes (#73, #41-42). The window can now draw maps of records (the Forever vs Classic split) as rows. Checked outside the game: a Deadmines run with a trash wipe, a death on Mr. Smite, VanCleef, a blue drop, a dungeon quest and a hearth out; a Scarlet Monastery Armory run from Herod's kill; Shadowfang Keep left early; a lockout; Onyxia. No stray globals.
 - 2026-10-05: Sections 11-14 (loot rolls and group life, bloopers, social and chat, emotes) done in the new JourneyTrackerSocial.lua, all `BUILT`, plus W-013..W-015 (Legacy) as a [probe]: the game's system messages that mention Legacy are kept with level and date, and the Legacy-named functions the client has are listed, until the Legacy API is known. Chat is counted, never kept: what you send is read once as it goes out (SendChatMessage hook) to count channels and a few words, and only your own words are tallied (capped); whispers and emotes aimed at you are counted without the sender. Bloopers match the client's own error strings. Your interrupted casts are counted on a frame of their own, because the class tracker listens to the same event for your target and the shared frame keeps one unit filter per event. Checked outside the game: rolls won and passed, /roll, a group, errors, chat and typed words, guild gz after a ding, emotes, a trade, a Legacy message, joining a guild. No stray globals.
 - 2026-10-05: Sections 15-16 (movement and world mechanics, death memes) done in the new JourneyTrackerWorld.lua. `BUILT`: time and yards swimming, time underwater, breath running out, fatigue, falls by seconds in the air (from the main tracker's fall timer), yards on foot and mounted (with swimming they add up to #71's ground distance), hearthstone moves and binds by inn, time at your bound inn, where you logged out and rested XP gained while away (counted at the next login, so a /reload isn't a logout), rested XP reaching its cap, portals clicked and the Rut'theran portal, meeting stones, corpse run yards, getting lost; deaths by drowning, fatigue, town guards, murlocs and critters ([probe]), and deaths within 10 seconds of a ding, within a minute of logging in, while AFK, during an escort, with Resurrection Sickness, soon after a spirit healer, in a friendly town, with a healthstone, potion or Hearthstone ready, mounted when the fight began, twice in a minute, plus the longest stretch alive and time as a ghost. Each death record now keeps /played (for the longest stretch and the website's death clock), and the main tracker remembers a mob's faction for the session, to tell town guards from mobs with the same name. `SKIP`: summons (ALL-08), deaths by falling (#102), deaths to elites (W-136), deaths by 10 levels (#45). `BLOCKED`: fall damage and one-shots (health is secret on Forever). Checked outside the game: a corpse run, a spirit healer and a death with Resurrection Sickness, drowning, fatigue, a guard and a grunt that isn't one, a murloc, a rat, a ding, a mounted fight, an escort, a 6-second fall, swimming, walking, riding and a teleport, getting lost, binding at an inn, rested XP across a logout, a portal and a meeting stone. No stray globals.
+- 2026-10-05: Sections 17-18 (economy, vendors, AH and mail; gear and character stats) done in the new JourneyTrackerEconomy.lua, all `BUILT` except W-410 `SKIP` (the class tracker already counts every cast). Vendors: junk sold and its gold, the most valuable junk, items bought, the biggest purchase and gold on bags (a merchant payment paired with the item bought), items destroyed, the first bag of each size, bank slots. The auction house: auctions posted, sold, expired and cancelled, deposits paid and refunded, the house's cut, the best sale and the biggest buy (from invoices, never reading the other player). Mail: sent, cleared from your inbox, COD sent and paid, gold sent and received (auction mail left out); no sender, recipient or text is kept. Gold moments: respecs, quest gold by level, going broke, richest for your level, lockboxes, treasure chests and their gold. Gear: suffixes looted, items equipped and swaps per level, the first two-hander, items broken, gear turning yellow or red, the biggest repair bill, enchants, kits and stones, BoE gear and quest rewards sold without being worn, the quest reward slot you picked. Talents: points in order with level, respecs, the split at 60, and where spells were learned. Your character sheet (stats, armor, health and mana, attack and spell power, crit, resistances, main hand DPS, average item level, gear by rarity) is added to each ding's snapshot, read out of combat a few seconds after the ding. The export leaves out the wrapped trackers' own bookkeeping. Checked outside the game: junk, a bag and a repair at a vendor, a cloak and quest boots sold unworn, a destroyed item, a stone, an auction posted and one bought, sale, expiry and cancel messages, mail in and out, a bank slot, a respec, going broke, a suffix item, a lockbox, a chest (not a herb or a quest object), a two-hander, an enchant, durability, talents, trainer spells, and two dings (one in a fight). No stray globals.
