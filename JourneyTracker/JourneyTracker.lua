@@ -1919,8 +1919,8 @@ ns.PrintSummary = Summary
 -- /journey (or /jt) opens the window. Subcommands: version, backup, export,
 -- summary (print to chat), status (events/functions this client lacks),
 -- class (which of your class's tracked spells the game knows), stats (what's
--- been read from the Statistics pane), and the dev-only testexport and
--- statprobe.
+-- been read from the Statistics pane), screenshots (a screenshot at every
+-- ding, on or off), and the dev-only testexport and statprobe.
 SLASH_JOURNEYTRACKER1 = "/journey"
 SLASH_JOURNEYTRACKER2 = "/jt"
 SlashCmdList.JOURNEYTRACKER = function(msg)
@@ -1948,6 +1948,8 @@ SlashCmdList.JOURNEYTRACKER = function(msg)
         Status()
     elseif cmd == "class" and ns.ClassStatus then
         ns.ClassStatus()
+    elseif cmd == "screenshots" and ns.ToggleDingScreenshots then
+        ns.ToggleDingScreenshots()                            -- W-494 screenshot at every ding
     elseif cmd == "summary" or not ns.ToggleUI then
         Summary()
     else

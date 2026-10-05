@@ -422,6 +422,9 @@ local function OnFactionMessage(msg)
             map[faction][standing] = Track.context()          -- W-440 level you reached each standing
             Track.set("W-440", map)
         end
+        if standing == (FACTION_STANDING_LABEL8 or "Exalted") then
+            Track.firstEver("W-475", { name = faction })      -- W-475 first time Exalted
+        end
     end
 end
 

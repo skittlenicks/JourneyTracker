@@ -110,6 +110,11 @@ local function RestedFull()
 end
 local wasFull -- nil until known after login
 
+local function Capped()
+    Track.count("W-328")                                      -- W-328 rested XP capped
+    Track.firstEver("W-481", nil, (Track.get("W-328") or 0) > 1) -- W-481 the first time
+end
+
 local function OnBound()
     local where = BindLocation()
     if not where then return end
@@ -180,7 +185,7 @@ local function Tick(dt)
     if AtBoundInn() then Track.count("W-325", nil, s) end     -- W-325 time at your bound inn
     if wasFull ~= nil then
         local full = RestedFull()
-        if full and not wasFull then Track.count("W-328") end -- W-328 rested XP capped
+        if full and not wasFull then Capped() end
         wasFull = full
     end
     -- W-335 lost: five minutes moving around one subzone with no kill,
@@ -374,7 +379,7 @@ local function OnLogin()
             if gained > 0 then Track.count("W-327", nil, gained) end -- W-327 rested XP while logged out
         end
         local full = RestedFull()
-        if full and not out.full then Track.count("W-328") end -- W-328 capped while away
+        if full and not out.full then Capped() end            -- capped while away
         wasFull = full
     end
     if C_Timer and C_Timer.After then C_Timer.After(5, Protect(Away)) else Away() end

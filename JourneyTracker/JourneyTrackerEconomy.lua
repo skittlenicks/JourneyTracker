@@ -497,6 +497,15 @@ local function CheckTalents()
             for r = (talentRanks[key] or 0) + 1, rank do
                 Track.list("W-406", { tree = names[key].tree, talent = names[key].talent, rank = r,
                                       level = ns.Level() }, 150) -- W-406 talent points in order
+                Track.firstEver("W-476", { tree = names[key].tree, name = names[key].talent }) -- W-476 the first
+            end
+        end
+    elseif Track.get("W-476") == nil then
+        -- Points already spent when tracking began: the first was before.
+        for _, rank in pairs(ranks) do
+            if rank > 0 then
+                Track.first("W-476", { before = true })
+                break
             end
         end
     end

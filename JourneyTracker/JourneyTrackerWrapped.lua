@@ -9,6 +9,8 @@
 --   Track.max(id, value, ctx)  the biggest value seen, with context
 --   Track.min(id, value, ctx)  the smallest value seen, with context
 --   Track.first(id, ctx)       the first time something happened
+--   Track.firstEver(id, ctx, seenBefore) a first in the character's life,
+--                              marked late if the tracker may have missed it
 --   Track.firstOf(id, key, ctx) the first time, once per key
 --   Track.list(id, entry, cap) append to a list kept to its newest `cap`
 -- Name-keyed maps keep their 200 biggest entries. Spec [probe] items sit
@@ -112,6 +114,18 @@ function Track.first(id, extra)
     if W[id] ~= nil then return false end
     W[id] = Context(extra)
     return true
+end
+
+-- A first in the character's whole life. Marked late when the tracker
+-- didn't see the journey from level 1, or `seenBefore` says it had already
+-- happened (the website then shows it as "first seen").
+function Track.firstEver(id, extra, seenBefore)
+    if W[id] ~= nil then return false end
+    extra = extra or {}
+    local S = ns.GetDB().sessions
+    local first = S and (S.list[1] or S.current)
+    if seenBefore or not (first and first.startLevel == 1) then extra.late = true end
+    return Track.first(id, extra)
 end
 
 function Track.min(id, value, extra)

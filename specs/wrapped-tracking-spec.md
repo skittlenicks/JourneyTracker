@@ -567,49 +567,49 @@ _Forever's holiday calendar isn't confirmed yet. Build these behind a flag and m
 ## Milestones and firsts
 _Each records level, /played, zone, and real timestamp._
 
-462. `TODO` `W-462` First quest completed
-463. `TODO` `W-463` First death
-464. `TODO` `W-464` First group joined
-465. `TODO` `W-465` First dungeon entered
-466. `TODO` `W-466` First green item looted
-467. `TODO` `W-467` First time reaching 1 gold, 10 gold, 100 gold
+462. `BUILT` `W-462` First quest completed (the first quest turned in, with its title; marked late if the tracker may have missed the real first (JourneyTrackerHabits.lua))
+463. `SKIP` `W-463` First death (covered by #44-#46 (the first record in the death log has its level, zone and date))
+464. `BUILT` `W-464` First group joined (the first time you're in a group, with its size)
+465. `SKIP` `W-465` First dungeon entered (covered by #73-#74 (the first dungeon run, with its start time and level))
+466. `BUILT` `W-466` First green item looted (the first uncommon item looted)
+467. `BUILT` `W-467` First time reaching 1 gold, 10 gold, 100 gold (the first time your money reached 1, 10 and 100 gold; amounts reached before tracking (#85's peak) are marked before)
 468. `BUILT` `W-468` First enemy player killed (first enemy player kill, with their class and level (JourneyTrackerPvP.lua))
 469. `BUILT` `W-469` First time killed by an enemy player (first death to a player, with their class and level)
-470. `TODO` `W-470` First trip to each capital city
-471. `TODO` `W-471` First flight path taken
+470. `SKIP` `W-470` First trip to each capital city (covered by #63 (each zone's first visit, with time and level; capitals are zones))
+471. `BUILT` `W-471` First flight path taken (the first flight path taken (TakeTaxiNode), with where to)
 472. `BUILT` `W-472` First boat or zeppelin ride (first boat or zeppelin ride, with the route)
-473. `TODO` `W-473` First mount summoned
-474. `TODO` `W-474` First profession maxed for its bracket (75, 150, 225, 300)
-475. `TODO` `W-475` First time hitting Exalted with any faction
-476. `TODO` `W-476` First talent point
-477. `TODO` `W-477` First class quest completed
-478. `TODO` `W-478` First rare killed
+473. `SKIP` `W-473` First mount summoned (covered by #84 (level and /played the first time you're mounted))
+474. `BUILT` `W-474` First profession maxed for its bracket (75, 150, 225, 300) (the first profession to reach 75, 150, 225 and 300; brackets reached before tracking are marked before)
+475. `BUILT` `W-475` First time hitting Exalted with any faction (the first 'You are now Exalted with' message (JourneyTrackerProfessions.lua))
+476. `BUILT` `W-476` First talent point (the first talent point (JourneyTrackerEconomy.lua); points already spent when tracking began are marked before)
+477. `SKIP` `W-477` First class quest completed (covered by ALL-12 (class quests with the level each was done))
+478. `SKIP` `W-478` First rare killed (covered by W-133 (first rare killed: name, its level, your level, zone))
 479. `BUILT` `W-479` First time in a battleground (first battleground entered)
 480. `BUILT` `W-480` First duel won (first duel won, with the opponent's class)
-481. `TODO` `W-481` First time reaching rested max
-482. `TODO` `W-482` Last death before 60
-483. `TODO` `W-483` The ding to 60: zone, subzone, coords, time of day, cause, who was in your group (count/classes only)
+481. `BUILT` `W-481` First time reaching rested max (the first time your rested XP reached its cap (W-328, JourneyTrackerWorld.lua))
+482. `SKIP` `W-482` Last death before 60 (covered by #44-#46 (the last death below 60 in the death log))
+483. `BUILT` `W-483` The ding to 60: zone, subzone, coords, time of day, cause, who was in your group (count/classes only) (at the 60 ding: subzone, coordinates, hour, cause, and the group's size and classes (no names); the ding snapshot has the rest)
 
 ## Sessions and habits
 _From login/logout timestamps and per-session counters._
 
-484. `TODO` `W-484` Day of week you played most
-485. `TODO` `W-485` Longest gap between sessions
-486. `TODO` `W-486` Longest streak of consecutive days played
-487. `TODO` `W-487` Late-night dings (between midnight and 5am local time)
-488. `TODO` `W-488` Weekend vs weekday playtime
-489. `TODO` `W-489` Session with the most deaths
-490. `TODO` `W-490` Session with the most kills
-491. `TODO` `W-491` Average time from login to first kill
-492. `TODO` `W-492` Reloads (/reload) count
-493. `TODO` `W-493` Screenshots taken (SCREENSHOT_SUCCEEDED)
-494. `TODO` `W-494` Auto-screenshot at every ding (optional setting, Screenshot())
-495. `TODO` `W-495` Times you logged in, played under 5 minutes, and logged out
-496. `TODO` `W-496` Most productive hour of /played (most XP in one hour)
-497. `TODO` `W-497` Percentage of time spent in combat vs out
-498. `TODO` `W-498` Percentage of time spent questing vs grinding (quest objective active vs not)
-499. `TODO` `W-499` Percentage of time spent in town
-500. `TODO` `W-500` Playtime per real-world week
+484. `SKIP` `W-484` Day of week you played most (covered by #6 (each session's start and end); the website works out the day of the week)
+485. `SKIP` `W-485` Longest gap between sessions (covered by #6 (session start and end times))
+486. `SKIP` `W-486` Longest streak of consecutive days played (covered by #17 (the days played))
+487. `BUILT` `W-487` Late-night dings (between midnight and 5am local time) (dings before 5am local time, with level and hour)
+488. `SKIP` `W-488` Weekend vs weekday playtime (covered by #6 (session start and end times))
+489. `BUILT` `W-489` Session with the most deaths (deaths in each session, kept on the session record; the most, with when)
+490. `BUILT` `W-490` Session with the most kills (kills in each session, the same way)
+491. `BUILT` `W-491` Average time from login to first kill (seconds from a session's start to its first kill, on the session record and summed (average = seconds / sessions))
+492. `BUILT` `W-492` Reloads (/reload) count (PLAYER_ENTERING_WORLD after a /reload)
+493. `BUILT` `W-493` Screenshots taken (SCREENSHOT_SUCCEEDED) (SCREENSHOT_SUCCEEDED)
+494. `BUILT` `W-494` Auto-screenshot at every ding (optional setting, Screenshot()) (/journey screenshots turns on a screenshot a second after every ding (off by default))
+495. `SKIP` `W-495` Times you logged in, played under 5 minutes, and logged out (covered by #6 (each session's start and end))
+496. `BUILT` `W-496` Most productive hour of /played (most XP in one hour) (the most XP gained within any hour of play (a sliding hour, within a session))
+497. `SKIP` `W-497` Percentage of time spent in combat vs out (covered by #37 (time in combat) and #1 (/played))
+498. `BUILT` `W-498` Percentage of time spent questing vs grinding (quest objective active vs not) (5-second ticks outside towns, not AFK or flying: questing within 2 minutes of quest progress, grinding within 2 minutes of a kill without it)
+499. `SKIP` `W-499` Percentage of time spent in town (covered by #11 (time resting in inns and cities) and #1)
+500. `SKIP` `W-500` Playtime per real-world week (covered by #6 (session start and end times))
 
 ## Blizzard Statistics pane
 _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, gold, consumables, factions, items, professions, dungeons/raids, emotes), read with the retail statistics API: GetStatisticsCategoryList, GetCategoryInfo, GetCategoryNumAchievements, GetAchievementInfo, GetStatistic. Never read in combat; secret values are skipped; values are stored raw and parsed on the website._
@@ -641,3 +641,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-05: Sections 15-16 (movement and world mechanics, death memes) done in the new JourneyTrackerWorld.lua. `BUILT`: time and yards swimming, time underwater, breath running out, fatigue, falls by seconds in the air (from the main tracker's fall timer), yards on foot and mounted (with swimming they add up to #71's ground distance), hearthstone moves and binds by inn, time at your bound inn, where you logged out and rested XP gained while away (counted at the next login, so a /reload isn't a logout), rested XP reaching its cap, portals clicked and the Rut'theran portal, meeting stones, corpse run yards, getting lost; deaths by drowning, fatigue, town guards, murlocs and critters ([probe]), and deaths within 10 seconds of a ding, within a minute of logging in, while AFK, during an escort, with Resurrection Sickness, soon after a spirit healer, in a friendly town, with a healthstone, potion or Hearthstone ready, mounted when the fight began, twice in a minute, plus the longest stretch alive and time as a ghost. Each death record now keeps /played (for the longest stretch and the website's death clock), and the main tracker remembers a mob's faction for the session, to tell town guards from mobs with the same name. `SKIP`: summons (ALL-08), deaths by falling (#102), deaths to elites (W-136), deaths by 10 levels (#45). `BLOCKED`: fall damage and one-shots (health is secret on Forever). Checked outside the game: a corpse run, a spirit healer and a death with Resurrection Sickness, drowning, fatigue, a guard and a grunt that isn't one, a murloc, a rat, a ding, a mounted fight, an escort, a 6-second fall, swimming, walking, riding and a teleport, getting lost, binding at an inn, rested XP across a logout, a portal and a meeting stone. No stray globals.
 - 2026-10-05: Sections 17-18 (economy, vendors, AH and mail; gear and character stats) done in the new JourneyTrackerEconomy.lua, all `BUILT` except W-410 `SKIP` (the class tracker already counts every cast). Vendors: junk sold and its gold, the most valuable junk, items bought, the biggest purchase and gold on bags (a merchant payment paired with the item bought), items destroyed, the first bag of each size, bank slots. The auction house: auctions posted, sold, expired and cancelled, deposits paid and refunded, the house's cut, the best sale and the biggest buy (from invoices, never reading the other player). Mail: sent, cleared from your inbox, COD sent and paid, gold sent and received (auction mail left out); no sender, recipient or text is kept. Gold moments: respecs, quest gold by level, going broke, richest for your level, lockboxes, treasure chests and their gold. Gear: suffixes looted, items equipped and swaps per level, the first two-hander, items broken, gear turning yellow or red, the biggest repair bill, enchants, kits and stones, BoE gear and quest rewards sold without being worn, the quest reward slot you picked. Talents: points in order with level, respecs, the split at 60, and where spells were learned. Your character sheet (stats, armor, health and mana, attack and spell power, crit, resistances, main hand DPS, average item level, gear by rarity) is added to each ding's snapshot, read out of combat a few seconds after the ding. The export leaves out the wrapped trackers' own bookkeeping. Checked outside the game: junk, a bag and a repair at a vendor, a cloak and quest boots sold unworn, a destroyed item, a stone, an auction posted and one bought, sale, expiry and cancel messages, mail in and out, a bank slot, a respec, going broke, a suffix item, a lockbox, a chest (not a herb or a quest object), a two-hander, an enchant, durability, talents, trainer spells, and two dings (one in a fight). No stray globals.
 - 2026-10-05: Sections 19-21 (professions deep dive, reputation and factions, holidays and world events) done in the new JourneyTrackerProfessions.lua. `SKIP`: herbs, Black Lotus, ore and skins by type (#103 has what every node gave) and skill at each ding (#92). Everything else `BUILT`. Gathering: Truesilver and Silver veins (from the node your gathering cast was aimed at), gems from mining, cloth by type and in all, nodes by zone (the main tracker now tells the other files about each new node), nodes lost to someone else ([probe]). Fishing: casts and catches, catches by type, fish vs junk, pools, the longest session. Crafting: food cooked, recipes known per profession, dropped recipes learned, potions and elixirs made, disenchanting and what it gave, enchants through the trade window, gathered goods sold. Engineering: explosives, target dummies, jumper cables, gadgets. Professions dropped. Reputation: gained and lost by faction, the level each standing was reached, Bloodsail gains, the progression factions at each ding, the capitals at 60, reputation turn-ins, cloth donations, the Desolace centaur side. Holidays, behind a "holiday" flag until Forever's calendar is known: Darkmoon Faire visits, tickets, fortunes, Hallow's End treats, Winter Veil presents, the Fishing Extravaganza, holiday quests. Checked outside the game: mining with a gem, cloth, fishing a pool and the bobber, disenchanting, an enchant for someone else, cooking, alchemy, a dropped recipe, dynamite, a dummy, cables, the Mind Control Cap, a lost herb, ore and herbs sold, a dropped profession, reputation messages, a cloth donation, dings, the Faire, a present, a treat bag, the Master Angler. No stray globals.
+- 2026-10-05: Sections 22-23 (milestones and firsts, sessions and habits) done in the new JourneyTrackerHabits.lua, with three firsts wired into the files that see them (first talent point, first Exalted, first rested max). That finishes every wrapped item: none is left `TODO`. `BUILT`: the first quest, group, green item, 1/10/100 gold, flight, profession at each bracket's top, Exalted, talent point and full rested XP, and the ding to 60 (where, when, the group's classes). Firsts are marked late when the tracker may have missed the real one (it didn't see the journey from level 1, or the existing counts show it already happened), and ones already reached when this began are marked before. Sessions: each session record now keeps its kills, deaths and the seconds to its first kill (most kills and deaths in a session, average time to the first kill); late-night dings, reloads, screenshots, the most XP in an hour of play, questing vs grinding time, and an optional screenshot at every ding (`/journey screenshots`, off by default). `SKIP`, because existing data covers them: the first death, dungeon, capital visits, mount, class quest and rare, the last death before 60, and the session habits the website can work out from the session list, days played, combat time and rest time. Fixed while testing: a skill message's rank was dropped (a Lua `and` keeps one value). Checked outside the game: each first, a first marked late, a session's kills and deaths, the hour of XP, questing and grinding, a late-night ding, the ding to 60 with its screenshot, a reload. No stray globals.
