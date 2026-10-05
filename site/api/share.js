@@ -48,7 +48,8 @@ function page(shared, meta) {
 // to each milestone (ranks.js) and its latest, lowest level first.
 // [{ level, share, here }], or none when this is its only one.
 async function journeysOf(upload) {
-  const rows = await (await supabase('uploads?select=id,level,exported_at&order=exported_at.desc.nullslast&limit=500' +
+  const rows = await (await supabase('uploads?select=id,level,exported_at,since:payload->ranked->since' +
+    '&order=exported_at.desc.nullslast&limit=500' +
     '&character_id=eq.' + encodeURIComponent(upload.character_id))).json();
   const keep = new Map([[upload.id, upload]]), best = new Map();
   rows.forEach((r) => {

@@ -10,7 +10,12 @@ var JourneyModel = (function () {
   // profiles saved under an older model get worked out again (site/api/ranks.js).
   // 2: ranked per milestone; "played" and "days" are the time to it.
   // 3: the wrapped stats' rankings (addon 0.6.0).
-  var MODEL = 3;
+  // 4: how long after its milestone a journey was exported (since), and
+  //    late ones ranked only on what was settled by then.
+  var MODEL = 4;
+  // /played seconds after reaching a milestone past which a journey
+  // exported at that level is late (the addon's LATE_AFTER).
+  var LATE_AFTER = 2 * 3600;
   // A place needs this many players on the ranking, you included: being 1st
   // of 2 says nothing.
   var MIN_PLAYERS = 3;
@@ -165,6 +170,18 @@ var JourneyModel = (function () {
     function daysTo(t) { return Math.max(1, Math.ceil((t - since) / 86400)); }
     J.daysTo = J.milestone && reachedAt ? daysTo(reachedAt) : undefined;
     J.reachedMilestone = J.milestone && reachedAt ? dayOf(reachedAt) : null;
+    // How long after reaching its milestone it was exported, in /played
+    // seconds: the addon says (0.6.0 on), or the level-up's own /played does.
+    // One exported at its milestone's level long after reaching it (a 60
+    // that's been 60 for weeks) is late: its totals kept growing after, so
+    // it's ranked only on what was settled when it got there (profileOf).
+    var sinceIt = named(data.sinceMilestone);
+    J.since = J.milestone && number(sinceIt.level) === J.milestone && typeof sinceIt.played === "number" ?
+      Math.max(0, number(sinceIt.played)) :
+      J.savedAtMilestone ? 0 :
+      J.milestone && number(reach.played) > 0 && J.played >= number(reach.played) ? J.played - number(reach.played) :
+      undefined;
+    J.late = J.atMilestone && J.milestone >= 10 && J.since !== undefined && J.since > LATE_AFTER;
     // Then and now: each milestone the tracker saw you reach, with how far
     // you'd come by then (the running totals saved at the level-up).
     J.milestoneRows = [];
@@ -811,11 +828,23 @@ var JourneyModel = (function () {
       if (id && J.pane[id[1]] !== undefined) p.values[r.key] = J.pane[id[1]];
     });
     Object.keys(little.best).forEach(function (k) { p.values[k] = Math.max(number(p.values[k]), little.best[k]); });
+    // A late journey (J.late) is ranked only on what was settled when it
+    // reached its milestone: the time it took and the levels it did things
+    // at (the rankings marked `fixed`). Its other totals kept growing after.
+    if (J.late) {
+      var fixed = Object.create(null);
+      rankings.forEach(function (r) { if (r.fixed) fixed[r.key] = true; });
+      Object.keys(p.values).forEach(function (k) { if (!fixed[k]) delete p.values[k]; });
+    }
+    p.since = J.since;
+    p.late = !!J.late;
     return p;
   }
 
   // A profile as saved with its upload, for ranking others against: who it
-  // is and its ranked values (to three decimals, the same for everyone).
+  // is, its ranked values (to three decimals, the same for everyone), and
+  // how long after its milestone it was exported (site/api/ranks.js picks
+  // each character's freshest).
   function rounded(v) { return Math.round(v * 1000) / 1000; }
   function saved(p, rankings) {
     var values = {};
@@ -824,7 +853,9 @@ var JourneyModel = (function () {
       if (typeof v === "number" && isFinite(v)) values[r.key] = rounded(v);
     });
     return { model: MODEL, classToken: p.classToken, race: p.race, faction: p.faction, ruleset: p.ruleset,
-             trades: p.trades.slice(), partial: p.partial, milestone: p.milestone, values: values };
+             trades: p.trades.slice(), partial: p.partial, milestone: p.milestone,
+             since: typeof p.since === "number" && isFinite(p.since) ? Math.round(p.since) : undefined,
+             late: p.late || undefined, values: values };
   }
 
   // Whether a ranking applies: a number to rank, the right class, race,
@@ -935,7 +966,7 @@ var JourneyModel = (function () {
   function bestFirst(a, b) { return a.score - b.score || (b.players || 0) - (a.players || 0); }
 
   return {
-    MODEL: MODEL, MIN_PLAYERS: MIN_PLAYERS, SHARE_FROM: SHARE_FROM,
+    MODEL: MODEL, MIN_PLAYERS: MIN_PLAYERS, SHARE_FROM: SHARE_FROM, LATE_AFTER: LATE_AFTER,
     sum: sum, num: num, dur: dur, coins: coins, named: named, number: number, numbered: numbered, listOf: listOf,
     addUp: addUp, topRows: topRows, tally: tally, capFirst: capFirst, dayOf: dayOf, own: own, itemOf: itemOf,
     milestoneOf: milestoneOf,

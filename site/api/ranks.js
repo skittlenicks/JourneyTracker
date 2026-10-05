@@ -4,11 +4,13 @@
 // their milestone, every ten levels (site/model.js's milestoneOf): a level
 // 34 journey among the level 30 ones, on its time to 30. Each character
 // counts once per milestone, with its upload closest to it (the lowest
-// level, then the latest), and each upload carries its profile, the
-// numbers it's ranked on, in payload.ranked: site/model.js's saved(),
-// worked out by upload.js when it was saved. So ranking a journey reads a
-// few KB per character, not every export in full. Each milestone's
-// population is kept for a few minutes in each function instance.
+// level, then the one exported soonest after reaching it, then the latest),
+// so a 60 shared at the level-up stands for its character rather than one
+// shared weeks later. Each upload carries its profile, the numbers it's
+// ranked on, in payload.ranked: site/model.js's saved(), worked out by
+// upload.js when it was saved. So ranking a journey reads a few KB per
+// character, not every export in full. Each milestone's population is kept
+// for a few minutes in each function instance.
 //
 // Uploads without a profile (tools/import doesn't make them) or with one
 // from an older MODEL get theirs worked out from their export here and
@@ -66,9 +68,14 @@ function levelsOf(milestone) {
   return milestone >= 60 ? [60, 60] : [milestone, milestone + 9];
 }
 // Which of a character's uploads stands for it at a milestone: the one
-// closest to it, and of those the latest. Sorts the better one first.
+// closest to it, then the one exported soonest after reaching it (`since`,
+// /played seconds, from its profile; unknown counts as last), then the
+// latest. Sorts the better one first.
 function closest(a, b) {
-  return a.level - b.level || String(b.exported_at || '').localeCompare(String(a.exported_at || ''));
+  const sa = typeof a.since === 'number' ? a.since : Infinity;
+  const sb = typeof b.since === 'number' ? b.since : Infinity;
+  return a.level - b.level || (sa < sb ? -1 : sa > sb ? 1 : 0) ||
+    String(b.exported_at || '').localeCompare(String(a.exported_at || ''));
 }
 
 // At a milestone, each character's closest upload that has a profile:
@@ -80,7 +87,7 @@ async function population(milestone) {
   if (was && Date.now() - was.at < KEEP_FOR) return was.rows;
   const [lo, hi] = levelsOf(milestone), listed = [];
   for (let from = 0; ; from += PAGE) {
-    const page = await (await supabase('uploads?select=id,character_id,level,exported_at' +
+    const page = await (await supabase('uploads?select=id,character_id,level,exported_at,since:payload->ranked->since' +
       `&addon_version=not.in.(${TEST_VERSIONS.join(',')})&level=gte.${lo}&level=lte.${hi}` +
       `&order=id&offset=${from}&limit=${PAGE}`)).json();
     listed.push(...page);

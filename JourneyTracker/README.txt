@@ -35,9 +35,18 @@ once.
 
 Every 10 levels, the addon also saves your journey as it was when you got
 there, so you can share your road to 10, 20, 30 and on even after you've
-passed it. Pick it at the top of the export window ("At 30"), or type
-/journey export 30. On the website it's ranked against other players at
-the same level.
+passed it. A small window pops up when it's saved, with a button to export
+it right away. Pick it later at the top of the export window ("At 30"), or
+type /journey export 30. On the website it's ranked against other players
+at the same level.
+
+Share it as you reach a milestone: a journey exported at 60 long after
+reaching it (more than two hours of play) is only ranked on the time it
+took and the levels you did things at, since everything else kept growing.
+Your "At 60" save is always there for the full rankings.
+
+Don't want the pop-up? Turn it off in the window's Options page (the last
+entry in the list on the left), or type /journey options.
 
 You can also paste the export to me in Discord. If it's long, Discord turns
 it into a file attachment. That's fine, just send it.
@@ -97,6 +106,7 @@ COMMANDS
                    10 levels)
 /journey backup    Save a backup copy of your data
 /journey stats     Show what's been read from the game's Statistics pane
+/journey options   Open the Options page (the export reminder, screenshots)
 /journey screenshots  Take a screenshot at every ding (type it again to
                    stop)
 /journey version   Show which version you have

@@ -350,6 +350,7 @@ kbd {
 .money .cs { color: var(--coin-silver); }
 .money .cc { color: var(--coin-copper); }
 .callout { margin: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; }
+#ranks-late { max-width: 46rem; }
 
 /* Share card: who and how fast, your three best rankings, the headline
    numbers, then the highlights, like a printed character sheet. */
@@ -1007,12 +1008,13 @@ kbd {
         <p class="label" id="ranks-for"></p>
         <div class="toggle" id="profiles" role="group" aria-label="Whose rankings"></div>
       </div>
+      <p class="callout" id="ranks-late" hidden></p>
       <div class="ranks" id="ranks"></div>
       <details class="all-ranks" id="all-ranks">
         <summary id="all-ranks-summary"></summary>
         <ol id="all-ranks-list"></ol>
       </details>
-      <p class="footnote"><span id="rank-count"></span> rankings in all: one for every stat the addon tracks, each class's own stats and the game's Statistics pane. A saved journey is ranked among the others at its milestone, every ten levels: a level 34 journey among the level 30 ones, on its time to 30, with each other character's export closest to 30. It's ranked on the rankings that apply to it, among all players or its own class, race, faction or realm type. You see the ones you stand out in most. A place shows once 3 journeys are on a ranking, like "2nd of 9", and becomes a share like "Top 3%" at 100. <span id="ranks-madeup">The sample journey's places are made up, and so are the numbers it doesn't have.</span></p>
+      <p class="footnote"><span id="rank-count"></span> rankings in all: one for every stat the addon tracks, each class's own stats and the game's Statistics pane. A saved journey is ranked among the others at its milestone, every ten levels: a level 34 journey among the level 30 ones, on its time to 30, with each other character's export closest to 30. One exported at its milestone's level more than two hours of play after reaching it is ranked only on the time it took and the levels it did things at, since everything else kept growing after. It's ranked on the rankings that apply to it, among all players or its own class, race, faction or realm type. You see the ones you stand out in most. A place shows once 3 journeys are on a ranking, like "2nd of 9", and becomes a share like "Top 3%" at 100. <span id="ranks-madeup">The sample journey's places are made up, and so are the numbers it doesn't have.</span></p>
     </div>
   </section>
 
@@ -2746,6 +2748,16 @@ kbd {
   PROFILES.forEach(function (p, i) { $("profile-" + i).addEventListener("click", function () { showRankings(p); }); });
   hide("profiles", PROFILES.length < 2);
   $("rank-count").textContent = RANKINGS.length;
+  // Exported at its milestone's level long after reaching it (site/model.js's
+  // late): ranked only on what was settled then. The addon kept the journey
+  // as it was at the level-up, ready to paste instead.
+  if (S.late) {
+    $("ranks-late").textContent = "You shared this journey after " + dur(S.since) + " of play at level " + milestone +
+      ", so it's ranked only on what was settled when you got there: the time it took and the levels you did things at. " +
+      "The addon saved your journey as it was when you reached " + milestone + ". Pick “At " + milestone +
+      "” in its Export window (or type /journey export " + milestone + ") and paste that for every ranking.";
+  }
+  hide("ranks-late", !S.late);
   if (S.imported) {
     $("ranks-madeup").textContent = savedCount ? num(savedCount) + " " + atLevel + (savedCount === 1 ? " journey is" : " journeys are") +
       " saved so far, and places change as more come in." : "";

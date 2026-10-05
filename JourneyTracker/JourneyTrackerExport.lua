@@ -8,7 +8,13 @@
 -- Milestones (#105-107): at every 10 levels, the export as it stood when
 -- you got there is saved, so "your road to 30" can still be shared after
 -- 30. The export window offers each saved one beside the export of now, and
--- /journey export 30 opens straight to it.
+-- /journey export 30 opens straight to it. A small reminder pops up as each
+-- is saved, with a button to export it there and then (off in the window's
+-- Options, db.ui.exportReminder = false).
+--
+-- Every export says how long after reaching its milestone it was made, in
+-- /played (sinceMilestone): the website ranks a journey exported at 60 long
+-- after reaching it only on what was settled by then.
 --
 -- The summary is the saved stats, not a raw event log, and leaves out
 -- anything that could identify a person: the character's name and realm,
@@ -21,10 +27,27 @@ local PREFIX = "|cff33ff99Journey|r"
 local WARN_LENGTH = 100000 -- characters; bigger exports get a heads-up
 local MILESTONE_EVERY = 10 -- #105 levels between milestones
 local MILESTONE_WAIT = 20  -- seconds a milestone waits for its ding's /played and statistics
+-- /played after reaching a milestone past which an export made at that
+-- level is "late" on the website (site/model.js's LATE_AFTER).
+local LATE_AFTER = 2 * 3600
 
 ---------------------------------------------------------------------------
 -- Summary
 ---------------------------------------------------------------------------
+
+-- #110 how long after reaching its milestone (10, 20 ... 60, the last one at
+-- or below `level`) a journey is being exported: /played seconds since the
+-- level-up's own /played, and real seconds since. Nil without a milestone
+-- or the level-up's /played.
+local function SinceMilestone(db, level, played)
+    local m = level - level % MILESTONE_EVERY
+    if m < MILESTONE_EVERY or not played then return nil end
+    local ding, saved = db.dings[m], db.milestones and db.milestones[m]
+    local reached = (ding and ding.played) or (saved and saved.played)
+    if not reached then return nil end
+    local t = (ding and ding.t) or (saved and saved.t)
+    return { level = m, played = math.max(0, math.floor(played - reached)), seconds = t and math.max(0, time() - t) or nil }
+end
 
 -- The summary of everything so far. `milestone` (a level) marks one saved
 -- as you reached that level (#105).
@@ -107,6 +130,7 @@ local function BuildSummary(db, milestone)
         schemaVersion = db.schemaVersion,
         exportedAt = time(),
         milestone = milestone,
+        sinceMilestone = SinceMilestone(db, ns.Level(), played > 0 and played or nil),
         character = {
             class = ns.Str(classToken) or (db.char and db.char.class),
             race = ns.Str(raceToken) or (db.char and db.char.race),
@@ -251,6 +275,7 @@ local function CreateWindow()
     -- Under the inset: how long the export is, or that it's been copied.
     f.status = f:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
     f.status:SetPoint("TOP", inset, "BOTTOM", 0, -8)
+    f.status:SetWidth(500)
 
     -- The website's address, to copy into a browser.
     local label = f:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -307,10 +332,10 @@ local function Show(text, title)
     window:Show()
 end
 
--- #106 the window with a choice of journey: now (`now` is its export) or
--- one saved at a milestone, newest first. Opens at milestone `pick`, if
--- it's saved.
-local function ShowChoices(db, now, pick)
+-- #106 the window with a choice of journey: now (`now` is its export, and
+-- `nowNote` a line to go with it) or one saved at a milestone, newest
+-- first. Opens at milestone `pick`, if it's saved.
+local function ShowChoices(db, now, pick, nowNote)
     window = window or CreateWindow()
     local list, levels = { { label = "Now (" .. ns.Level() .. ")" } }, {}
     for level in pairs(db.milestones) do levels[#levels + 1] = level end
@@ -327,7 +352,7 @@ local function ShowChoices(db, now, pick)
             Put(saved.text, "Your Road to " .. choice.level,
                 "saved " .. date("%b %d", saved.t) .. (saved.late and ", a while after the level-up" or ""))
         else
-            Put(now, "Export Your Journey")
+            Put(now, "Export Your Journey", nowNote)
         end
     end
     local first = list[1]
@@ -370,7 +395,15 @@ function ns.Export(pick)
         print(PREFIX, "No journey is saved at level " .. pick .. ". Every 10 levels, your journey so far is saved as you reach it.")
         pick = nil
     end
-    ShowChoices(db, text, pick)
+    -- #110 exported at a milestone's level long after reaching it: the
+    -- website ranks the journey saved at the level-up against fresh ones.
+    local since, note = summary.sinceMilestone, nil
+    if since and since.level == ns.Level() and since.played > LATE_AFTER then
+        note = string.format("%s of play since you reached %d. For every ranking, share \"At %d\".",
+            ns.FormatDuration(since.played), since.level, since.level)
+        if not db.milestones[since.level] then note = nil end
+    end
+    ShowChoices(db, text, pick, note)
     if #text > WARN_LENGTH then
         print(PREFIX, string.format("Heads up: this export is %d characters, which is very large. Biggest sections:", #text))
         for i, section in ipairs(Serialize.SectionSizes(summary)) do
@@ -396,6 +429,108 @@ function ns.TestExport()
 end
 
 ---------------------------------------------------------------------------
+-- #109 the milestone reminder: a small window as each milestone is saved, with a
+-- button to export it there and then, while it's fresh. On unless it's
+-- turned off in the window's Options (db.ui.exportReminder = false).
+---------------------------------------------------------------------------
+
+function ns.ExportReminderOn()
+    local db = ns.GetDB()
+    return not (db and db.ui and db.ui.exportReminder == false)
+end
+
+function ns.SetExportReminder(on)
+    local db = ns.GetDB()
+    if not db then return end
+    db.ui = db.ui or {}
+    if on then db.ui.exportReminder = nil else db.ui.exportReminder = false end
+end
+
+local reminder
+
+local function CreateReminder()
+    local f = CreateFrame("Frame", "JourneyTrackerReminderFrame", UIParent, "BackdropTemplate")
+    f:SetSize(360, 160)
+    f:SetPoint("TOP", 0, -170)
+    f:SetFrameStrata("DIALOG")
+    f:SetToplevel(true)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:SetClampedToScreen(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    f:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true, tileSize = 32, edgeSize = 32,
+        insets = { left = 11, right = 12, top = 12, bottom = 11 },
+    })
+    table.insert(UISpecialFrames, "JourneyTrackerReminderFrame") -- Escape closes it
+
+    f.title = f:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    f.title:SetPoint("TOP", 0, -20)
+    f.text = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    f.text:SetPoint("TOP", f.title, "BOTTOM", 0, -8)
+    f.text:SetWidth(312)
+    f.text:SetJustifyH("CENTER")
+
+    local closeX = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+    closeX:SetPoint("TOPRIGHT", -6, -6)
+
+    f.export = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    f.export:SetSize(120, 22)
+    f.export:SetPoint("BOTTOMRIGHT", f, "BOTTOM", -4, 38)
+    f.export:SetText("Export now")
+    local later = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    later:SetSize(120, 22)
+    later:SetPoint("BOTTOMLEFT", f, "BOTTOM", 4, 38)
+    later:SetText("Later")
+    later:SetScript("OnClick", function() f:Hide() end)
+
+    -- A line under the buttons that opens the window's Options page.
+    local options = CreateFrame("Button", nil, f)
+    options:SetSize(280, 14)
+    options:SetPoint("BOTTOM", 0, 18)
+    local hint = options:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    hint:SetAllPoints()
+    hint:SetText("You can turn this reminder off in Options.")
+    local r, g, b = hint:GetTextColor()
+    options:SetScript("OnEnter", function() hint:SetTextColor(1, 0.82, 0) end)
+    options:SetScript("OnLeave", function() hint:SetTextColor(r, g, b) end)
+    options:SetScript("OnClick", function()
+        f:Hide()
+        if ns.ShowOptions then ns.ShowOptions() end
+    end)
+    return f
+end
+
+-- The reminder for milestone `level`. With none, the newest one saved (or
+-- the next to come): what the Options page shows as an example.
+function ns.ShowMilestoneReminder(level)
+    local db = ns.GetDB()
+    if not db then return end
+    if not level then
+        for saved in pairs(db.milestones) do level = math.max(level or 0, saved) end
+        level = level or math.max(MILESTONE_EVERY, ns.Level() - ns.Level() % MILESTONE_EVERY)
+    end
+    reminder = reminder or CreateReminder()
+    reminder.title:SetText(string.format("Level %d!", level))
+    reminder.text:SetText(string.format("Your road to %d is saved. Export it now for your recap at %s%s|r, "
+        .. "ranked against other level %d journeys while it's fresh.", level, GOLD, ns.WEBSITE, level))
+    reminder:SetHeight(math.ceil(tonumber(reminder.text:GetStringHeight()) or 42) + 122)
+    reminder.export:SetScript("OnClick", function()
+        if InCombatLockdown() then
+            print(PREFIX, "Can't export in combat.")
+            return
+        end
+        reminder:Hide()
+        ns.Export(level)
+    end)
+    reminder:Show()
+end
+
+---------------------------------------------------------------------------
 -- Milestones (#105, #107): db.milestones[level] = { text = the export,
 -- t = when it was saved, played = /played then, late = saved after the
 -- level-up itself }
@@ -410,14 +545,19 @@ local function SaveMilestone(level, late)
     local db = ns.GetDB()
     if not db or db.milestones[level] then return end
     local summary, ding = BuildSummary(db, level), db.dings[level]
-    -- Its /played is the one at the level-up (it's saved a few seconds after).
-    if not late and ding and ding.played then summary.character.played = math.floor(ding.played) end
+    -- Its /played is the one at the level-up (it's saved a few seconds
+    -- after), so it was made no time after reaching the milestone.
+    if not late and ding and ding.played then
+        summary.character.played = math.floor(ding.played)
+        summary.sinceMilestone = { level = level, played = 0, seconds = 0 } -- #110
+    end
     local text = Serialize.Encode(summary)
     if not text then return end
     db.milestones[level] = { text = text, t = summary.exportedAt, played = summary.character.played, late = late or nil }
     -- #107 a note in chat
     print(PREFIX, string.format("Level %d! Your road to %d is saved. Type %s/journey export|r to share it.",
         level, level, GOLD))
+    if ns.ExportReminderOn() then ns.ShowMilestoneReminder(level) end -- #109
 end
 
 -- A level-up's milestone waits for the ding's /played and its Statistics

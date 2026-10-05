@@ -155,13 +155,15 @@ local KINDS = {
     small = { font = SMALL_FONT, wrap = true },  -- footnotes
 }
 
-local B = { pools = {}, bars = { n = 0 }, hovers = { n = 0 } }
+local B = { pools = {}, bars = { n = 0 }, hovers = { n = 0 }, checks = { n = 0 }, buttons = { n = 0 } }
 
 function B:Begin(child, width)
     self.child, self.width, self.y = child, width, -10
     for _, pool in pairs(self.pools) do pool.n = 0 end
     self.bars.n = 0
     self.hovers.n = 0
+    self.checks.n = 0
+    self.buttons.n = 0
 end
 
 -- Next pooled FontString of a kind, created and configured on first use.
@@ -393,6 +395,65 @@ function B:BarList(t, fmt, color, limit)
     end
 end
 
+-- A checkbox with its label, for the Options page. onClick(on) runs when
+-- it's clicked; `checked` is read again on every redraw. The label is part
+-- of what can be clicked.
+function B:Check(label, checked, onClick)
+    local checks = self.checks
+    checks.n = checks.n + 1
+    local c = checks[checks.n]
+    if not c then
+        local template
+        c, template = TryCreate("CheckButton", nil, self.child, { "UICheckButtonTemplate", "OptionsBaseCheckButtonTemplate" })
+        if not template then
+            c:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
+            c:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
+            c:SetHighlightTexture("Interface\\Buttons\\UI-CheckBox-Highlight", "ADD")
+            c:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        end
+        c:SetHeight(24)
+        c:SetScript("OnClick", function(self)
+            if self.jtClick then self.jtClick(self:GetChecked() and true or false) end
+        end)
+        checks[checks.n] = c
+    end
+    c.jtClick = onClick
+    checked = checked and true or false
+    if (c:GetChecked() and true or false) ~= checked then c:SetChecked(checked) end
+    Place(c, 10, self.y + 3, 24)
+    local text = self:Get("label", INK)
+    Place(text, 38, self.y - 2, self.width - 52)
+    SetText(text, label)
+    local reach = math.ceil(math.min(text:GetStringWidth(), self.width - 52)) + 6
+    if c.jtReach ~= reach then
+        c:SetHitRectInsets(0, -reach, 0, 0)
+        c.jtReach = reach
+    end
+    if not c:IsShown() then c:Show() end
+    self.y = self.y - 26
+end
+
+-- A classic red button on the page. onClick runs when it's clicked.
+function B:Button(text, onClick, width)
+    local buttons = self.buttons
+    buttons.n = buttons.n + 1
+    local b = buttons[buttons.n]
+    if not b then
+        b = CreateFrame("Button", nil, self.child, "UIPanelButtonTemplate")
+        b:SetHeight(22)
+        b:SetScript("OnClick", function(self) if self.jtClick then self.jtClick() end end)
+        buttons[buttons.n] = b
+    end
+    b.jtClick = onClick
+    Place(b, 14, self.y, width or 170)
+    if b.jtText ~= text then
+        b:SetText(text)
+        b.jtText = text
+    end
+    if not b:IsShown() then b:Show() end
+    self.y = self.y - 28
+end
+
 -- Hide whatever this draw didn't use and size the page to fit.
 function B:End()
     for _, pool in pairs(self.pools) do
@@ -400,6 +461,8 @@ function B:End()
     end
     for i = self.bars.n + 1, #self.bars do self.bars[i].box:Hide() end
     for i = self.hovers.n + 1, #self.hovers do self.hovers[i]:Hide() end
+    for i = self.checks.n + 1, #self.checks do self.checks[i]:Hide() end
+    for i = self.buttons.n + 1, #self.buttons do self.buttons[i]:Hide() end
     local height = math.max(-self.y + 10, 1)
     if self.child.jtHeight ~= height then
         self.child:SetHeight(height)
@@ -1099,6 +1162,24 @@ local function PageSocial(B, db)
     Block(B, "social")
 end
 
+-- #109 Options: the milestone reminder, and a screenshot at every ding.
+local function PageOptions(B, db)
+    B:Title("Options")
+    B:Heading("Milestones")
+    B:Check("Remind me to export at every 10 levels", ns.ExportReminderOn and ns.ExportReminderOn(),
+        function(on) if ns.SetExportReminder then ns.SetExportReminder(on) end end)
+    B:Note("When you reach level 10, 20, 30, 40, 50 or 60, a small window offers to export your journey right "
+        .. "away. On the website, a journey shared as you reach a milestone is ranked against other fresh ones, "
+        .. "and one shared long after only on the time it took. Your journey is saved at each of those levels "
+        .. "either way, so you can share it later from the Export window.")
+    B:Gap(4)
+    B:Button("Show the reminder", function() if ns.ShowMilestoneReminder then ns.ShowMilestoneReminder() end end)
+    B:Heading("Screenshots")
+    B:Check("Take a screenshot at every ding", ns.DingScreenshotsOn and ns.DingScreenshotsOn(),
+        function(on) if ns.SetDingScreenshots then ns.SetDingScreenshots(on) end end)
+    B:Note("A second after each level-up. They go in the game's Screenshots folder.")
+end
+
 local SECTIONS = {
     { name = "Overview", pages = { { "Summary", PageSummary } } },
     { name = "Time & Pace", pages = {
@@ -1118,6 +1199,7 @@ local SECTIONS = {
         { "Skills", PageSkills }, { "Professions & Spells", PageProfs },
         { "Gathering", PageGathering } } },
     { name = "Social", pages = { { "Social", PageSocial } } },
+    { name = "Options", pages = { { "Options", PageOptions } } },
 }
 
 -- Levels tab: one row per level, like a ledger.
@@ -1493,6 +1575,19 @@ function ns.ToggleUI()
         return
     end
     frame:SetShown(not frame:IsShown())
+end
+
+-- /journey options, and the milestone reminder's link: the window, open at
+-- the Options page.
+function ns.ShowOptions()
+    if not ns.GetDB() then return end
+    local state = UIState()
+    state.page = "Options"
+    state.collapsed["Options"] = nil
+    if not frame then CreateWindow() end
+    if frame:IsShown() then RenderList() end
+    frame:Show()
+    SelectTab(1)
 end
 
 ---------------------------------------------------------------------------

@@ -20,18 +20,24 @@
 //              log. Made up: only the sample journey and the example players
 //              are ranked on them. A saved journey gets its real place.
 //   line       a line to go with it (it can use the names too)
-//   extra      { id, family, only, cohort, trade, min, max, at60 }: `id` when two
-//              rankings share a key, `family` for rankings that measure the
-//              same thing (only one is shown), `only`/`cohort` for class,
-//              race, faction and realm rankings (`only` can list several), `trade` for a profession's
-//              own rankings (only players with it), `min`/`max` for the
-//              values the game allows (levels, skill, percentages), `at60`
-//              for rankings that only mean something at level 60
+//   extra      { id, family, only, cohort, trade, min, max, at60, fixed }: `id`
+//              when two rankings share a key, `family` for rankings that
+//              measure the same thing (only one is shown), `only`/`cohort` for
+//              class, race, faction and realm rankings (`only` can list
+//              several), `trade` for a profession's own rankings (only players
+//              with it), `min`/`max` for the values the game allows (levels,
+//              skill, percentages), `at60` for rankings that only mean
+//              something at level 60, `fixed` for values settled by the time
+//              a journey reaches its milestone (the time to it, the level you
+//              did something at): all a journey exported long after reaching
+//              it is ranked on (site/model.js's late). "at level {n}" details
+//              are fixed by themselves.
 var RANKINGS = (function () {
   function R(key, source, group, who, detail, direction, median, spread, line, extra) {
     var r = { id: key, key: key, source: source, group: group, name: who, detail: detail,
               high: direction === "+", pop: [median, spread], line: line };
     if (/level \{n\}/.test(detail)) r.max = 60;
+    if (/at level \{n\}/.test(detail)) r.fixed = true;
     if (/\{p\}%/.test(detail)) r.max = 100;
     for (var k in extra || {}) r[k] = extra[k];
     return r;
@@ -50,9 +56,9 @@ var RANKINGS = (function () {
 
   return [
     // ---- Time and pace (journey #1-18) ----
-    R("played", "J1", "pace", "speed-levelers", "{m} in {t} /played", "-", 864000, 0.3, "Azeroth barely had time to learn your name."),
-    R("played", "J1", "pace", "speed-levelers", "{m} in {t} /played", "-", 850000, 0.28, "The fastest of your class. Your trainer barely kept up.", { id: "playedClass", cohort: "class" }),
-    R("days", "J4", "pace", "fast finishers", "{m} in {n} calendar days", "-", 62, 0.5, "Some take a season. You took a few weeks."),
+    R("played", "J1", "pace", "speed-levelers", "{m} in {t} /played", "-", 864000, 0.3, "Azeroth barely had time to learn your name.", { fixed: true }),
+    R("played", "J1", "pace", "speed-levelers", "{m} in {t} /played", "-", 850000, 0.28, "The fastest of your class. Your trainer barely kept up.", { id: "playedClass", cohort: "class", fixed: true }),
+    R("days", "J4", "pace", "fast finishers", "{m} in {n} calendar days", "-", 62, 0.5, "Some take a season. You took a few weeks.", { fixed: true }),
     R("sessions", "J6", "pace", "frequent visitors", "{n} play sessions", "+", 90, 0.4, "You clocked in like it was a job. It kind of was."),
     R("avgSession", "J7", "pace", "settlers-in", "{t} per session on average", "+", 6000, 0.4, "When you sit down, you sit down."),
     R("session", "J8", "pace", "marathon players", "{t} in one sitting", "+", 16200, 0.4, "Hydration is a buff too, you know."),
@@ -63,7 +69,7 @@ var RANKINGS = (function () {
     R("taxiTime", "J13", "travel", "sky commuters", "{t} on flight paths", "+", 25000, 0.5, "You've seen every rooftop in Azeroth from above."),
     R("mounted", "J14", "travel", "riders", "{t} in the saddle", "+", 90000, 0.5, "Your mount has more /played than some alts."),
     R("xpRate", "J15", "pace", "XP machines", "{n} XP per hour", "+", 30000, 0.25, "The XP bar moved like it owed you money."),
-    R("slowestLevel", "J16", "pace", "steady climbers", "your slowest level took only {t}", "-", 32000, 0.35, "Even your worst level was a brisk one."),
+    R("slowestLevel", "J16", "pace", "steady climbers", "your slowest level took only {t}", "-", 32000, 0.35, "Even your worst level was a brisk one.", { fixed: true }),
     R("daysPlayed", "J17", "pace", "regulars", "played on {n} different days", "+", 30, 0.4, "Azeroth was part of the daily routine."),
     R("nightOwl", "J18", "pace", "night owls", "{p}% of your playtime after midnight", "+", 4, 0.7, "The moon over Darnassus knows you well."),
     R("earlyBird", "J18", "pace", "early birds", "{p}% of your playtime before 9 AM", "+", 3, 0.8, "First worm, first quest, first ding."),
@@ -161,7 +167,7 @@ var RANKINGS = (function () {
     R("auctionsSold", "J83", "gold", "merchants", "{n} auctions sold", "+", 60, 0.9, "Buy low, sell high, repeat."),
     R("auctionSpend", "J83", "gold", "bargain hunters", "{g} spent at the auction house", "+", 2500000, 0.6, "You kept the economy going single-handedly."),
     R("mount", "J84", "gold", "early riders", "first mount at level {n}", "-", 40, 0.06, "Walking is for people without a plan.", { min: 40 }),
-    R("mountPlayed", "J84", "gold", "quick saddlers", "mounted after {t} /played", "-", 500000, 0.25, "Saddled up before most had worn in their boots."),
+    R("mountPlayed", "J84", "gold", "quick saddlers", "mounted after {t} /played", "-", 500000, 0.25, "Saddled up before most had worn in their boots.", { fixed: true }),
     R("peakGold", "J85", "gold", "hoarders", "{g} at your richest", "+", 1200000, 0.6, "A dragon would be jealous of that hoard."),
     R("saved", "J77", "gold", "savers", "{g} kept at {m}", "+", 800000, 0.8, "Ready for that epic mount. Almost."),
 
@@ -196,7 +202,7 @@ var RANKINGS = (function () {
 
     // ---- WoW Forever (wrapped W-001..W-021) ----
     R("zephras", "W-001", "forever", "quick fledglings", "left Zephras Isle at level {n}", "-", 10, 0.2, "The nest was nice, but the world was waiting.", { only: { race: "Skyborne" }, cohort: "race" }),
-    R("hyjal", "W-006", "forever", "Hyjal pioneers", "reached Mount Hyjal {n} days after 60", "-", 5, 0.8, "You didn't even unpack at 60.", { at60: true }),
+    R("hyjal", "W-006", "forever", "Hyjal pioneers", "reached Mount Hyjal {n} days after 60", "-", 5, 0.8, "You didn't even unpack at 60.", { at60: true, fixed: true }),
     R("forever", "W-007", "forever", "Forever explorers", "{n} new Forever quests done", "+", 55, 0.45, "You went looking for what's new, and found it."),
     R("camps", "W-008", "forever", "campers", "{n} campfires set up", "+", 10, 0.7, "Why pay for an inn when you can bring your own?"),
     R("campTime", "W-009", "forever", "fireside regulars", "{t} at campfires", "+", 7200, 0.6, "Marshmallows were toasted. Probably.", { family: "camps" }),

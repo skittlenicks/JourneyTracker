@@ -171,11 +171,20 @@ local function OnDing(snapshot, level)
     end
 end
 
-function ns.ToggleDingScreenshots()
+-- W-494 the setting, for /journey screenshots and the window's Options.
+function ns.DingScreenshotsOn()
     local flags = Track.get("flags")
-    if type(flags) ~= "table" then return end
-    flags.screenshots = not flags.screenshots or nil
-    print(PREFIX, flags.screenshots and "A screenshot will be taken at every ding."
+    return type(flags) == "table" and flags.screenshots == true
+end
+
+function ns.SetDingScreenshots(on)
+    local flags = Track.get("flags")
+    if type(flags) == "table" then flags.screenshots = on and true or nil end
+end
+
+function ns.ToggleDingScreenshots()
+    ns.SetDingScreenshots(not ns.DingScreenshotsOn())
+    print(PREFIX, ns.DingScreenshotsOn() and "A screenshot will be taken at every ding."
         or "Screenshots at each ding are off.")
 end
 
