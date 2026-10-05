@@ -38,7 +38,7 @@ local db -- JourneyTrackerDB, set on ADDON_LOADED
 -- friends). Each callback runs protected: an error in one of them can't
 -- stop this file recording the kill, death or loot. The first errors are
 -- kept for /journey status.
-local hooks = { kill = {}, fight = {}, death = {}, fall = {}, loot = {}, money = {}, gather = {} }
+local hooks = { kill = {}, fight = {}, death = {}, fall = {}, loot = {}, money = {}, gather = {}, auction = {} }
 local hookErrors = {}
 local function Run(kind, fn, ...)
     local ok, err = pcall(fn, ...)
@@ -147,6 +147,8 @@ local PATTERNS = {
     learnAbility = PatternFrom(ERR_LEARN_ABILITY_S, "You have learned a new ability: %s."),
     learnRecipe = PatternFrom(ERR_LEARN_RECIPE_S, "You have learned how to create a new item: %s."),
     auctionSold = PatternFrom(ERR_AUCTION_SOLD_S, "A buyer has been found for your auction of %s."),
+    auctionExpired = PatternFrom(ERR_AUCTION_EXPIRED_S, "Your auction of %s has expired.", true),
+    auctionRemoved = PatternFrom(ERR_AUCTION_REMOVED, "Auction cancelled.", true),
 }
 local NEW_TAXI_PATH = type(ERR_NEWTAXIPATH) == "string" and ERR_NEWTAXIPATH
     or "New flight path discovered!"
@@ -466,11 +468,29 @@ local JUMP_SPEED = 7.95554 -- yd/s, upward speed when a jump starts
 local MIN_FALL = 1         -- yards; smaller drops (steps, bumps) are ignored
 local DAMAGE_FALL = 15     -- yards; roughly where fall damage starts
 local FATAL_CHECK = 1.5    -- seconds after landing before deciding we survived
-local SLOW_FALL = { 130, 1706 } -- Slow Fall, Levitate: timing would overstate these
+-- Slow Fall, Levitate and Noggenfogger's slow fall (by spell, and by name
+-- whatever the rank or source): timing would overstate these.
+local SLOW_FALL = { 130, 1706, 16593 }
+local SLOW_FALL_NAMES = { "Slow Fall", "Levitate" }
+local FALL_LOOK = 0.1      -- seconds between looks for a slow fall while in the air
+local STALL = 0.5          -- seconds between frames past which a fall's timing can't be trusted
 
 local lastJump, jumpHeld = 0, false -- set by the jump key hooks (see InstallHooks)
-local fallStart, fallJumped, fallSlowed
+local fallStart, fallJumped, fallSlowed, fallStalled, fallLookAt
+local lastFrame = 0
 local lastLanding -- { at, fall } for the most recent real fall
+
+-- A slow fall on you now, cast by you or anyone, or from an item. (In
+-- combat the aura API can't be read, and this says no.)
+local function SlowFalling()
+    for _, id in ipairs(SLOW_FALL) do
+        if Call("C_UnitAuras.GetPlayerAuraBySpellID", id) then return true end
+    end
+    for _, name in ipairs(SLOW_FALL_NAMES) do
+        if Call("C_UnitAuras.GetAuraDataBySpellName", "player", name, "HELPFUL") then return true end
+    end
+    return false
+end
 
 -- Yards fallen from rest in t seconds, capped at top fall speed.
 local function DropFromTime(t)
@@ -511,26 +531,40 @@ end
 local function WatchFalling()
     local falling = IsFalling and Safe(IsFalling()) -- true/false (or 1/nil on older clients)
     local now = GetTime()
+    local stalled = now - lastFrame > STALL   -- a loading screen or a freeze since the last frame
+    lastFrame = now
     if falling then
         if not fallStart then
-            fallStart = now
+            -- A ghost's drops on a corpse run aren't falls.
+            if Call("UnitIsDeadOrGhost", "player") == true then return end
+            fallStart, fallLookAt, fallStalled = now, now, false
             fallJumped = jumpHeld or now - lastJump < 0.25
-            fallSlowed = false
-            for _, id in ipairs(SLOW_FALL) do
-                if Call("C_UnitAuras.GetPlayerAuraBySpellID", id) then fallSlowed = true end
+            fallSlowed = SlowFalling()
+        else
+            if stalled then fallStalled = true end
+            -- Slow Fall can come on the way down (yours is also caught as
+            -- you cast it, in UNIT_SPELLCAST_SUCCEEDED).
+            if not fallSlowed and now - fallLookAt >= FALL_LOOK then
+                fallLookAt = now
+                fallSlowed = SlowFalling()
             end
         end
     elseif fallStart then
         local airTime = now - fallStart
         fallStart = nil
-        if not fallSlowed and airTime < 30 then OnLanded(airTime) end
+        -- Not timed: a slow fall (on the way down, or on you as you land),
+        -- or one with a loading screen or a freeze in it, whose time isn't
+        -- time in the air.
+        if not fallSlowed and not fallStalled and not stalled and not SlowFalling() and airTime < 30 then
+            OnLanded(airTime)
+        end
     end
 end
 
 -- True when a fall is the likely cause of a death happening now (#47).
 local function FellToDeath()
     local now = GetTime()
-    if fallStart and now - fallStart > 1 then return true end
+    if fallStart and not fallSlowed and not fallStalled and now - fallStart > 1 then return true end
     return lastLanding ~= nil and now - lastLanding.at <= FATAL_CHECK
         and lastLanding.fall.yards >= DAMAGE_FALL
 end
@@ -841,6 +875,48 @@ local function OnSubZoneChange()
     if not db.subzones[key] then db.subzones[key] = time() end -- #64 subzones visited
 end
 
+-- #83 auctions sold (and the expiries and cancels W-368 counts, through
+-- ns.OnAuctionNotice). Each can come as a system message, as Forever's
+-- auction house notifications (AUCTION_HOUSE_SHOW_NOTIFICATION and
+-- AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION) or as more than one of them,
+-- so each way is counted for a few seconds and the most any one way saw is
+-- how many there were. (Two sales of the same item send the same line, so
+-- these lines aren't held to the one-a-second rule below.)
+local NOTICE_WINDOW = 3
+local noticesNow = {} -- [kind] = { [way] = count } for notices arriving now
+
+local function AuctionNotice(kind, way)
+    local seen = noticesNow[kind]
+    local first = not seen
+    if first then
+        seen = {}
+        noticesNow[kind] = seen
+    end
+    seen[way] = (seen[way] or 0) + 1
+    if not first then return end
+    local function Settle()
+        noticesNow[kind] = nil
+        local n = 0
+        for _, count in pairs(seen) do n = math.max(n, count) end
+        if kind == "sold" then db.money.auctionsSold = db.money.auctionsSold + n end -- #83 auctions sold
+        Fire("auction", kind, n)
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(NOTICE_WINDOW, Settle) else Settle() end
+end
+
+local function AuctionLine(msg)
+    return (msg:match(PATTERNS.auctionSold) and "sold") or (msg:match(PATTERNS.auctionExpired) and "expired")
+        or (msg:match(PATTERNS.auctionRemoved) and "cancelled") or nil
+end
+
+-- An auction house notification's kind (Enum.AuctionHouseNotification).
+local function NoticeKind(notification)
+    local n, E = Num(Safe(notification)), Enum and Enum.AuctionHouseNotification
+    if not n then return nil end
+    local sold, expired, removed = E and E.AuctionSold or 4, E and E.AuctionExpired or 5, E and E.AuctionRemoved or 1
+    return (n == sold and "sold") or (n == expired and "expired") or (n == removed and "cancelled") or nil
+end
+
 -- Exploration and other system messages can arrive as both UI_INFO_MESSAGE
 -- and CHAT_MSG_SYSTEM; ignore an identical repeat within a second.
 local lastSysMsg, lastSysTime = nil, 0
@@ -857,8 +933,6 @@ local function OnSystemMessage(msg)
         db.discovered = db.discovered + 1                     -- #64
     elseif msg == NEW_TAXI_PATH then                          -- #69 flight paths discovered
         table.insert(db.travel.flightPaths, { zone = Zone(), subzone = SubZone(), level = Level(), t = time() })
-    elseif msg:match(PATTERNS.auctionSold) then               -- #83 auction sales
-        db.money.auctionsSold = db.money.auctionsSold + 1
     else
         -- #95 spells and abilities learned (the %s is a spell link)
         local learned = msg:match(PATTERNS.learnSpell) or msg:match(PATTERNS.learnAbility)
@@ -1504,6 +1578,9 @@ end
 
 -- Deaths
 handlers.PLAYER_DEAD = function() OnDeath() end
+-- #101 a loading screen ends any fall (a zeppelin, a portal or a summon in
+-- mid-air isn't a fall to time).
+handlers.PLAYER_LEAVING_WORLD = function() fallStart = nil end
 
 handlers.PLAYER_ALIVE = function()
     local ghost = Call("UnitIsGhost", "player")
@@ -1574,12 +1651,29 @@ handlers.ZONE_CHANGED_NEW_AREA = function() OnZoneChange(); OnSubZoneChange() en
 handlers.ZONE_CHANGED = function() OnSubZoneChange() end
 handlers.ZONE_CHANGED_INDOORS = function() OnSubZoneChange() end
 handlers.UI_INFO_MESSAGE = function(_, msg) OnSystemMessage(msg) end
-handlers.CHAT_MSG_SYSTEM = function(msg) OnSystemMessage(msg) end
+handlers.CHAT_MSG_SYSTEM = function(msg)
+    local text = Str(Safe(msg))
+    local kind = text and AuctionLine(text)
+    if kind then AuctionNotice(kind, "chat") else OnSystemMessage(msg) end -- #83
+end
+handlers.AUCTION_HOUSE_SHOW_NOTIFICATION = function(notification)
+    local kind = NoticeKind(notification)
+    if kind then AuctionNotice(kind, "notice") end            -- #83
+end
+handlers.AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION = function(notification)
+    local kind = NoticeKind(notification)
+    if kind then AuctionNotice(kind, "formatted") end         -- #83
+end
 
 -- Your own casts: hearthstone, gathering and fishing.
 handlers.UNIT_SPELLCAST_SUCCEEDED = function(_, _, spellID)
     spellID = Num(Safe(spellID))
     if not spellID then return end
+    if fallStart then
+        for _, id in ipairs(SLOW_FALL) do
+            if spellID == id then fallSlowed = true end       -- #101 Slow Fall cast on the way down
+        end
+    end
     if spellID == HEARTHSTONE then
         db.travel.hearths = db.travel.hearths + 1             -- #68 hearthstone uses
     end
@@ -1952,6 +2046,7 @@ function ns.OnDeathRecord(fn) table.insert(hooks.death, fn) end
 function ns.OnFall(fn) table.insert(hooks.fall, fn) end
 function ns.OnLootItem(fn) table.insert(hooks.loot, fn) end
 function ns.OnMoneyChange(fn) table.insert(hooks.money, fn) end
+function ns.OnAuctionNotice(fn) table.insert(hooks.auction, fn) end -- (kind, count): "sold", "expired", "cancelled"
 function ns.MobInfo(name) return name and mobInfo[name] end
 function ns.PlayerInfo(name) return name and playerInfo[name] end
 function ns.CurrentFight() return fight end

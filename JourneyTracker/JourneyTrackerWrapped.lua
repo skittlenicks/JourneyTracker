@@ -272,20 +272,35 @@ local function DetectRuleset()
     W["W-020"] = rules
 end
 
--- W-021 flagged for PvP by walking into a contested or enemy zone.
-local wasPvP, manualFlagUntil = nil, 0
+-- W-021 flagged for PvP by walking into a contested or enemy zone: the flag
+-- comes on as you arrive (within ARRIVAL seconds), out of a fight. On a
+-- Normal realm the flag only comes from fighting there (attacking an enemy
+-- or their guards, healing someone flagged), which isn't the zone's doing
+-- and mustn't make the ruleset PvP (W-020).
+local ARRIVAL = 10
+local wasPvP, manualFlagUntil, arrivedAt, foughtAt = nil, 0, -100, -100
+-- The zone's PvP type: Forever's own UI reads it from C_PvP.
+local function ZonePvP() return Str(Call("C_PvP.GetZonePVPInfo")) or Str(Call("GetZonePVPInfo")) end
 local function CheckPvPFlag()
     local pvp = Call("UnitIsPVP", "player")
     if pvp == nil then return end
     pvp = pvp and true or false
-    if wasPvP == false and pvp and GetTime() > manualFlagUntil then
-        local zoneType = Str(Call("GetZonePVPInfo"))
+    local now = GetTime()
+    if wasPvP == false and pvp and now > manualFlagUntil and now - arrivedAt <= ARRIVAL
+        and now - foughtAt > ARRIVAL and not ns.InCombat() then
+        local zoneType = ZonePvP()
         if zoneType == "contested" or zoneType == "hostile" then
-            Track.count("W-021")
-            if not W.autoFlagged then
-                W.autoFlagged = true
-                DetectRuleset()
+            -- Counted a moment later, unless a fight began with it (an
+            -- attack can flag you a moment before the fight shows).
+            local function Count()
+                if foughtAt >= now then return end
+                Track.count("W-021")
+                if not W.autoFlagged then
+                    W.autoFlagged = true
+                    DetectRuleset()
+                end
             end
+            if C_Timer and C_Timer.After then C_Timer.After(2, Protect(Count)) else Count() end
         end
     end
     wasPvP = pvp
@@ -649,9 +664,11 @@ ns.Listen("PLAYER_ENTERING_WORLD", function(isInitialLogin, isReload)
 end)
 ns.Listen("ZONE_CHANGED_NEW_AREA", function()
     if not W then return end
+    arrivedAt = GetTime()                                     -- W-021 arriving somewhere new
     OnZone()
     CheckPvPFlag()
 end)
+ns.Listen("PLAYER_REGEN_DISABLED", function() foughtAt = GetTime() end) -- W-021 a fight's flag isn't the zone's
 ns.Listen("UNIT_FACTION", function()
     if not W then return end
     CheckFaction()

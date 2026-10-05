@@ -235,17 +235,15 @@ local function Posted()
     PairAuction()
 end
 
+-- (Sold, expired and cancelled lines are counted by the main tracker, with
+-- Forever's notifications, and come through ns.OnAuctionNotice: W-368.)
 local function OnSystemMessage(msg)
     msg = Str(Safe(msg))
     if not msg then return end
     if msg:match(AUCTION_STARTED) then
         if not createdEvent then Posted() end
-    elseif msg:match(AUCTION_REMOVED) then
-        Track.count("W-368", "cancelled")                     -- W-368 sold, expired, cancelled
-    elseif msg:match(AUCTION_SOLD) then
-        Track.count("W-368", "sold")
-    elseif msg:match(AUCTION_EXPIRED) then
-        Track.count("W-368", "expired")
+    elseif msg:match(AUCTION_REMOVED) or msg:match(AUCTION_SOLD) or msg:match(AUCTION_EXPIRED) then
+        return
     else
         local item = msg:match(AUCTION_WON)
         if item then
@@ -772,6 +770,9 @@ On("QUEST_TURNED_IN", function(questID, xp, money)
     if money and money > 0 then Track.count("W-377", ns.Level(), money) end -- W-377 quest gold by level
 end)
 On("CHAT_MSG_SYSTEM", OnSystemMessage)
+-- W-368 auctions sold, expired and cancelled: from the main tracker, which
+-- counts each once whether it came as a chat line or a notification (#83).
+ns.OnAuctionNotice(Protect(function(kind, n) Track.count("W-368", kind, n) end))
 On("AUCTION_HOUSE_AUCTION_CREATED", function()
     createdEvent = true
     Posted()
