@@ -102,7 +102,7 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 9. `BUILT` `PRI-09` Levitate casts
 10. `BUILT` `PRI-10` Inner Fire uptime (started by the cast, ends after 10 min or when the buff is gone out of combat)
 11. `BUILT` `PRI-11` Racial priest spells used (Desperate Prayer, Fear Ward, Starshards, Touch of Weakness, Devouring Plague, Hex of Weakness, Shadowguard, Elune's Grace, Feedback) if they exist on Forever
-12. `BUILT` `PRI-12` Wand shots fired (Shoot casts) and time spent wanding (Shoot casts; time from START/STOP_AUTOREPEAT_SPELL)
+12. `BUILT` `PRI-12` Wand shots fired (Shoot casts) and time spent wanding (Shoot casts; time from START/STOP_AUTOREPEAT_SPELL, checked with C_Spell.IsAutoRepeatSpell on Forever)
 13. `BUILT` `PRI-13` Dispel Magic / Cure Disease / Abolish Disease casts
 14. `BUILT` `PRI-14` Holy Nova casts
 15. `BUILT` `PRI-15` Mana spent `[probe]` (summed from spell costs; current mana is SECRET)
@@ -202,3 +202,4 @@ Companion to journey-tracking-spec.md. Same status workflow and rules apply (rea
 - 2026-10-01: Added ALL-13 estimated healing (requested in testing), shown on the Abilities page and added to ding snapshots.
 - 2026-10-01: VERIFIED in game: ALL-13 (estimated healing).
 - 2026-10-05: Fixes from a bug review (addon 0.6.2). ALL-05 counted two-handed maces, cloth and cooking recipes leaving your bags (item subclass 5 is food and drink only for consumables) and your pet's food. Self vs others never found "self", because the game names you "Name-Realm"; names are now compared without the realm (PAL-04, PAL-09, PRI-01, PRI-04, MAG-10, DRU-05, DRU-07, WLK-18; counts from before stay as they were). PAL-03 aura time stopped at the first shapeshift event (learning a spell fires one), since Classic paladin auras aren't stance-bar forms; an aura of yours that's up but untimed is now picked up out of combat. A pet dismissed as you die or take a flight no longer counts as dead (HUN-06, WLK-12). Class totals in each ding snapshot added every item bought, banked or sold to the casts; now only items used, once. ALL-12 trainers are known by NPC ID instead of the full GUID that changes when the server restarts (saved ones converted). HUN-16 tracking time ends on Find Herbs, Find Minerals or Find Treasure. Bag changes can't be booked twice when another file's listener errors. Checked outside the game (fengari, real saved data): 45 checks, and every window page for all nine classes.
+- 2026-10-05: Forever has no IsAutoRepeatSpell, GetContainerItemInfo or GetSpellSubtext, so wand time (PRI-12, ALL-10) is checked with C_Spell.IsAutoRepeatSpell, bags are read through C_Container and spell ranks through C_Spell.GetSpellSubtext, each from whichever the client has (addon 0.6.4).

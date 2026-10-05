@@ -28,7 +28,7 @@ local function Faction() return Str(Call("UnitFactionGroup", "player")) end
 local function Resting() return Call("IsResting") == true end
 local function Ghost() return Call("UnitIsGhost", "player") == true end
 -- The zone's PvP type: Forever's own UI reads it from C_PvP (W-339, W-349).
-local function ZonePvP() return Str(Call("C_PvP.GetZonePVPInfo")) or Str(Call("GetZonePVPInfo")) end
+local ZonePvP = ns.ZonePvP
 
 local function HasWord(text, words)
     for _, w in ipairs(words) do
@@ -241,14 +241,7 @@ local function ReadyInBags(match)
     for bag = 0, NUM_BAG_SLOTS or 4 do
         local slots = Num(Call("C_Container.GetContainerNumSlots", bag)) or Num(Call("GetContainerNumSlots", bag)) or 0
         for slot = 1, slots do
-            local id, link
-            local info = Call("C_Container.GetContainerItemInfo", bag, slot)
-            if type(info) == "table" then
-                id, link = Num(Safe(info.itemID)), Str(Safe(info.hyperlink))
-            else
-                local _, _, _, _, _, _, l, _, _, i = Call("GetContainerItemInfo", bag, slot)
-                id, link = Num(i), Str(l)
-            end
+            local id, link = ns.BagItem(bag, slot)
             if id and match(id, link and link:match("%[(.-)%]") or "") then
                 local start = Num(Call("C_Container.GetItemCooldown", id)) or Num(Call("GetItemCooldown", id))
                 if start == 0 then return true end

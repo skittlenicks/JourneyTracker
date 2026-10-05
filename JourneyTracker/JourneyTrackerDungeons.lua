@@ -116,10 +116,11 @@ local function Role()
         return role == "TANK" and "Tank" or role == "HEALER" and "Healer" or "DPS"
     end
     local _, class = Call("UnitClass", "player")
+    -- The tree with the most points (JourneyTrackerEconomy.lua reads them,
+    -- on Classic clients or Forever's trait tree).
     local best, most = nil, -1
-    for tab = 1, 3 do
-        local points = Num(select(3, Call("GetTalentTabInfo", tab))) or Num(select(5, Call("GetTalentTabInfo", tab)))
-        if points and points > most then best, most = tab, points end
+    for tab, tree in ipairs(ns.TalentTrees and ns.TalentTrees() or {}) do
+        if tab <= 3 and tree.points > most then best, most = tab, tree.points end
     end
     local roles = ROLES[Str(class) or ""]
     if roles and best and most > 0 then return roles[best] end

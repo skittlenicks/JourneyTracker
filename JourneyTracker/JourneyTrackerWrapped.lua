@@ -280,7 +280,7 @@ end
 local ARRIVAL = 10
 local wasPvP, manualFlagUntil, arrivedAt, foughtAt = nil, 0, -100, -100
 -- The zone's PvP type: Forever's own UI reads it from C_PvP.
-local function ZonePvP() return Str(Call("C_PvP.GetZonePVPInfo")) or Str(Call("GetZonePVPInfo")) end
+local ZonePvP = ns.ZonePvP
 local function CheckPvPFlag()
     local pvp = Call("UnitIsPVP", "player")
     if pvp == nil then return end

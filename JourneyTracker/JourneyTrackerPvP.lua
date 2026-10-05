@@ -275,7 +275,7 @@ local function CheckFlag()
         if GetTime() < manualUntil then
             Track.count("W-157")                              -- W-157 flagged yourself
         else
-            local zoneType = Str(Call("GetZonePVPInfo"))
+            local zoneType = ns.ZonePvP()
             if zoneType ~= "contested" and zoneType ~= "hostile" then
                 Track.count("W-158")                          -- W-158 by accident (contested and enemy zones are W-021)
             end
@@ -470,6 +470,25 @@ end
 -- Every 5 seconds: time flagged, in battlegrounds, in queues; rank
 ---------------------------------------------------------------------------
 
+-- Your PvP rank (1 for the first; 0 none) and its title. Forever keeps it
+-- as the renown level of its rank points faction, as its character sheet's
+-- PvP tab reads it; older clients have UnitPVPRank.
+local PVP_RANK_FACTION = 2800
+local function PvPRank()
+    if C_MajorFactions and C_MajorFactions.GetMajorFactionProgressionInfo then
+        local info = Call("C_MajorFactions.GetMajorFactionProgressionInfo", PVP_RANK_FACTION)
+        local rank = type(info) == "table" and Num(Safe(info.renownLevel))
+        if not rank or rank <= 0 then return rank end
+        local first = Enum and Enum.PvPRanks and Num(Enum.PvPRanks.Rank_1)
+        local alliance = Faction() == "Alliance" and 1 or 0
+        local title = first and Str(Call("GetText", "PVP_RANK_" .. (first + rank - 1) .. "_" .. alliance,
+            Num(Call("UnitSex", "player")) or 2))
+        return rank, title
+    end
+    local rank = Num(Call("UnitPVPRank", "player"))
+    return rank, rank and rank > 0 and Str(Call("GetPVPRankInfo", rank)) or nil
+end
+
 local function Tick(dt)
     local s = math.floor(dt + 0.5)
     if Call("UnitIsPVP", "player") == true then Track.count("W-156", nil, s) end -- W-156 time flagged
@@ -481,9 +500,8 @@ local function Tick(dt)
             break
         end
     end
-    local rank = Num(Call("UnitPVPRank", "player"))
+    local rank, name = PvPRank()
     if rank and rank > 0 then
-        local name = Str(Call("GetPVPRankInfo", rank))
         Track.max("W-183", rank, { name = name })             -- W-183 highest rank while leveling
     end
 end

@@ -124,7 +124,7 @@ local function CheckBags()
     for bag = 1, NUM_BAG_SLOTS or 4 do
         local size = Size(bag)
         if size > 0 then
-            local name = Str(Call("C_Container.GetBagName", bag)) or Str(Call("GetBagName", bag))
+            local name = Str(Call(C_Container and C_Container.GetBagName and "C_Container.GetBagName" or "GetBagName", bag))
             if baseline then
                 local seen = Track.get("W-365")
                 if type(seen) ~= "table" then seen = {} end
@@ -502,37 +502,97 @@ end
 -- Talents and spells (W-406..W-409)
 ---------------------------------------------------------------------------
 
-local talentRanks -- ["tab:index"] = rank, as last read
+local talentRanks, talentLoadout -- [key] = rank as last read, and the loadout it was read from
 
-local function TreeOf(tab)
-    local a, b = Call("GetTalentTabInfo", tab)
-    return Str(a) or Str(b) or ("Tree " .. tab),
-        Num(select(3, Call("GetTalentTabInfo", tab))) or Num(select(5, Call("GetTalentTabInfo", tab))) or 0
-end
-
-local function CheckTalents()
-    local ranks, names = {}, {}
-    for tab = 1, Num(Call("GetNumTalentTabs")) or 0 do
-        local tree = TreeOf(tab)
+-- The talents now: the three trees in the game's order, each { name,
+-- points }, and each talent with points in it, { tree, talent, rank }, by a
+-- key a later read keeps; and which loadout they're from. Classic clients
+-- list them by tab; Forever's talents are a trait tree (C_Traits) with the
+-- three classic trees as its groups, read as its own talent window reads
+-- them. Nil when they can't be read yet.
+local function ClassicTalents()
+    local tabs = Num(Call("GetNumTalentTabs"))
+    if not tabs then return nil end
+    local trees, talents = {}, {}
+    for tab = 1, tabs do
+        local a, b = Call("GetTalentTabInfo", tab)
+        local tree = Str(a) or Str(b) or ("Tree " .. tab)
+        trees[tab] = { name = tree,
+            points = Num(select(3, Call("GetTalentTabInfo", tab))) or Num(select(5, Call("GetTalentTabInfo", tab))) or 0 }
         for i = 1, Num(Call("GetNumTalents", tab)) or 0 do
             local name, _, _, _, rank = Call("GetTalentInfo", tab, i)
             name, rank = Str(name), Num(rank)
-            if name and rank then
-                ranks[tab .. ":" .. i] = rank
-                names[tab .. ":" .. i] = { tree = tree, talent = name }
-            end
+            if name and rank then talents[tab .. ":" .. i] = { tree = tree, talent = name, rank = rank } end
         end
     end
-    if not next(ranks) then return end
-    if talentRanks then
+    if not next(talents) then return nil end
+    return trees, talents, "classic"
+end
+
+local function TraitTalents()
+    local configID = Num(Call("C_ClassTalents.GetActiveConfigID"))
+    local config = configID and Call("C_Traits.GetConfigInfo", configID)
+    local treeID = type(config) == "table" and type(config.treeIDs) == "table" and Num(config.treeIDs[1])
+    if not treeID then return nil end
+    local trees, byGroup, groupIDs = {}, {}, {}
+    local groups = Call("C_Traits.GetGroupDisplayInfoByTreeID", treeID)
+    for i, g in ipairs(type(groups) == "table" and groups or {}) do
+        local id = type(g) == "table" and Num(g.groupID)
+        if id then
+            byGroup[id] = { name = Str(g.displayName) or ("Tree " .. i), points = 0 }
+            trees[#trees + 1] = byGroup[id]
+            groupIDs[#groupIDs + 1] = id
+        end
+    end
+    local spent = #groupIDs > 0 and Call("C_Traits.GetGroupCurrencyInfo", configID, groupIDs)
+    for _, c in ipairs(type(spent) == "table" and spent or {}) do
+        local tree = type(c) == "table" and byGroup[Num(c.traitNodeGroupID) or 0]
+        local info = tree and type(c.currencyInfos) == "table" and c.currencyInfos[1]
+        if type(info) == "table" then tree.points = Num(info.spent) or 0 end
+    end
+    local talents = {}
+    local nodes = Call("C_Traits.GetTreeNodes", treeID)
+    for _, nodeID in ipairs(type(nodes) == "table" and nodes or {}) do
+        local node = Call("C_Traits.GetNodeInfo", configID, nodeID)
+        local rank = type(node) == "table" and Num(node.ranksPurchased)
+        if rank and rank > 0 then
+            local entryID = type(node.activeEntry) == "table" and Num(node.activeEntry.entryID)
+            local entry = entryID and Call("C_Traits.GetEntryInfo", configID, entryID)
+            local def = type(entry) == "table" and Num(entry.definitionID)
+            def = def and Call("C_Traits.GetDefinitionInfo", def)
+            local name = type(def) == "table" and (Str(def.overrideName) or ns.SpellName(Num(def.spellID) or 0))
+            local tree = type(node.groupIDs) == "table" and byGroup[Num(node.groupIDs[1]) or 0]
+            talents["node:" .. nodeID] = { tree = tree and tree.name or "?", talent = name or ("Talent " .. nodeID),
+                                           rank = rank }
+        end
+    end
+    return trees, talents, configID
+end
+
+local function ReadTalents()
+    local trees, talents, loadout = ClassicTalents()
+    if trees then return trees, talents, loadout end
+    return TraitTalents()
+end
+
+-- The trees and their points, for the other files (JourneyTrackerDungeons.lua's role).
+function ns.TalentTrees() return (ReadTalents()) end
+
+local function CheckTalents()
+    local trees, talents, loadout = ReadTalents()
+    if not trees then return end
+    local ranks = {}
+    for key, t in pairs(talents) do ranks[key] = t.rank end
+    -- (Switching to your other spec isn't new points: it's just read again.)
+    if talentRanks and loadout == talentLoadout then
         for key, rank in pairs(ranks) do
             for r = (talentRanks[key] or 0) + 1, rank do
-                Track.list("W-406", { tree = names[key].tree, talent = names[key].talent, rank = r,
+                Track.list("W-406", { tree = talents[key].tree, talent = talents[key].talent, rank = r,
                                       level = ns.Level() }, 150) -- W-406 talent points in order
-                Track.firstEver("W-476", { tree = names[key].tree, name = names[key].talent }) -- W-476 the first
+                Track.firstEver("W-476", { tree = talents[key].tree, name = talents[key].talent }) -- W-476 the first
             end
         end
-    elseif Track.get("W-476") == nil then
+    elseif not talentRanks and Track.get("W-476") == nil then
         -- Points already spent when tracking began: the first was before.
         for _, rank in pairs(ranks) do
             if rank > 0 then
@@ -541,13 +601,10 @@ local function CheckTalents()
             end
         end
     end
-    talentRanks = ranks
+    talentRanks, talentLoadout = ranks, loadout
     if ns.Level() >= 60 then
         local split = {}
-        for tab = 1, Num(Call("GetNumTalentTabs")) or 0 do
-            local tree, points = TreeOf(tab)
-            split[tree] = points
-        end
+        for _, tree in ipairs(trees) do split[tree.name] = tree.points end
         Track.set("W-408", split)                             -- W-408 talent split at 60
     end
 end
@@ -761,6 +818,7 @@ On("PLAYER_EQUIPMENT_CHANGED", OnEquipmentChanged)
 On("UPDATE_INVENTORY_DURABILITY", CheckDurability)
 On("CHARACTER_POINTS_CHANGED", CheckTalents)
 On("PLAYER_TALENT_UPDATE", CheckTalents)
+On("TRAIT_CONFIG_UPDATED", CheckTalents)                      -- Forever's talents (C_Traits)
 On("CONFIRM_TALENT_WIPE", function(cost) wipeCost = Num(Safe(cost)) end)
 On("LEARNED_SPELL_IN_TAB", OnLearned)
 On("LEARNED_SPELL_IN_SKILL_LINE", OnLearned)

@@ -555,19 +555,16 @@ ns.OnLoad(function()
     local Friend = Once(function() Track.count("W-294") end)  -- W-294 friends added
     ns.Hook("AddFriend", Protect(Friend))
     ns.Hook("C_FriendList.AddFriend", Protect(Friend))
-    ns.Hook("UseContainerItem", Protect(function(bag, slot)
-        local _, _, _, _, _, _, _, _, _, id = Call("GetContainerItemInfo", bag, slot)
-        UsedItem(id)
-    end))
-    ns.Hook("C_Container.UseContainerItem", Protect(function(bag, slot)
-        local info = Call("C_Container.GetContainerItemInfo", bag, slot)
-        if type(info) == "table" then UsedItem(info.itemID) end
+    -- (Bag items and items by name through whichever the client has: an
+    -- old global can be a wrapper for the C_ one, and Forever has only that.)
+    ns.HookEither("C_Container.UseContainerItem", "UseContainerItem", Protect(function(bag, slot)
+        UsedItem((ns.BagItem(bag, slot)))
     end))
     ns.Hook("UseAction", Protect(function(slot)
         local kind, id = Call("GetActionInfo", slot)
         if kind == "item" then UsedItem(id) end
     end))
-    ns.Hook("UseItemByName", Protect(function(name)
+    ns.HookEither("C_Item.UseItemByName", "UseItemByName", Protect(function(name)
         if Str(Safe(name)) == "Hearthstone" then UsedItem(HEARTHSTONE_ITEM) end
     end))
 end)

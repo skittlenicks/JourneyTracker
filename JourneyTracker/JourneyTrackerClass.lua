@@ -608,10 +608,17 @@ local function FindCastStates()
     end
 end
 
--- PRI-12, ALL-10: time spent wanding (auto-repeat "Shoot").
+-- PRI-12, ALL-10: time spent wanding (auto-repeat "Shoot"). Forever has
+-- C_Spell.IsAutoRepeatSpell; older clients the global (1 or nil).
 local function OnAutoRepeat()
     if not wandTimer then return end
-    wandTimer:Set(Call("IsAutoRepeatSpell", "Shoot") and "Wanding" or nil)
+    local wanding
+    if C_Spell and C_Spell.IsAutoRepeatSpell then
+        wanding = Call("C_Spell.IsAutoRepeatSpell", "Shoot") == true
+    else
+        wanding = Call("IsAutoRepeatSpell", "Shoot") and true or false
+    end
+    wandTimer:Set(wanding and "Wanding" or nil)
 end
 
 ---------------------------------------------------------------------------
@@ -705,12 +712,8 @@ local function BagList()
 end
 
 local function SlotItem(bag, slot)
-    local info = Call("C_Container.GetContainerItemInfo", bag, slot)
-    if type(info) == "table" then
-        return Num(Safe(info.itemID)), Num(Safe(info.stackCount)), Str(Safe(info.hyperlink))
-    end
-    local _, count, _, _, _, _, link, _, _, id = Call("GetContainerItemInfo", bag, slot)
-    return Num(id), Num(count), Str(link)
+    local id, link, count = ns.BagItem(bag, slot)
+    return id, count, link
 end
 
 local function ScanBags()
@@ -1053,7 +1056,7 @@ end
 
 local function CountCast(name, spellID, castGUID)
     Inc(data.casts, name)                                     -- every cast, all ranks together
-    local rank = Str(Call("C_Spell.GetSpellSubtext", spellID)) or Str(Call("GetSpellSubtext", spellID))
+    local rank = Str(Call(C_Spell and C_Spell.GetSpellSubtext and "C_Spell.GetSpellSubtext" or "GetSpellSubtext", spellID))
     if rank and rank:find("%d") then
         data.ranks[name] = data.ranks[name] or {}
         Inc(data.ranks[name], rank)                           -- and per rank

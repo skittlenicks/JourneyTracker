@@ -2051,6 +2051,30 @@ function ns.MobInfo(name) return name and mobInfo[name] end
 function ns.PlayerInfo(name) return name and playerInfo[name] end
 function ns.CurrentFight() return fight end
 function ns.HookErrors() return hookErrors end
+-- Game functions that moved: Forever (a modern client) only has the C_
+-- ones, older clients only the globals, so each is read from whichever the
+-- client has (asking for the other would only show up in /journey status).
+-- The zone's PvP type ("friendly", "hostile", "contested", "sanctuary"...):
+function ns.ZonePvP()
+    if C_PvP and C_PvP.GetZonePVPInfo then return Str(Call("C_PvP.GetZonePVPInfo")) end
+    return Str(Call("GetZonePVPInfo"))
+end
+-- The item in a bag slot: its ID, link and stack size.
+function ns.BagItem(bag, slot)
+    if C_Container and C_Container.GetContainerItemInfo then
+        local info = Call("C_Container.GetContainerItemInfo", bag, slot)
+        if type(info) ~= "table" then return nil end
+        return Num(Safe(info.itemID)), Str(Safe(info.hyperlink)), Num(Safe(info.stackCount))
+    end
+    local _, count, _, _, _, _, link, _, _, id = Call("GetContainerItemInfo", bag, slot)
+    return Num(id), Str(link), Num(count)
+end
+-- Post-hook the modern function where the client has it, else the old one
+-- (one call is heard once either way).
+function ns.HookEither(modern, old, fn)
+    if type(Lookup(modern)) == "function" then return Hook(modern, fn) end
+    return Hook(old, fn)
+end
 ns.VERSION, ns.SCHEMA_VERSION = VERSION, SCHEMA_VERSION
 ns.PrintSummary = Summary
 
