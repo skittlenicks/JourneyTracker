@@ -89,11 +89,21 @@ local function Unwrap(ok, ...)
     return Clean(...)
 end
 
+-- Game functions asked for that this client doesn't have, for /journey
+-- status (some are only fallbacks for others that it does have).
+local missingAPIs, missingAPIList = {}, {}
+
 -- Call a game API by name. Missing functions, errors and secret return
 -- values all come back as nil, so callers only ever see plain values.
 local function Call(name, ...)
     local fn = Lookup(name)
-    if type(fn) ~= "function" then return nil end
+    if type(fn) ~= "function" then
+        if not missingAPIs[name] and #missingAPIList < 40 then
+            missingAPIs[name] = true
+            table.insert(missingAPIList, name)
+        end
+        return nil
+    end
     return Unwrap(pcall(fn, ...))
 end
 
@@ -1914,6 +1924,8 @@ local function Status()
         #unknownEvents > 0 and table.concat(unknownEvents, ", ") or "none")
     print(PREFIX, "functions not on this client:",
         #missingHooks > 0 and table.concat(missingHooks, ", ") or "none")
+    print(PREFIX, "game functions asked for but not on this client:",
+        #missingAPIList > 0 and table.concat(missingAPIList, ", ") or "none")
     for _, err in ipairs(hookErrors) do print(PREFIX, "tracker error:", err) end
     if ns.WrappedErrors then
         for _, err in ipairs(ns.WrappedErrors()) do print(PREFIX, "tracker error:", err) end

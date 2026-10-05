@@ -30,6 +30,7 @@ local MILESTONE_WAIT = 20  -- seconds a milestone waits for its ding's /played a
 -- /played after reaching a milestone past which an export made at that
 -- level is "late" on the website (site/model.js's LATE_AFTER).
 local LATE_AFTER = 2 * 3600
+local TYPED_WORDS = 10 -- W-292 words in an export
 
 ---------------------------------------------------------------------------
 -- Summary
@@ -47,6 +48,29 @@ local function SinceMilestone(db, level, played)
     if not reached then return nil end
     local t = (ding and ding.t) or (saved and saved.t)
     return { level = m, played = math.max(0, math.floor(played - reached)), seconds = t and math.max(0, time() - t) or nil }
+end
+
+-- The website turns away an export with a negative number anywhere in it
+-- (only a "diff", a level difference, may be one), and no stat is
+-- negative: drop any that slipped in rather than lose the whole export. In
+-- a list it becomes 0, so the list stays a list.
+local function DropNegatives(t)
+    local n = #t
+    for k, v in pairs(t) do
+        if k == "diff" then
+            -- left as it is
+        elseif type(v) == "number" and v < 0 then
+            if type(k) == "number" and k >= 1 and k <= n then t[k] = 0 else t[k] = nil end
+        elseif type(v) == "table" then
+            DropNegatives(v)
+        end
+    end
+end
+
+local function CountOf(map)
+    local n = 0
+    for _ in pairs(map or {}) do n = n + 1 end
+    return n
 end
 
 -- The summary of everything so far. `milestone` (a level) marks one saved
@@ -79,7 +103,10 @@ local function BuildSummary(db, milestone)
         skill.history = nil
         skill.rankByLevel = byLevel
     end
-    if stats.kills then stats.kills.byName = Serialize.Capped(stats.kills.byName, cap) end
+    if stats.kills then
+        stats.kills.uniqueNames = CountOf(stats.kills.byName)   -- #28 how many different mobs, before the cap
+        stats.kills.byName = Serialize.Capped(stats.kills.byName, cap)
+    end
 
     local class = Copy(db.class or {})
     if class.ALL then
@@ -93,22 +120,12 @@ local function BuildSummary(db, milestone)
     -- Settings and bookkeeping the wrapped trackers keep for themselves.
     for _, key in ipairs({ "flags", "wasNeutral", "autoFlagged", "uiFolded", "logout", "rewardIDs", "bagsSeen",
                          "lootedRecipes", "professionsKnown", "questsTurnedIn", "goldSeen", "goldFromStart",
-                         "bracketsSeen" }) do
+                         "bracketsSeen", "bindName", "bindPlace" }) do
         wrapped[key] = nil
     end
-    -- The website turns away an export with a negative number in it, and no
-    -- wrapped stat is negative: drop any that slipped in rather than lose
-    -- the whole export.
-    local function DropNegatives(t)
-        for k, v in pairs(t) do
-            if type(v) == "number" and v < 0 then
-                t[k] = nil
-            elseif type(v) == "table" then
-                DropNegatives(v)
-            end
-        end
-    end
-    DropNegatives(wrapped)
+    -- W-292 your most typed words: the website shows the top one, so only
+    -- the top few go out.
+    wrapped["W-292"] = Serialize.Capped(wrapped["W-292"], TYPED_WORDS)
 
     -- W-505 the Statistics pane: the names lookup, the baseline, the latest
     -- snapshot and what changed at each level (JourneyTrackerStats.lua).
@@ -123,7 +140,7 @@ local function BuildSummary(db, milestone)
     local _, classToken = ns.Call("UnitClass", "player")
     local _, raceToken = ns.Call("UnitRace", "player")
     local played = ns.PlayedNow() or (db.played and db.played.total) or 0
-    return {
+    local summary = {
         format = 1,
         characterId = db.characterId,
         addonVersion = ns.VERSION,
@@ -145,6 +162,8 @@ local function BuildSummary(db, milestone)
         wrapped = wrapped,
         statistics = statistics,
     }
+    DropNegatives(summary)
+    return summary
 end
 
 ---------------------------------------------------------------------------
@@ -512,12 +531,17 @@ function ns.ShowMilestoneReminder(level)
     if not db then return end
     if not level then
         for saved in pairs(db.milestones) do level = math.max(level or 0, saved) end
-        level = level or math.max(MILESTONE_EVERY, ns.Level() - ns.Level() % MILESTONE_EVERY)
+        level = level or math.min(ns.MAX_LEVEL, ns.Level() - ns.Level() % MILESTONE_EVERY + MILESTONE_EVERY)
     end
+    -- Before a milestone is saved, the example says what's to come, and its
+    -- button opens the export of now.
+    local saved = db.milestones[level] ~= nil
     reminder = reminder or CreateReminder()
     reminder.title:SetText(string.format("Level %d!", level))
-    reminder.text:SetText(string.format("Your road to %d is saved. Export it now for your recap at %s%s|r, "
-        .. "ranked against other level %d journeys while it's fresh.", level, GOLD, ns.WEBSITE, level))
+    reminder.text:SetText(string.format(saved and "Your road to %d is saved. Export it now for your recap at %s%s|r, "
+        .. "ranked against other level %d journeys while it's fresh." or "When you reach %d, your road there is "
+        .. "saved and this offers to export it for your recap at %s%s|r, ranked against other level %d journeys "
+        .. "while it's fresh.", level, GOLD, ns.WEBSITE, level))
     reminder:SetHeight(math.ceil(tonumber(reminder.text:GetStringHeight()) or 42) + 122)
     reminder.export:SetScript("OnClick", function()
         if InCombatLockdown() then
@@ -525,7 +549,7 @@ function ns.ShowMilestoneReminder(level)
             return
         end
         reminder:Hide()
-        ns.Export(level)
+        ns.Export(saved and level or nil)
     end)
     reminder:Show()
 end
