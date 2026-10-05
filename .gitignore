@@ -1,12 +1,35 @@
-# Secrets (Supabase keys)
+# Secrets (Supabase keys): .env and .env.* in any folder, except the
+# placeholder example
 .env
-tools/import/.env
+.env.*
+!.env.example
 
 # Node
 node_modules/
+npm-debug.log*
 
-# Build output
+# Build output and release zips
 dist/
+*.zip
+
+# Vercel CLI project link (project and team IDs)
+.vercel/
+
+# Local test data: copies of the game's saved data (its WTF folder, where
+# each character's SavedVariables live) and real exports, like the import
+# tool's exports.txt. Test fixtures use made-up data only.
+WTF/
+SavedVariables/
+exports*.txt
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
 
 # Claude Code personal settings
 .claude/settings.local.json
