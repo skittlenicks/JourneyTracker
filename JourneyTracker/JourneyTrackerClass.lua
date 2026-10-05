@@ -25,6 +25,7 @@ local HEARTHSTONE = "Hearthstone"
 local SOUL_SHARD = "Soul Shard"
 local PROJECTILE = 6 -- item class of arrows and bullets
 local AMMO_TYPES = { [2] = "Arrows", [3] = "Bullets" }
+local CONSUMABLE, FOOD_AND_DRINK = 0, 5 -- item class and subclass of food and drink
 
 local db          -- JourneyTrackerDB
 local classToken  -- "DRUID", "WARRIOR", ...
@@ -120,7 +121,9 @@ local CLASSES = {
         castStates = {
             { group = "aspect", verify = true, spells = { "Aspect of the Hawk", "Aspect of the Monkey",
                 "Aspect of the Cheetah", "Aspect of the Pack", "Aspect of the Beast", "Aspect of the Wild" } },
-            { group = "tracking", spells = HUNTER_TRACKING },
+            -- HUN-16: profession and racial tracking replace a hunter's.
+            { group = "tracking", spells = HUNTER_TRACKING, endOn = { "Find Herbs", "Find Minerals",
+                "Find Treasure" } },
         },
         store = { ammo = { used = {}, byType = {}, bought = {}, gold = 0, outOfAmmo = 0 },
                   pets = PetStore(), feignDrops = 0 },
@@ -379,12 +382,13 @@ local function Sum(t)
     return n
 end
 
--- true / false if a buff by that name is on you, nil if it can't be read
--- (the aura API errors in combat on Forever).
-local function HasAura(name)
+-- true / false if a buff by that name is on you (with `mine`, one you cast
+-- yourself, not a groupmate's aura or aspect), nil if it can't be read (the
+-- aura API errors in combat on Forever).
+local function HasAura(name, mine)
     local fn = C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName
     if not fn then return nil end
-    local ok, aura = pcall(fn, "player", name, "HELPFUL")
+    local ok, aura = pcall(fn, "player", name, mine and "HELPFUL|PLAYER" or "HELPFUL")
     if not ok or IsSecret(aura) then return nil end
     return aura ~= nil
 end
@@ -392,6 +396,11 @@ end
 local function ClassName(token)
     token = token or classToken
     return (LOCALIZED_CLASS_NAMES_MALE and token and LOCALIZED_CLASS_NAMES_MALE[token]) or token or "Unknown"
+end
+
+-- A character's name without the "-Realm" the game can add to it.
+local function ShortName(name)
+    return type(name) == "string" and name:match("^[^%-]+") or nil
 end
 
 -- Class of a group member with this name (counts only; names aren't kept).
@@ -409,6 +418,12 @@ end
 
 local function QuestTitle(questID)
     return Str(Call("C_QuestLog.GetTitleForQuestID", questID))
+end
+
+-- ALL-12: an NPC's ID from its GUID (the rest of a GUID changes when the
+-- server restarts).
+local function NpcID(guid)
+    return type(guid) == "string" and tonumber(guid:match("^Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)")) or nil
 end
 
 ---------------------------------------------------------------------------
@@ -532,6 +547,13 @@ end
 -- WAR-01/02, PAL-03, PRI-05, SHA-04, DRU-01/02
 local function OnFormChanged()
     local name = FormName()
+    -- PAL-03: Classic paladin auras aren't stance-bar forms. With no forms at
+    -- all, the aura casts drive the state, so "no form" doesn't end it.
+    if not name and (Num(Call("GetNumShapeshiftForms")) or 0) == 0 then
+        for _, cfg in ipairs(def.castStates or {}) do
+            if cfg.group == def.forms then return end
+        end
+    end
     local previous, changed = StateTimer(def.forms):Set(name)
     if changed then RecordSwap(def.forms, previous, name) end
 end
@@ -570,6 +592,22 @@ local function ClearCastStates()
     end
 end
 
+-- Buff-like states that are up with nothing timing them: at login, and
+-- after anything missed (a login in combat, say). Out of combat only.
+local function FindCastStates()
+    for _, cfg in ipairs(def.castStates or {}) do
+        local t = stateTimers[cfg.group]
+        if cfg.verify and not (t and t.state) then
+            for _, spell in ipairs(cfg.spells) do
+                if HasAura(spell, true) then
+                    StateTimer(cfg.group):Set(spell)
+                    break
+                end
+            end
+        end
+    end
+end
+
 -- PRI-12, ALL-10: time spent wanding (auto-repeat "Shoot").
 local function OnAutoRepeat()
     if not wandTimer then return end
@@ -601,9 +639,11 @@ end
 local function SyncPet(initial)
     local key = PetKey()
     if not key then
-        -- Gone. If it was hit a moment ago and we didn't dismiss it, it died.
+        -- Gone. If it was hit a moment ago and we didn't dismiss it, it died
+        -- (it also goes, alive, when you die or take a flight).
         if pet.key and not pet.dead and not initial and GetTime() > dismissUntil
-            and GetTime() - pet.lastHealth < 1.5 then
+            and GetTime() - pet.lastHealth < 1.5 and Call("UnitIsDeadOrGhost", "player") ~= true
+            and Call("UnitOnTaxi", "player") ~= true and GetTime() > (ns.ctx.flightUntil or 0) then
             PetDied()
         end
         pet.key, pet.dead = nil, false
@@ -820,8 +860,22 @@ local function CrossUsed(c, name, n)
     if name:find("^Conjured") and classToken ~= "MAGE" then
         Inc(all.conjured, name, n)                            -- ALL-04 a mage's food and water
     end
-    if c.cast == "Food" or c.cast == "Drink" or c.cast == "Food & Drink" or c.subClassID == 5 then
+    -- Subclass 5 is Food & Drink only for consumables (for weapons it's
+    -- two-handed maces, for trade goods cloth); what your pet eats isn't yours.
+    if c.cast == "Food" or c.cast == "Drink" or c.cast == "Food & Drink"
+        or (c.classID == CONSUMABLE and c.subClassID == FOOD_AND_DRINK and c.cast ~= "Feed Pet") then
         Inc(all.food, name, n)                                -- ALL-05 food and drink
+    end
+end
+
+-- Other files hear about every change. Each listener runs protected, like
+-- the main file's: one that errors can't stop the rest, and the first
+-- errors are kept for /journey status.
+local function TellItemListeners(c)
+    for _, fn in ipairs(itemListeners) do
+        local ok, err = pcall(fn, c)
+        local errors = not ok and ns.HookErrors and ns.HookErrors()
+        if errors and #errors < 10 then table.insert(errors, "item change: " .. tostring(err)) end
     end
 end
 
@@ -840,7 +894,7 @@ local function OnItemChange(c)
         if handler then handler(c, name, n, kind) end
     end
     if kind == "used" then CrossUsed(c, name, n) end
-    for _, fn in ipairs(itemListeners) do fn(c) end
+    TellItemListeners(c)
 end
 
 -- First scan: what you already had counts as "before tracking".
@@ -903,14 +957,17 @@ local function OnBagsChanged()
         end
         OnItemChange(c)
     end
+    -- The new contents are the baseline before anything reacts, so an error
+    -- in a reaction can't book the same changes again on the next scan.
+    local before = bags.counts
+    bags.counts = counts
     for id, n in pairs(counts) do
-        local delta = n - (bags.counts[id] or 0)
+        local delta = n - (before[id] or 0)
         if delta ~= 0 then Change(id, delta) end
     end
-    for id, old in pairs(bags.counts) do
+    for id, old in pairs(before) do
         if not counts[id] then Change(id, -old) end
     end
-    bags.counts = counts
     AfterDiff(counts, boughtAmmo, boughtOther, context)
 end
 
@@ -1062,10 +1119,11 @@ local function OnSent(unit, target, castGUID, spellID)
     if not name then return end
     if pendingCount > 64 then pendingTarget, pendingCombo, pendingCount = {}, {}, 0 end
     if targetSpells[name] then
-        -- [probe] the target's name may be secret; it's only compared, never kept.
+        -- [probe] the target's name may be secret; it's only compared, never
+        -- kept. Yours can come with your realm ("Name-Realm").
         if IsSecret(target) then
             pendingTarget[castGUID] = "unknown"
-        elseif target == nil or target == "" or target == me then
+        elseif target == nil or target == "" or (me and ShortName(target) == ShortName(me)) then
             pendingTarget[castGUID] = "self"
         else
             pendingTarget[castGUID] = "other"
@@ -1217,8 +1275,8 @@ local function TrainerOpened()
     if not all or trainerVisit then return end
     if Call("IsTradeskillTrainer") == true then return end    -- profession trainer
     trainerVisit = { money = Num(Call("GetMoney")), t = time(), level = ns.Level(), zone = ns.Zone() }
-    local guid = Str(Call("UnitGUID", "npc"))
-    if guid then all.trainerNPCs[guid] = true end              -- for ALL-12
+    local id = NpcID(Str(Call("UnitGUID", "npc")))
+    if id then all.trainerNPCs[id] = true end                  -- for ALL-12
 end
 
 local function TrainerClosed()
@@ -1232,8 +1290,8 @@ end
 
 -- ALL-12: class quests are the ones a class trainer gives or takes.
 local function NpcIsTrainer()
-    local guid = Str(Call("UnitGUID", "npc"))
-    return guid ~= nil and all.trainerNPCs[guid] == true
+    local id = NpcID(Str(Call("UnitGUID", "npc")))
+    return id ~= nil and all.trainerNPCs[id] == true
 end
 
 local function OnQuestAccepted(a, b)
@@ -1277,7 +1335,8 @@ local function Tick()
         end
     end
     -- Out of combat, check buff-like states are still up (the aura API is
-    -- blocked in combat, so they're trusted until then).
+    -- blocked in combat, so they're trusted until then), and time any that
+    -- are up but untimed (PAL-03 auras are rarely cast again).
     if def and not ns.InCombat() then
         for _, cfg in ipairs(def.castStates or {}) do
             local t = cfg.verify and stateTimers[cfg.group]
@@ -1286,6 +1345,7 @@ local function Tick()
                 stateUntil[cfg.group] = nil
             end
         end
+        FindCastStates()
     end
     if data then FlushPendingHeals() end
     FlushAll()
@@ -1317,18 +1377,7 @@ local function StartClassDrivers()
         ns.Listen("PLAYER_EQUIPMENT_CHANGED", OnEquipmentChanged)
     end
     -- Buff-like states already up at login (readable out of combat only).
-    if not ns.InCombat() then
-        for _, cfg in ipairs(def.castStates or {}) do
-            if cfg.verify then
-                for _, spell in ipairs(cfg.spells) do
-                    if HasAura(spell) then
-                        StateTimer(cfg.group):Set(spell)
-                        break
-                    end
-                end
-            end
-        end
-    end
+    if not ns.InCombat() then FindCastStates() end
 end
 
 local activated = false
@@ -1342,6 +1391,10 @@ local function Activate()
     all = db.class.ALL or {}
     db.class.ALL = all
     ns.Fill(all, ALL_DEFAULTS)
+    -- ALL-12: trainers saved by full GUID are kept by NPC ID from now on.
+    local trainers = {}
+    for key in pairs(all.trainerNPCs) do trainers[NpcID(key) or key] = true end
+    all.trainerNPCs = trainers
     wandTimer = MakeTimer(TimeStore(all, "wand"))
     lastMoney = Num(Call("GetMoney"))
     def = classToken and CLASSES[classToken]
@@ -1385,7 +1438,12 @@ local function ClassTotals()
                         if spell:sub(1, #item.prefix) == item.prefix then total = total + n end
                     end
                 end
-                for _, name in ipairs(item.items or {}) do total = total + Sum(data.items[name]) end
+                -- Items count once used. Where the casts use them up (Vanish's
+                -- Flash Powder, Reincarnation's Ankh) they're the same uses, so
+                -- the bigger count is kept (the game may not report the cast).
+                local used = 0
+                for _, name in ipairs(item.items or {}) do used = used + ((data.items[name] or {}).used or 0) end
+                total = item.casts and math.max(total, used) or total + used
                 if total > 0 then out[item.id] = total end
             end
         end

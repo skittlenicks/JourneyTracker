@@ -300,7 +300,7 @@ local DING_DELAY = 2        -- seconds after a ding, so it's counted
 local REFRESH_SECONDS = 300 -- keeps `latest` current while you play
 local REFRESH_GAP = 20      -- the window asks for a read at most this often (seconds)
 local FRAME_BUDGET_MS = 4   -- longest a read runs in one frame before it waits for the next
-local lastRead = -math.huge -- GetTime() of the last read stored
+local lastRead = -math.huge -- GetTime() of the last read, stored or not
 
 local Num, Str, Safe, Call = ns.Num, ns.Str, ns.Safe, ns.Call
 
@@ -421,6 +421,7 @@ end
 
 -- Save a read as a snapshot. Returns it, or nil if the read found nothing.
 local function Store(read, reason)
+    lastRead = GetTime()                                      -- whether or not it found anything
     local db = ns.GetDB()
     if not db or read.count == 0 then return nil end
     local S = db.statistics
@@ -442,7 +443,6 @@ local function Store(read, reason)
         S.levels[snap.level] = { t = snap.t, played = snap.played, changed = changed }
     end
     S.latest = snap
-    lastRead = GetTime()
     return snap
 end
 
@@ -473,13 +473,15 @@ Request = function(reason)
     reading = { [reason] = true }
     local function Step()
         if ns.InCombat() then
-            Hold(reading)
-            reading = nil
+            Hold(reading)                                     -- read after the fight, with any asked for meanwhile
+            Hold(again)
+            reading, again = nil, {}
             return
         end
         local ok, read = coroutine.resume(co, FRAME_BUDGET_MS)
         if not ok then
-            reading = nil                                     -- couldn't read the pane; try next time
+            Hold(reading)                                     -- couldn't read the pane; try after the next fight
+            reading, lastRead = nil, GetTime()
             return
         end
         if coroutine.status(co) ~= "dead" then

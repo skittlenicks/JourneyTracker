@@ -1252,11 +1252,11 @@ local function RenderPage()
         pageChild.jtWidth = width
     end
     B:Begin(pageChild, width)
-    if currentTab == 2 then
-        PageLevels(B, db)
-    else
-        FindPage(UIState().page)(B, db)
-    end
+    -- Drawn protected: a page that errors says so on the page instead of
+    -- raising a Lua error every second, and End always runs, so nothing
+    -- stale is left on screen.
+    local ok, err = pcall(currentTab == 2 and PageLevels or FindPage(UIState().page), B, db)
+    if not ok then B:Note("Something went wrong drawing this page: " .. tostring(err)) end
     B:End()
 end
 
