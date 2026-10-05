@@ -34,9 +34,9 @@ _Content that only exists in Forever. Zone names via GetZoneText/GetSubZoneText.
 10. `BUILT` `W-010` Camp vendors and repairs used (vendor windows opened and Repair All used while at a camp)
 11. `VERIFIED` `W-011` Camp buffs received (camp buffs landing on you (UNIT_AURA), by name) (confirmed in game)
 12. `BUILT` `W-012` Camping objects crafted with professions (camp objects and campfires created, by item)
-13. `TODO` `W-013` Legacy challenges completed while leveling (class levels 25/45/60, tradeskills 150/225/300, etc.) (Legacy API unknown; /jprobe api will find its functions and events)
-14. `TODO` `W-014` Legacy points earned and when (Legacy API unknown; waiting on /jprobe api)
-15. `TODO` `W-015` Legacy perks chosen, by tree (Professions, Adventure, Resourcefulness), and the level each was picked (Legacy API unknown; waiting on /jprobe api)
+13. `BUILT` `W-013` Legacy challenges completed while leveling (class levels 25/45/60, tradeskills 150/225/300, etc.) (Legacy API unknown; /jprobe api will find its functions and events) ([probe] the game's system messages that mention Legacy, kept with level and date (newest 60), until the Legacy API is known; the Legacy-named functions this client has are listed in db.wrapped.legacyApi (JourneyTrackerSocial.lua))
+14. `BUILT` `W-014` Legacy points earned and when (Legacy API unknown; waiting on /jprobe api) ([probe] Legacy messages that mention points, as W-013)
+15. `BUILT` `W-015` Legacy perks chosen, by tree (Professions, Adventure, Resourcefulness), and the level each was picked (Legacy API unknown; waiting on /jprobe api) ([probe] Legacy messages that mention perks, as W-013)
 16. `BUILT` `W-016` Lord Valthalak questline progress (quests with Valthalak in the title or turned in to Bodley)
 17. `BUILT` `W-017` World map exploration percentage at each ding (Legacy Adventure challenge) (explored map areas counted at each ding; percentage left to the website)
 18. `SKIP` `W-018` Racial abilities used: each of Forever's active racials (duplicates ALL-09; every cast is counted in db.class, so new racials show up once named)
@@ -307,85 +307,85 @@ _Raids open December 9, 2026: Onyxia's Lair (40-player), The Barrow Deeps (10-pl
 ## Loot rolls and group life
 _START_LOOT_ROLL, CHAT_MSG_LOOT, CHAT_MSG_SYSTEM for /roll results, GROUP_ROSTER_UPDATE._
 
-246. `TODO` `W-246` Need rolls, Greed rolls, and Passes
-247. `TODO` `W-247` Rolls won and lost
-248. `TODO` `W-248` Highest roll ever and lowest roll ever
-249. `TODO` `W-249` Times you won a roll with under 10
-250. `TODO` `W-250` Times you lost a roll with over 95
-251. `TODO` `W-251` /roll uses and average /roll result
-252. `TODO` `W-252` Blue items won on Need
-253. `TODO` `W-253` Items you passed on that someone else won
-254. `TODO` `W-254` Groups joined
-255. `TODO` `W-255` Groups left and times removed from a group
-256. `TODO` `W-256` Groups you formed as leader
-257. `TODO` `W-257` Time spent in a group with guild members (count, no names)
-258. `TODO` `W-258` Times you were the highest level in your party
-259. `TODO` `W-259` Times you were the lowest level in your party
+246. `BUILT` `W-246` Need rolls, Greed rolls, and Passes (RollOnLoot hook, by choice (JourneyTrackerSocial.lua))
+247. `BUILT` `W-247` Rolls won and lost ('You won' and '<someone> won' loot messages for items you rolled on)
+248. `BUILT` `W-248` Highest roll ever and lowest roll ever (your Need and Greed roll messages; the highest, and the lowest as W-248.lowest)
+249. `BUILT` `W-249` Times you won a roll with under 10 (won with a roll under 10)
+250. `BUILT` `W-250` Times you lost a roll with over 95 (lost with a roll over 95)
+251. `BUILT` `W-251` /roll uses and average /roll result (your /roll results: how many and their total (the average is total over rolls))
+252. `BUILT` `W-252` Blue items won on Need (blue items you won on Need)
+253. `BUILT` `W-253` Items you passed on that someone else won (items you passed on that someone else won)
+254. `BUILT` `W-254` Groups joined (going from no group to a group)
+255. `BUILT` `W-255` Groups left and times removed from a group (leaving a group, and 'You have been removed from the group')
+256. `BUILT` `W-256` Groups you formed as leader (joined as the group's leader)
+257. `BUILT` `W-257` Time spent in a group with guild members (count, no names) (5-second ticks in a group with a member of your guild (UnitIsInMyGuild))
+258. `BUILT` `W-258` Times you were the highest level in your party (highest level in a new group, checked 3 seconds after joining)
+259. `BUILT` `W-259` Times you were the lowest level in your party (lowest level, the same way)
 
 ## Bloopers (UI error messages)
 _UI_ERROR_MESSAGE gives the error type/text. Pure counts, very cheap, and great Wrapped material._
 
-260. `TODO` `W-260` 'You are facing the wrong way' / 'Target needs to be in front of you'
-261. `TODO` `W-261` 'Out of range'
-262. `TODO` `W-262` 'Not enough mana / rage / energy'
-263. `TODO` `W-263` 'Spell is not ready yet' (button mashing)
-264. `TODO` `W-264` 'Inventory is full'
-265. `TODO` `W-265` 'Can't do that while moving'
-266. `TODO` `W-266` 'Invalid target'
-267. `TODO` `W-267` 'You can't do that yet' / ability on cooldown
-268. `TODO` `W-268` 'Interrupted' cast fails
-269. `TODO` `W-269` 'Target not in line of sight'
-270. `TODO` `W-270` 'You are too far away'
-271. `TODO` `W-271` 'Can't attack while mounted' / 'You are mounted'
-272. `TODO` `W-272` 'You are dead' (tried to act while dead)
-273. `TODO` `W-273` Hearthstone pressed while on cooldown
-274. `TODO` `W-274` 'Not enough money' (tried to buy something you couldn't afford)
-275. `TODO` `W-275` 'Can't carry any more of those items' (unique items)
-276. `TODO` `W-276` Total errors and your single most common blooper
+260. `BUILT` `W-260` 'You are facing the wrong way' / 'Target needs to be in front of you' (UI_ERROR_MESSAGE matched to the game's own error strings (English fallback))
+261. `BUILT` `W-261` 'Out of range' (as W-260)
+262. `BUILT` `W-262` 'Not enough mana / rage / energy' (as W-260)
+263. `BUILT` `W-263` 'Spell is not ready yet' (button mashing) (as W-260)
+264. `BUILT` `W-264` 'Inventory is full' (as W-260)
+265. `BUILT` `W-265` 'Can't do that while moving' (as W-260)
+266. `BUILT` `W-266` 'Invalid target' (as W-260)
+267. `BUILT` `W-267` 'You can't do that yet' / ability on cooldown (as W-260)
+268. `BUILT` `W-268` 'Interrupted' cast fails (UNIT_SPELLCAST_INTERRUPTED for you, on a frame of its own (the class tracker listens to it for your target))
+269. `BUILT` `W-269` 'Target not in line of sight' (as W-260)
+270. `BUILT` `W-270` 'You are too far away' (as W-260)
+271. `BUILT` `W-271` 'Can't attack while mounted' / 'You are mounted' (as W-260)
+272. `BUILT` `W-272` 'You are dead' (tried to act while dead) (as W-260)
+273. `BUILT` `W-273` Hearthstone pressed while on cooldown ('Item is not ready yet' within a second of using the Hearthstone (bags, action bar or by name))
+274. `BUILT` `W-274` 'Not enough money' (tried to buy something you couldn't afford) (as W-260)
+275. `BUILT` `W-275` 'Can't carry any more of those items' (unique items) (as W-260)
+276. `BUILT` `W-276` Total errors and your single most common blooper (every error message; by message as W-276.byMessage, the most common being its top)
 
 ## Social and chat
 _Counts only. Never store message contents or other players' names. Chat may be restricted in combat, so queue and process after combat._
 
-277. `TODO` `W-277` Messages you sent in /say
-278. `TODO` `W-278` Messages you sent in /yell
-279. `TODO` `W-279` Messages you sent in party chat
-280. `TODO` `W-280` Messages you sent in guild chat
-281. `TODO` `W-281` Whispers sent
-282. `TODO` `W-282` Whispers received
-283. `TODO` `W-283` Messages you sent in General/Trade/LFG channels
-284. `TODO` `W-284` Times you typed 'lol', 'lmao', or 'haha'
-285. `TODO` `W-285` Times you typed 'gz' or 'grats'
-286. `TODO` `W-286` Times you typed 'ty' or 'thanks'
-287. `TODO` `W-287` Times you typed 'inc' or 'help'
-288. `TODO` `W-288` Times you typed 'LFG' or 'LFM'
-289. `TODO` `W-289` Times you typed 'brb' or 'afk'
-290. `TODO` `W-290` Guild 'gz' messages received within 60 seconds of your ding
-291. `TODO` `W-291` Most 'gz' received on a single ding
-292. `TODO` `W-292` Your most typed word (top word from your own messages, stored as a word count map, capped)
-293. `TODO` `W-293` Messages sent per hour played
-294. `TODO` `W-294` Friends added
-295. `TODO` `W-295` Players inspected (INSPECT_READY)
-296. `TODO` `W-296` Trades completed
-297. `TODO` `W-297` Gold given away in trades
-298. `TODO` `W-298` Gold received in trades
-299. `TODO` `W-299` Items given away in trades
-300. `TODO` `W-300` Guilds joined and left
-301. `TODO` `W-301` Time in a guild vs unguilded
+277. `BUILT` `W-277` Messages you sent in /say (SendChatMessage hook (and C_ChatInfo's); counted, text never kept)
+278. `BUILT` `W-278` Messages you sent in /yell (as W-277)
+279. `BUILT` `W-279` Messages you sent in party chat (party, raid and instance chat, as W-277)
+280. `BUILT` `W-280` Messages you sent in guild chat (guild and officer chat, as W-277)
+281. `BUILT` `W-281` Whispers sent (as W-277; the recipient isn't kept)
+282. `BUILT` `W-282` Whispers received (CHAT_MSG_WHISPER, counted)
+283. `BUILT` `W-283` Messages you sent in General/Trade/LFG channels (channels named General, Trade or LookingForGroup, as W-277)
+284. `BUILT` `W-284` Times you typed 'lol', 'lmao', or 'haha' (whole words in what you send (lol, lmao, haha, rofl))
+285. `BUILT` `W-285` Times you typed 'gz' or 'grats' (gz, grats, gratz, congrats)
+286. `BUILT` `W-286` Times you typed 'ty' or 'thanks' (ty, thanks, thx)
+287. `BUILT` `W-287` Times you typed 'inc' or 'help' (inc, help)
+288. `BUILT` `W-288` Times you typed 'LFG' or 'LFM' (lfg, lfm)
+289. `BUILT` `W-289` Times you typed 'brb' or 'afk' (brb, afk)
+290. `BUILT` `W-290` Guild 'gz' messages received within 60 seconds of your ding (guild messages with gz, grats, congrats or ding from someone else within 60 seconds of your level-up)
+291. `BUILT` `W-291` Most 'gz' received on a single ding (the most of those on one level-up)
+292. `BUILT` `W-292` Your most typed word (top word from your own messages, stored as a word count map, capped) (your own words of 3+ letters, minus very common ones, as a capped count map)
+293. `BUILT` `W-293` Messages sent per hour played (the sent counts (W-277..W-283) over /played, worked out on the website)
+294. `BUILT` `W-294` Friends added (AddFriend hooks)
+295. `BUILT` `W-295` Players inspected (INSPECT_READY) (INSPECT_READY, once per player a session (by GUID, not kept))
+296. `BUILT` `W-296` Trades completed ('Trade complete' messages)
+297. `BUILT` `W-297` Gold given away in trades (money down while a trade window is open (or just closed))
+298. `BUILT` `W-298` Gold received in trades (money up while a trade window is open)
+299. `BUILT` `W-299` Items given away in trades (items that left your bags in a trade)
+300. `BUILT` `W-300` Guilds joined and left (IsInGuild changing, after the login check)
+301. `BUILT` `W-301` Time in a guild vs unguilded (5-second ticks in and out of a guild)
 
 ## Emotes
 _CHAT_MSG_TEXT_EMOTE from the player, and emotes targeted at you (count only)._
 
-302. `TODO` `W-302` Total emotes used
-303. `TODO` `W-303` Your most used emote
-304. `TODO` `W-304` /dance count
-305. `TODO` `W-305` /lol and /laugh count
-306. `TODO` `W-306` /spit count
-307. `TODO` `W-307` /cheer and /applaud count
-308. `TODO` `W-308` /hug count
-309. `TODO` `W-309` /sit and /sleep count
-310. `TODO` `W-310` /train count (the classic choo choo)
-311. `TODO` `W-311` Emotes other players directed at you
-312. `TODO` `W-312` Most received emote
+302. `BUILT` `W-302` Total emotes used (DoEmote hook and /e messages)
+303. `BUILT` `W-303` Your most used emote (DoEmote tokens, counted)
+304. `BUILT` `W-304` /dance count (DANCE in W-303)
+305. `BUILT` `W-305` /lol and /laugh count (LOL and LAUGH in W-303)
+306. `BUILT` `W-306` /spit count (SPIT in W-303)
+307. `BUILT` `W-307` /cheer and /applaud count (CHEER and APPLAUD in W-303)
+308. `BUILT` `W-308` /hug count (HUG in W-303)
+309. `BUILT` `W-309` /sit and /sleep count (SIT and SLEEP in W-303)
+310. `BUILT` `W-310` /train count (the classic choo choo) (TRAIN in W-303)
+311. `BUILT` `W-311` Emotes other players directed at you (CHAT_MSG_TEXT_EMOTE from someone else that says 'you'; the sender isn't kept)
+312. `BUILT` `W-312` Most received emote (those by verb ('hugs'), the top one being the most received)
 
 ## Movement and world mechanics
 _IsSwimming, IsFalling, IsFlying, IsIndoors, IsOutdoors, MIRROR_TIMER_START (BREATH, EXHAUSTION, FEIGNDEATH), sampled positions._
@@ -637,3 +637,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-05: Sections 2-6 (creature families, Alliance, Horde and neutral iconic, rares) done in the new JourneyTrackerIconic.lua, plus boats and zeppelins (W-329, W-330, W-472) and gold spent on mounts (W-375), which the iconic routes and racial mounts needed. W-022..W-139 `BUILT` except the world PvP ones (W-080, W-091, W-100, left for the PvP section); W-113 and W-114 `SKIP` (covered by #46 and #66). The main tracker now passes kills (with zone, creature type and beast family), fights (with who was in them and the highest mob level), deaths, falls, loot and money changes to the wrapped files (ns.OnKill and friends, each run protected so a wrapped tracker can't break the main one), and remembers enemy players' class and level for the session only. Kills without experience (critters, Gamon) are counted when a target you attacked dies, and from the combat log where Forever lets addons read it ([probe]); neither counts a kill the experience message already did. The window has a new Wrapped Stats section (folded at first) with Creature Families, Iconic Moments and Rares & Elites pages. Checked outside the game (fengari, real saved data): murlocs in and out of a fight, wolves vs worgen, Hogger and the two Princesses, a chicken and a kobold, capital visits, a boat and a zeppelin ride, a guard death, quests, a Wanted target, loot, a rare, the Horde items, the export and every page.
 - 2026-10-05: Sections 7-8 (world PvP, battlegrounds and duels) done in the new JourneyTrackerPvP.lua, with the iconic PvP items (W-080, W-091, W-100) and the PvP firsts (W-468, W-469, W-479, W-480). W-140..W-190 `BUILT` except W-164 `BLOCKED` (health is secret on Forever). Enemy players killed come from honorable kill messages, enemy player targets you attacked dying, and the combat log where allowed; one player within 10 seconds counts once, and only class and level are kept. Battleground objectives come from your scoreboard row at the end, column by column, so Darkspear Islands' columns are kept whatever they're called. Duel results come from the system messages; the client's format there uses numbered parts (%1$s), so the pattern builder handles those. Checked outside the game: a stealth gank and an honorable kill (and the same player not counted twice), a corpse camp, two duels, a Warsong Gulch win with its scoreboard, and every page.
 - 2026-10-05: Sections 9-10 (dungeons deep dive, raids) done in the new JourneyTrackerDungeons.lua. `BUILT`: clear times, fastest clears, wipes and abandoned runs per dungeon, first final-boss kills, Forever vs Classic runs, Scarlet Monastery, Dire Maul and Stratholme wings (told apart by the bosses killed), Naralex awakened, the Zul'Farrak stairs, last one standing and first to fall in a wipe, deaths by boss, XP per run, blue boss drops, dungeon quests by dungeon, runs over level or boosted, party compositions (classes only), your role, hearthing out, lockouts, bosses by Legacy bracket, Onyxia and the first raid boss after 60, deaths in raids. `SKIP`: runs per dungeon and the nine new dungeons' runs (#73), each named boss (#28, #41), corpse runs into dungeons (#48-49), most-run dungeon per bracket (#74), raid runs, kills and wipes (#73, #41-42). The window can now draw maps of records (the Forever vs Classic split) as rows. Checked outside the game: a Deadmines run with a trash wipe, a death on Mr. Smite, VanCleef, a blue drop, a dungeon quest and a hearth out; a Scarlet Monastery Armory run from Herod's kill; Shadowfang Keep left early; a lockout; Onyxia. No stray globals.
+- 2026-10-05: Sections 11-14 (loot rolls and group life, bloopers, social and chat, emotes) done in the new JourneyTrackerSocial.lua, all `BUILT`, plus W-013..W-015 (Legacy) as a [probe]: the game's system messages that mention Legacy are kept with level and date, and the Legacy-named functions the client has are listed, until the Legacy API is known. Chat is counted, never kept: what you send is read once as it goes out (SendChatMessage hook) to count channels and a few words, and only your own words are tallied (capped); whispers and emotes aimed at you are counted without the sender. Bloopers match the client's own error strings. Your interrupted casts are counted on a frame of their own, because the class tracker listens to the same event for your target and the shared frame keeps one unit filter per event. Checked outside the game: rolls won and passed, /roll, a group, errors, chat and typed words, guild gz after a ding, emotes, a trade, a Legacy message, joining a guild. No stray globals.

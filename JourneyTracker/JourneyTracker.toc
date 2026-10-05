@@ -12,6 +12,7 @@ JourneyTrackerWrapped.lua
 JourneyTrackerIconic.lua
 JourneyTrackerPvP.lua
 JourneyTrackerDungeons.lua
+JourneyTrackerSocial.lua
 JourneyTrackerStats.lua
 JourneyTrackerSerialize.lua
 JourneyTrackerExport.lua
