@@ -1,15 +1,23 @@
 -- JourneyTracker "Wrapped" stats. IDs W-001..W-500 match
--- wrapped-tracking-spec.md, which is built one section at a time. This file
--- currently covers:
---   Section 1: WoW Forever exclusives (W-001..W-021)
+-- wrapped-tracking-spec.md. This file has section 1 (WoW Forever
+-- exclusives, W-001..W-021) and the registry the other wrapped files use
+-- (JourneyTrackerKills.lua and the rest, after this one in the TOC).
 --
 -- Counters live in db.wrapped, keyed by item ID, through a small registry:
 --   Track.count(id, key?, n?)  add to a number, or to a capped name map
 --   Track.time(id, state)      seconds in a state (the class tracker's timer)
 --   Track.max(id, value, ctx)  the biggest value seen, with context
+--   Track.min(id, value, ctx)  the smallest value seen, with context
 --   Track.first(id, ctx)       the first time something happened
+--   Track.firstOf(id, key, ctx) the first time, once per key
+--   Track.list(id, entry, cap) append to a list kept to its newest `cap`
 -- Name-keyed maps keep their 200 biggest entries. Spec [probe] items sit
 -- behind db.wrapped.flags so they can be switched off.
+--
+-- For the other files: ns.Track, ns.WrappedOn(event, fn, unit) (a
+-- protected ns.Listen), ns.WrappedTick(fn(dt)) every 5 seconds,
+-- ns.Protect(fn), ns.WrappedPage(section, title, draw) for the window, and
+-- ns.ShowItems(B, rows) to draw a page of items.
 
 local ADDON_NAME, ns = ...
 local Safe, Call, Num, Str, IsSecret = ns.Safe, ns.Call, ns.Num, ns.Str, ns.IsSecret
@@ -106,9 +114,84 @@ function Track.first(id, extra)
     return true
 end
 
+function Track.min(id, value, extra)
+    local current = W[id]
+    if type(current) == "table" and current.value and current.value <= value then return false end
+    local ctx = Context(extra)
+    ctx.value = value
+    W[id] = ctx
+    return true
+end
+
+-- The first time something happened, once per key (capital cities, bag
+-- sizes, standings).
+function Track.firstOf(id, key, extra)
+    local map = type(W[id]) == "table" and W[id] or {}
+    W[id] = map
+    if map[key] ~= nil then return false end
+    map[key] = Context(extra)
+    return true
+end
+
+-- Append to a list, keeping its newest `cap` entries.
+function Track.list(id, entry, cap)
+    local list = type(W[id]) == "table" and W[id] or {}
+    W[id] = list
+    table.insert(list, entry)
+    while #list > (cap or 50) do table.remove(list, 1) end
+end
+
+function Track.get(id) return W and W[id] end
+function Track.set(id, value) W[id] = value end
+function Track.context(extra) return Context(extra) end
+
 function Track.enabled(flag)
     return W.flags[flag] ~= false
 end
+
+---------------------------------------------------------------------------
+-- Shared plumbing for the wrapped files
+---------------------------------------------------------------------------
+
+-- Errors in wrapped trackers are caught and the first few kept for
+-- /journey status, so one bad tracker can't break the others or the game.
+local errors = {}
+local function Protect(fn)
+    return function(...)
+        if not W then return end
+        local ok, err = pcall(fn, ...)
+        if not ok and #errors < 10 then table.insert(errors, tostring(err)) end
+    end
+end
+function ns.WrappedErrors() return errors end
+ns.Protect = Protect
+
+function ns.WrappedOn(event, fn, unit) ns.Listen(event, Protect(fn), unit) end
+
+-- Every 5 seconds, with the seconds since the last tick (loading screens
+-- and other odd gaps skipped).
+local tickers, lastTick = {}, nil
+function ns.WrappedTick(fn) table.insert(tickers, Protect(fn)) end
+local function RunTickers()
+    local now = GetTime()
+    local dt = lastTick and now - lastTick or 0
+    lastTick = now
+    if dt <= 0 or dt > 60 then return end
+    for _, fn in ipairs(tickers) do fn(dt) end
+end
+
+-- Pages for the window: sections in the order they're added, each a list
+-- of { title, draw }.
+local pageSections, pageOrder = {}, {}
+function ns.WrappedPage(section, title, draw)
+    if not pageSections[section] then
+        pageSections[section] = {}
+        table.insert(pageOrder, section)
+    end
+    table.insert(pageSections[section], { title, function(B, ...) if W then draw(B, ...) end end })
+end
+
+ns.Track = Track
 
 ---------------------------------------------------------------------------
 -- Section 1: WoW Forever exclusives
@@ -413,9 +496,75 @@ local function DrawForever(B)
     B:Row("Auto-flagged for PvP by a zone", type(W["W-021"]) == "number" and W["W-021"] or 0)
 end
 
+-- One line for a stored item: a count, a time, money, a record ("first",
+-- "max": level, zone and date), or a name map drawn as bars ("map").
+local function Value(v, how)
+    local U = ns.UI
+    if v == nil then return "-" end
+    if type(v) == "number" then
+        if how == "time" then return U.Dur(v) end
+        if how == "money" then return U.Money(v) end
+        return U.Num(v)
+    end
+    if type(v) == "table" and (v.level or v.t) then
+        local parts = {}
+        if v.value ~= nil then
+            parts[#parts + 1] = how == "time" and U.Dur(v.value) or how == "money" and U.Money(v.value)
+                or tostring(type(v.value) == "number" and U.Num(v.value) or v.value)
+        end
+        if v.name then parts[#parts + 1] = tostring(v.name) end
+        if v.level then parts[#parts + 1] = "level " .. v.level end
+        if v.zone then parts[#parts + 1] = v.zone end
+        if v.t then parts[#parts + 1] = U.Date(v.t) end
+        return table.concat(parts, ", ")
+    end
+    if type(v) == "string" or type(v) == "boolean" then return tostring(v) end
+    return nil -- a map or list
+end
+
+-- Draw a page of items. Each row is { id, label, how } (how: nil for a
+-- count, "time", "money", "map" for bars, "firsts" for a map of first
+-- times), or { heading = text } or { note = text }.
+function ns.ShowItems(B, rows)
+    local U = ns.UI
+    for _, r in ipairs(rows) do
+        if r.heading then
+            B:Heading(r.heading)
+        elseif r.note then
+            B:Note(r.note)
+        else
+            local id, label, how = r[1], r[2], r[3]
+            local v = W[id]
+            if how == "map" or how == "timemap" or how == "moneymap" then
+                B:Row(label, type(v) == "table" and next(v) and "" or "-")
+                if type(v) == "table" and next(v) then
+                    B:BarList(v, how == "timemap" and U.Dur or how == "moneymap" and U.Money or nil, nil, 12)
+                end
+            elseif how == "firsts" then
+                B:Row(label, type(v) == "table" and next(v) and "" or "-")
+                if type(v) == "table" then
+                    for key, rec in pairs(v) do B:Note(tostring(key) .. ": " .. (Value(rec) or "-")) end
+                end
+            else
+                local text = Value(v, how)
+                if text then
+                    B:Row(label, text)
+                else
+                    B:Row(label, "")
+                    B:BarList(v, nil, nil, 12)
+                end
+            end
+        end
+    end
+end
+
 function ns.WrappedSections()
     if not W then return {} end
-    return { { name = "WoW Forever", pages = { { "Forever Exclusives", DrawForever } } } }
+    local sections = { { name = "WoW Forever", pages = { { "Forever Exclusives", DrawForever } } } }
+    for _, name in ipairs(pageOrder) do
+        table.insert(sections, { name = name, pages = pageSections[name] })
+    end
+    return sections
 end
 
 function ns.DrawCamping(B)
@@ -436,7 +585,12 @@ ns.Listen("PLAYER_ENTERING_WORLD", function(isInitialLogin, isReload)
     CheckFaction()
     DetectRuleset()
     wasPvP = Call("UnitIsPVP", "player") and true or false
-    if C_Timer and C_Timer.NewTicker then C_Timer.NewTicker(5, CampTick) end
+    if C_Timer and C_Timer.NewTicker then
+        C_Timer.NewTicker(5, function()
+            CampTick()
+            RunTickers()
+        end)
+    end
 end)
 ns.Listen("ZONE_CHANGED_NEW_AREA", function()
     if not W then return end
@@ -477,6 +631,14 @@ ns.OnLoad(function(saved)
     db.wrapped = db.wrapped or {}
     W = db.wrapped
     W.flags = W.flags or { probe = true } -- [probe] sections can be switched off here
+    -- The wrapped pages start folded away in the window's list (once; after
+    -- that it's yours to open or close).
+    if not W.uiFolded then
+        db.ui = db.ui or { collapsed = {}, page = "Summary" }
+        db.ui.collapsed = db.ui.collapsed or {}
+        db.ui.collapsed["Wrapped Stats"] = true
+        W.uiFolded = true
+    end
     -- W-010 repairs at a camp's Repair Bot
     ns.Hook("RepairAllItems", function() if IsAtCamp() then Track.count("W-010", "repair") end end)
     -- W-021 flagging yourself on purpose isn't an auto-flag

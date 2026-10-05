@@ -34,6 +34,19 @@ local PREFIX = "|cff33ff99Journey|r"
 
 local db -- JourneyTrackerDB, set on ADDON_LOADED
 
+-- What this file records, passed on to the other files (ns.OnKill and
+-- friends). Each callback runs protected: an error in one of them can't
+-- stop this file recording the kill, death or loot. The first errors are
+-- kept for /journey status.
+local hooks = { kill = {}, fight = {}, death = {}, fall = {}, loot = {}, money = {} }
+local hookErrors = {}
+local function Fire(kind, ...)
+    for _, fn in ipairs(hooks[kind]) do
+        local ok, err = pcall(fn, ...)
+        if not ok and #hookErrors < 10 then table.insert(hookErrors, kind .. ": " .. tostring(err)) end
+    end
+end
+
 ---------------------------------------------------------------------------
 -- Safe access helpers
 ---------------------------------------------------------------------------
@@ -456,6 +469,7 @@ local function OnLanded(airTime)
     F.total = F.total + drop                                  -- #101 total distance fallen
     local fall = { yards = drop, t = time(), level = Level(), zone = Zone(), subzone = SubZone() }
     lastLanding = { at = GetTime(), fall = fall }
+    Fire("fall", fall, airTime)
     if not (C_Timer and C_Timer.After) then return end
     -- #102 longest fall survived: still alive a moment after landing?
     C_Timer.After(FATAL_CHECK, function()
@@ -501,7 +515,8 @@ end
 -- Kills and fights (#26-40, #47)
 ---------------------------------------------------------------------------
 
-local mobInfo = {}   -- session cache: [mob name] = { class, ctype, level }
+local mobInfo = {}   -- session cache: [mob name] = { class, ctype, family, level }
+local playerInfo = {} -- session cache, never saved: [player name] = { class, level, enemy }
 local plates = {}    -- active nameplate unit tokens
 local fight          -- the current fight while in combat
 local lastHostile    -- last attackable thing we targeted (name or "Player (PvP)")
@@ -514,14 +529,27 @@ local function UnitLabel(unit)
 end
 
 -- Remember what a mob is, so the kill message (which only has its name)
--- can be matched to elite/rare, creature type and level.
+-- can be matched to elite/rare, creature type, beast family and level. A
+-- player's class and level are remembered for this session only, so a PvP
+-- kill or death can be counted by class; their names are never saved.
 local function CacheUnit(unit)
-    if Call("UnitIsPlayer", unit) ~= false then return end
+    local isPlayer = Call("UnitIsPlayer", unit)
+    if isPlayer == true then
+        local name = Str(Call("UnitName", unit))
+        local _, class = Call("UnitClass", unit)
+        if name then
+            playerInfo[name] = { class = Str(class), level = Num(Call("UnitLevel", unit)),
+                                 enemy = Call("UnitIsEnemy", "player", unit) == true }
+        end
+        return
+    end
+    if isPlayer ~= false then return end
     local name = Str(Call("UnitName", unit))
     if not name then return end
     mobInfo[name] = {
         class = Str(Call("UnitClassification", unit)),
         ctype = Str(Call("UnitCreatureType", unit)),
+        family = Str(Call("UnitCreatureFamily", unit)),
         level = Num(Call("UnitLevel", unit)),
     }
 end
@@ -540,13 +568,15 @@ local function CommitKill(k)
             K.maxLevelDiff = { diff = diff, name = k.name, mobLevel = k.mobLevel, level = k.level }
         end
     end
+    Fire("kill", k)
 end
 
 local function QueueKill(name)
     local info = mobInfo[name]
     local k = {
-        name = name, level = Level(),
-        class = info and info.class, ctype = info and info.ctype, mobLevel = info and info.level,
+        name = name, level = Level(), t = time(), zone = Zone(), subzone = SubZone(), grouped = InGroup(),
+        class = info and info.class, ctype = info and info.ctype, family = info and info.family,
+        mobLevel = info and info.level,
     }
     if fight then
         table.insert(fight.kills, k) -- committed on PLAYER_REGEN_ENABLED
@@ -571,6 +601,14 @@ local function SampleFight()
                 if not fight.targeted[guid] then
                     fight.ambush = fight.ambush + 1
                 end
+                -- Who was in the fight, and the highest level that came at us
+                -- (-1 is a skull), for the other files.
+                local label = UnitLabel(unit)
+                if label then fight.names[label] = true end
+                local level = Num(Call("UnitLevel", unit))
+                if level and (level == -1 or fight.maxMobLevel ~= -1 and level > (fight.maxMobLevel or 0)) then
+                    fight.maxMobLevel = level
+                end
             end
             if threat >= 2 then
                 fight.lastHostile = UnitLabel(unit) or fight.lastHostile -- #47 candidate
@@ -583,13 +621,18 @@ end
 local fightTicker
 local function StartFight()
     fight = { start = GetTime(), kills = {}, threat = {}, targeted = {},
-              ambush = 0, maxMobs = 0, lastHostile = lastHostile }
+              ambush = 0, maxMobs = 0, lastHostile = lastHostile, names = {}, grouped = InGroup(),
+              zone = Zone(), subzone = SubZone() }
     -- Whatever we targeted just before the pull counts as "targeted".
     if lastTargetGUID and GetTime() - lastTargetTime <= 10 then
         fight.targeted[lastTargetGUID] = true
     end
     local cur = Str(Call("UnitGUID", "target"))
     if cur then fight.targeted[cur] = true end
+    if Call("UnitCanAttack", "player", "target") == true then
+        local label = UnitLabel("target")
+        if label then fight.names[label] = true end
+    end
     db.combat.fights = db.combat.fights + 1                   -- #34 combats entered
     if not fightTicker and C_Timer and C_Timer.NewTicker then
         fightTicker = C_Timer.NewTicker(FIGHT_SAMPLE_SECONDS, SampleFight)
@@ -613,6 +656,8 @@ local function EndFight()
     for _, k in ipairs(fight.kills) do
         CommitKill(k)
     end
+    fight.duration = dur
+    Fire("fight", fight)
     fight = nil
 end
 
@@ -681,6 +726,11 @@ local function OnDeath()
     local run = db.dungeons.current
     if run then run.deaths = run.deaths + 1 end               -- #75 deaths per dungeon
     death = { rec = rec, start = GetTime() }
+    -- For the other files: what the killer was (if we saw it), and whether
+    -- a fall or a fight was going on. They may add fields to rec.
+    Fire("death", rec, { mob = mobInfo[rec.killer], fell = FellToDeath(), fight = fight,
+                         player = rec.killer == "Player (PvP)" and Call("UnitIsPlayer", "target") == true
+                             and { class = select(2, Call("UnitClass", "target")), level = Num(Call("UnitLevel", "target")) } })
 end
 
 -- Called once we're alive again. `how` is the resurrection type.
@@ -806,6 +856,11 @@ local function OnMoney()
     if not last then return end
     local d = now - last
     local t = GetTime()
+    -- For the other files: the change, where it happened and the new total.
+    local where = (ctx.loot or t < ctx.lootUntil) and "loot" or (t < ctx.repairUntil and "repair")
+        or (t < ctx.flightUntil and "flight") or (ctx.trainer and "trainer") or (ctx.auction and "auction")
+        or (ctx.mail and "mail") or (ctx.merchant and "merchant") or nil
+    Fire("money", d, where, now)
     if d > 0 then
         M.earned = M.earned + d                               -- #77 total earned
         if ctx.loot or t < ctx.lootUntil then
@@ -920,6 +975,8 @@ local function OnLoot(link, count)
         Inc(db.gathering[gatherKind].items, link:match("%[(.-)%]") or link, count)
     end
     local q = ItemQuality(link)
+    Fire("loot", link, count, q, { fishing = GetTime() < fishingUntil,
+                                   gather = GetTime() < gatherUntil and gatherKind or nil })
     if not q then return end
     Inc(L.byQuality, q, count)                                -- #87 by quality
     local ilvl = ItemLevel(link)
@@ -1358,7 +1415,10 @@ handlers.PLAYER_TARGET_CHANGED = function()
         lastTargetGUID, lastTargetTime = guid, GetTime()
         if fight then fight.targeted[guid] = true end
     end
-    if fight then fight.lastHostile = lastHostile end
+    if fight then
+        fight.lastHostile = lastHostile
+        if lastHostile then fight.names[lastHostile] = true end
+    end
 end
 
 handlers.NAME_PLATE_UNIT_ADDED = function(unit)
@@ -1821,6 +1881,10 @@ local function Status()
         #unknownEvents > 0 and table.concat(unknownEvents, ", ") or "none")
     print(PREFIX, "functions not on this client:",
         #missingHooks > 0 and table.concat(missingHooks, ", ") or "none")
+    for _, err in ipairs(hookErrors) do print(PREFIX, "tracker error:", err) end
+    if ns.WrappedErrors then
+        for _, err in ipairs(ns.WrappedErrors()) do print(PREFIX, "tracker error:", err) end
+    end
 end
 
 -- Shared with the other files (class and wrapped trackers, UI).
@@ -1831,6 +1895,20 @@ ns.InGroup, ns.InCombat = InGroup, InCombat
 ns.IsSecret, ns.Safe, ns.Call, ns.Str, ns.Num, ns.Inc = IsSecret, Safe, Call, Str, Num, Inc
 ns.Fill, ns.Hook, ns.ctx, ns.PATTERNS = Fill, Hook, ctx, PATTERNS
 ns.MAX_LEVEL, ns.PROFESSIONS = MAX_LEVEL, PROFESSIONS
+ns.PatternFrom, ns.MapPos, ns.WorldPos, ns.ItemQuality = PatternFrom, MapPos, WorldPos, ItemQuality
+-- What this file records, for the other files: fn(kill), fn(fight) as it
+-- ends, fn(deathRecord, extra), fn(fall, airTime), fn(link, count,
+-- quality, extra), fn(moneyChange, where, total).
+function ns.OnKill(fn) table.insert(hooks.kill, fn) end
+function ns.OnFightEnd(fn) table.insert(hooks.fight, fn) end
+function ns.OnDeathRecord(fn) table.insert(hooks.death, fn) end
+function ns.OnFall(fn) table.insert(hooks.fall, fn) end
+function ns.OnLootItem(fn) table.insert(hooks.loot, fn) end
+function ns.OnMoneyChange(fn) table.insert(hooks.money, fn) end
+function ns.MobInfo(name) return name and mobInfo[name] end
+function ns.PlayerInfo(name) return name and playerInfo[name] end
+function ns.CurrentFight() return fight end
+function ns.HookErrors() return hookErrors end
 ns.VERSION, ns.SCHEMA_VERSION = VERSION, SCHEMA_VERSION
 ns.PrintSummary = Summary
 

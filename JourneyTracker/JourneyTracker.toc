@@ -9,6 +9,7 @@ Libs\LibDeflate\LibDeflate.lua
 JourneyTracker.lua
 JourneyTrackerClass.lua
 JourneyTrackerWrapped.lua
+JourneyTrackerIconic.lua
 JourneyTrackerStats.lua
 JourneyTrackerSerialize.lua
 JourneyTrackerExport.lua

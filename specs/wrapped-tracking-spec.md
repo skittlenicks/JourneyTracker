@@ -47,140 +47,140 @@ _Content that only exists in Forever. Zone names via GetZoneText/GetSubZoneText.
 ## Creature kills: meme families
 _[probe] Kill attribution by mob name/type. Match on name keywords plus UnitCreatureType/UnitCreatureFamily cached at target time._
 
-22. `TODO` `W-022` Murlocs slain
-23. `TODO` `W-023` Most murlocs in a single combat (the classic murloc train)
-24. `TODO` `W-024` Kobolds slain
-25. `TODO` `W-025` Gnolls slain
-26. `TODO` `W-026` Defias Brotherhood members slain
-27. `TODO` `W-027` Harpies slain
-28. `TODO` `W-028` Centaurs slain (Kolkar, Galak, Maraudine, Magram, Gelkis)
-29. `TODO` `W-029` Quilboar slain (Razormane, Bristleback, Razorfen)
-30. `TODO` `W-030` Trolls slain, any tribe
-31. `TODO` `W-031` Ogres slain
-32. `TODO` `W-032` Naga slain
-33. `TODO` `W-033` Satyrs slain
-34. `TODO` `W-034` Furbolgs slain
-35. `TODO` `W-035` Troggs slain
-36. `TODO` `W-036` Dark Iron dwarves slain
-37. `TODO` `W-037` Scarlet Crusade members slain
-38. `TODO` `W-038` Syndicate members slain
-39. `TODO` `W-039` Venture Co. goblins slain
-40. `TODO` `W-040` Bloodsail Buccaneers slain
-41. `TODO` `W-041` Burning Blade cultists slain
-42. `TODO` `W-042` Scourge undead slain
-43. `TODO` `W-043` Spiders slain
-44. `TODO` `W-044` Raptors slain
-45. `TODO` `W-045` Crocolisks slain
-46. `TODO` `W-046` Wolves and worgs slain
-47. `TODO` `W-047` Boars slain
-48. `TODO` `W-048` Bears slain
-49. `TODO` `W-049` Gorillas slain
-50. `TODO` `W-050` Scorpids slain
-51. `TODO` `W-051` Kodos slain
-52. `TODO` `W-052` Big cats slain (panthers, tigers, lions, nightsabers)
-53. `TODO` `W-053` Whelps and dragonkin slain
-54. `TODO` `W-054` Elementals slain
-55. `TODO` `W-055` Demons slain
-56. `TODO` `W-056` Yetis slain
-57. `TODO` `W-057` Critters killed total (UnitCreatureType Critter)
-58. `TODO` `W-058` Chickens killed
-59. `TODO` `W-059` Rabbits and squirrels killed
+22. `BUILT` `W-022` Murlocs slain (kills matched on name keywords, creature type or beast family from FAMILIES in JourneyTrackerIconic.lua; kills without experience counted when a target you attacked dies, or from the combat log where Forever allows it)
+23. `BUILT` `W-023` Most murlocs in a single combat (the classic murloc train) (murloc kills per fight, best kept with level and zone)
+24. `BUILT` `W-024` Kobolds slain (FAMILIES keywords)
+25. `BUILT` `W-025` Gnolls slain (FAMILIES keywords)
+26. `BUILT` `W-026` Defias Brotherhood members slain (FAMILIES keywords)
+27. `BUILT` `W-027` Harpies slain (FAMILIES keywords)
+28. `BUILT` `W-028` Centaurs slain (Kolkar, Galak, Maraudine, Magram, Gelkis) (FAMILIES keywords)
+29. `BUILT` `W-029` Quilboar slain (Razormane, Bristleback, Razorfen) (FAMILIES keywords)
+30. `BUILT` `W-030` Trolls slain, any tribe (FAMILIES keywords)
+31. `BUILT` `W-031` Ogres slain (FAMILIES keywords)
+32. `BUILT` `W-032` Naga slain (FAMILIES keywords)
+33. `BUILT` `W-033` Satyrs slain (FAMILIES keywords)
+34. `BUILT` `W-034` Furbolgs slain (FAMILIES keywords)
+35. `BUILT` `W-035` Troggs slain (FAMILIES keywords)
+36. `BUILT` `W-036` Dark Iron dwarves slain (FAMILIES keywords)
+37. `BUILT` `W-037` Scarlet Crusade members slain (FAMILIES keywords)
+38. `BUILT` `W-038` Syndicate members slain (FAMILIES keywords)
+39. `BUILT` `W-039` Venture Co. goblins slain (FAMILIES keywords)
+40. `BUILT` `W-040` Bloodsail Buccaneers slain (FAMILIES keywords)
+41. `BUILT` `W-041` Burning Blade cultists slain (FAMILIES keywords)
+42. `BUILT` `W-042` Scourge undead slain (creature type Undead)
+43. `BUILT` `W-043` Spiders slain (Spider family or name)
+44. `BUILT` `W-044` Raptors slain (Raptor family or name)
+45. `BUILT` `W-045` Crocolisks slain (Crocolisk family or name)
+46. `BUILT` `W-046` Wolves and worgs slain (Wolf family or wolf/worg names, not worgen)
+47. `BUILT` `W-047` Boars slain (Boar family or name)
+48. `BUILT` `W-048` Bears slain (Bear family or name)
+49. `BUILT` `W-049` Gorillas slain (Gorilla family or name)
+50. `BUILT` `W-050` Scorpids slain (Scorpid family or name)
+51. `BUILT` `W-051` Kodos slain (name)
+52. `BUILT` `W-052` Big cats slain (panthers, tigers, lions, nightsabers) (Cat family or cat names)
+53. `BUILT` `W-053` Whelps and dragonkin slain (creature type Dragonkin or whelp/drake/dragon names)
+54. `BUILT` `W-054` Elementals slain (creature type Elemental)
+55. `BUILT` `W-055` Demons slain (creature type Demon)
+56. `BUILT` `W-056` Yetis slain (name)
+57. `BUILT` `W-057` Critters killed total (UnitCreatureType Critter) (creature type Critter; critters give no experience, so these come from the no-experience kill watch; Blizzard's pane also counts critters (statistic 108))
+58. `BUILT` `W-058` Chickens killed (no-experience kill watch)
+59. `BUILT` `W-059` Rabbits and squirrels killed (no-experience kill watch)
 
 ## Alliance iconic
 _Only active for Alliance characters. [probe] for anything keyed on a mob name._
 
-60. `TODO` `W-060` Hogger: level and /played at first kill
-61. `TODO` `W-061` Hogger: attempts (combats with Hogger) and deaths to Hogger
-62. `TODO` `W-062` Princess (Elwynn boar) killed
-63. `TODO` `W-063` Edwin VanCleef killed: level and /played at first kill
-64. `TODO` `W-064` Kobold candle meme: Kobolds killed in Elwynn mines
-65. `TODO` `W-065` Harvest Watchers (Westfall scarecrows) slain
-66. `TODO` `W-066` Defias Pillagers and Defias Messengers slain in Westfall
-67. `TODO` `W-067` Bellygrub (Redridge boar) killed
-68. `TODO` `W-068` Blackrock orcs slain in Redridge
-69. `TODO` `W-069` Stitches killed (Duskwood)
-70. `TODO` `W-070` Mor'Ladim killed (Duskwood)
-71. `TODO` `W-071` Worgen slain in Duskwood
-72. `TODO` `W-072` Deeprun Tram rides
-73. `TODO` `W-073` Times entered Ironforge, Stormwind, and Darnassus
-74. `TODO` `W-074` Time AFK in Ironforge
-75. `TODO` `W-075` Boat rides: Menethil to Auberdine, Menethil to Theramore, Auberdine to Rut'theran
-76. `TODO` `W-076` Rut'theran portal uses to Darnassus
-77. `TODO` `W-077` Times visited Southshore
-78. `TODO` `W-078` Times visited Theramore
-79. `TODO` `W-079` Times you entered Orgrimmar, Thunder Bluff, or Undercity (enemy capitals)
+60. `BUILT` `W-060` Hogger: level and /played at first kill (first kill by name, with level and /played)
+61. `BUILT` `W-061` Hogger: attempts (combats with Hogger) and deaths to Hogger (fights with Hogger in them, and deaths with Hogger as the killer)
+62. `BUILT` `W-062` Princess (Elwynn boar) killed (exact name, so Princess Theradras doesn't count)
+63. `BUILT` `W-063` Edwin VanCleef killed: level and /played at first kill (first kill)
+64. `BUILT` `W-064` Kobold candle meme: Kobolds killed in Elwynn mines (kobold kills in Fargodeep and Jasperlode Mines)
+65. `BUILT` `W-065` Harvest Watchers (Westfall scarecrows) slain (name)
+66. `BUILT` `W-066` Defias Pillagers and Defias Messengers slain in Westfall (names, in Westfall)
+67. `BUILT` `W-067` Bellygrub (Redridge boar) killed (first kill)
+68. `BUILT` `W-068` Blackrock orcs slain in Redridge (Blackrock names, in Redridge)
+69. `BUILT` `W-069` Stitches killed (Duskwood) (first kill)
+70. `BUILT` `W-070` Mor'Ladim killed (Duskwood) (first kill)
+71. `BUILT` `W-071` Worgen slain in Duskwood (worgen and Nightbane names, in Duskwood)
+72. `BUILT` `W-072` Deeprun Tram rides (entering the Deeprun Tram zone; a new visit after 10 minutes away)
+73. `BUILT` `W-073` Times entered Ironforge, Stormwind, and Darnassus (entries by city, a new visit after 10 minutes away)
+74. `BUILT` `W-074` Time AFK in Ironforge (5-second ticks AFK in Ironforge)
+75. `BUILT` `W-075` Boat rides: Menethil to Auberdine, Menethil to Theramore, Auberdine to Rut'theran (dock to dock on a known route within 8 minutes, with no flight or hearth between (subzones Menethil Harbor, Auberdine, Theramore Isle, Rut'theran Village))
+76. `BUILT` `W-076` Rut'theran portal uses to Darnassus (Darnassus moments after Rut'theran Village)
+77. `BUILT` `W-077` Times visited Southshore (subzone visits)
+78. `BUILT` `W-078` Times visited Theramore (subzone visits)
+79. `BUILT` `W-079` Times you entered Orgrimmar, Thunder Bluff, or Undercity (enemy capitals) (entries by city)
 80. `TODO` `W-080` Horde players killed in Southshore or Hillsbrad [probe]
-81. `TODO` `W-081` Racial mount bought: horse, ram, mechanostrider, or nightsaber
-82. `TODO` `W-082` Level you left your starting zone
-83. `TODO` `W-083` Dragonmaw orcs slain in the Wetlands
+81. `BUILT` `W-081` Racial mount bought: horse, ram, mechanostrider, or nightsaber (a mount item (class 15, subclass 5) bought from a vendor, with its price)
+82. `BUILT` `W-082` Level you left your starting zone (first move from your race's starting zone and capital to anywhere else; not recorded if the tracker already saw you elsewhere)
+83. `BUILT` `W-083` Dragonmaw orcs slain in the Wetlands (Dragonmaw names, in the Wetlands)
 
 ## Horde iconic
 _Only active for Horde characters. [probe] for anything keyed on a mob name._
 
-84. `TODO` `W-084` Mankrik's wife found (Lost in Battle quest): level and /played
-85. `TODO` `W-085` Kolkar centaurs slain in the Barrens
-86. `TODO` `W-086` Echeyakee killed (Barrens)
-87. `TODO` `W-087` Lakota'mani killed (Barrens rare kodo)
-88. `TODO` `W-088` Plainstriders slain in the Barrens
-89. `TODO` `W-089` Barrens General chat messages seen (count only)
-90. `TODO` `W-090` Barrens chat messages mentioning Chuck Norris (count only)
+84. `BUILT` `W-084` Mankrik's wife found (Lost in Battle quest): level and /played (quest 'Lost in Battle' turned in, with level and /played)
+85. `BUILT` `W-085` Kolkar centaurs slain in the Barrens (Kolkar names, in the Barrens)
+86. `BUILT` `W-086` Echeyakee killed (Barrens) (first kill)
+87. `BUILT` `W-087` Lakota'mani killed (Barrens rare kodo) (first kill)
+88. `BUILT` `W-088` Plainstriders slain in the Barrens (Plainstrider names, in the Barrens)
+89. `BUILT` `W-089` Barrens General chat messages seen (count only) (General channel messages while you're in the Barrens; counted, text never kept)
+90. `BUILT` `W-090` Barrens chat messages mentioning Chuck Norris (count only) (the same messages containing 'chuck norris'; counted, text never kept)
 91. `TODO` `W-091` Alliance players killed in the Crossroads [probe]
-92. `TODO` `W-092` Gamon slain in Orgrimmar
-93. `TODO` `W-093` Zeppelin rides by route: Orgrimmar to Undercity, Orgrimmar to Grom'gol, Undercity to Grom'gol
-94. `TODO` `W-094` Undercity elevator rides
-95. `TODO` `W-095` Deaths falling from the Undercity elevator [probe]
-96. `TODO` `W-096` Thunder Bluff elevator rides and falls off Thunder Bluff
-97. `TODO` `W-097` Times entered Orgrimmar, Thunder Bluff, and Undercity
-98. `TODO` `W-098` Time AFK in Orgrimmar
-99. `TODO` `W-099` Times visited Tarren Mill
+92. `BUILT` `W-092` Gamon slain in Orgrimmar (kills by name, with or without experience)
+93. `BUILT` `W-093` Zeppelin rides by route: Orgrimmar to Undercity, Orgrimmar to Grom'gol, Undercity to Grom'gol (zeppelin docks: Durotar, Tirisfal Glades, Grom'gol Base Camp; same rules as W-075)
+94. `BUILT` `W-094` Undercity elevator rides (moving between Undercity and Tirisfal Glades)
+95. `BUILT` `W-095` Deaths falling from the Undercity elevator [probe] (deaths by falling in Undercity or the Ruins of Lordaeron)
+96. `BUILT` `W-096` Thunder Bluff elevator rides and falls off Thunder Bluff (moving between Thunder Bluff and Mulgore not by air; falls of 30+ yards landing in Mulgore within 15 seconds of being in Thunder Bluff)
+97. `BUILT` `W-097` Times entered Orgrimmar, Thunder Bluff, and Undercity (entries by city)
+98. `BUILT` `W-098` Time AFK in Orgrimmar (5-second ticks AFK in Orgrimmar)
+99. `BUILT` `W-099` Times visited Tarren Mill (subzone visits)
 100. `TODO` `W-100` Alliance players killed in Tarren Mill or Hillsbrad [probe]
-101. `TODO` `W-101` Times visited Grom'gol, Kargath, Hammerfall, and Stonard
-102. `TODO` `W-102` Times you entered Stormwind, Ironforge, or Darnassus (enemy capitals)
-103. `TODO` `W-103` Racial mount bought: wolf, kodo, raptor, or skeletal horse
-104. `TODO` `W-104` Scorpids slain in Durotar
-105. `TODO` `W-105` Scarlet Crusaders slain in Tirisfal
-106. `TODO` `W-106` Worgen slain in Silverpine (Arugal's pack)
-107. `TODO` `W-107` Times visited the Kodo Graveyard
+101. `BUILT` `W-101` Times visited Grom'gol, Kargath, Hammerfall, and Stonard (subzone visits by outpost)
+102. `BUILT` `W-102` Times you entered Stormwind, Ironforge, or Darnassus (enemy capitals) (entries by city)
+103. `BUILT` `W-103` Racial mount bought: wolf, kodo, raptor, or skeletal horse (as W-081)
+104. `BUILT` `W-104` Scorpids slain in Durotar (scorpids, in Durotar)
+105. `BUILT` `W-105` Scarlet Crusaders slain in Tirisfal (Scarlet names, in Tirisfal Glades)
+106. `BUILT` `W-106` Worgen slain in Silverpine (Arugal's pack) (Moonrage, worgen and Son of Arugal names, in Silverpine)
+107. `BUILT` `W-107` Times visited the Kodo Graveyard (subzone visits)
 
 ## Neutral zone iconic
 _[probe] for name-based kills. Zone/subzone detection via ZONE_CHANGED_NEW_AREA and GetSubZoneText._
 
-108. `TODO` `W-108` Green Hills of Stranglethorn pages looted
-109. `TODO` `W-109` Green Hills of Stranglethorn chapters completed
-110. `TODO` `W-110` Nesingwary hunts: tigers, panthers, raptors slain in Stranglethorn
-111. `TODO` `W-111` King Bangalash killed
-112. `TODO` `W-112` Gurubashi Arena entries and Arena Master trinket looted
-113. `TODO` `W-113` Deaths in Stranglethorn Vale
-114. `TODO` `W-114` Time spent in Stranglethorn Vale (the gankfest)
-115. `TODO` `W-115` Booty Bay visits and Booty Bay boat rides to Ratchet
-116. `TODO` `W-116` Times killed by Booty Bay or other goblin town guards
-117. `TODO` `W-117` Devilsaurs slain in Un'Goro
-118. `TODO` `W-118` Deaths to Devilsaurs
-119. `TODO` `W-119` Un'Goro crystals collected
-120. `TODO` `W-120` Un'Goro pylons activated
-121. `TODO` `W-121` A-Me 01 escorted
-122. `TODO` `W-122` Gadgetzan water quests completed
-123. `TODO` `W-123` Dark Portal visits (Blasted Lands)
-124. `TODO` `W-124` Karazhan entrance visits (Deadwind Pass)
-125. `TODO` `W-125` Onyxia's Lair entrance visits (Dustwallow)
-126. `TODO` `W-126` Yetis slain in Winterspring
-127. `TODO` `W-127` Desolace centaur faction kills (Magram vs Gelkis)
-128. `TODO` `W-128` Zone you spent the most time in at each 10-level bracket
-129. `TODO` `W-129` Time spent in contested zones vs friendly zones
+108. `BUILT` `W-108` Green Hills of Stranglethorn pages looted (loot named 'Green Hills of Stranglethorn - Page')
+109. `BUILT` `W-109` Green Hills of Stranglethorn chapters completed (quests titled 'Chapter I' to 'Chapter IV')
+110. `BUILT` `W-110` Nesingwary hunts: tigers, panthers, raptors slain in Stranglethorn (tiger, panther and raptor kills in Stranglethorn, by kind)
+111. `BUILT` `W-111` King Bangalash killed (first kill)
+112. `BUILT` `W-112` Gurubashi Arena entries and Arena Master trinket looted (subzone visits to Gurubashi Arena; the first Arena Master looted as W-112.trinket)
+113. `SKIP` `W-113` Deaths in Stranglethorn Vale (covered by #46: every death's zone is recorded)
+114. `SKIP` `W-114` Time spent in Stranglethorn Vale (the gankfest) (covered by #66: time spent in each zone)
+115. `BUILT` `W-115` Booty Bay visits and Booty Bay boat rides to Ratchet (subzone visits; Booty Bay to Ratchet boat rides as W-115.rides)
+116. `BUILT` `W-116` Times killed by Booty Bay or other goblin town guards (deaths with a Bruiser as the killer, by name)
+117. `BUILT` `W-117` Devilsaurs slain in Un'Goro (Devilsaur names, in Un'Goro Crater)
+118. `BUILT` `W-118` Deaths to Devilsaurs (deaths with a Devilsaur as the killer)
+119. `BUILT` `W-119` Un'Goro crystals collected (Power Crystals looted, by color)
+120. `BUILT` `W-120` Un'Goro pylons activated (the three pylon quests turned in)
+121. `BUILT` `W-121` A-Me 01 escorted (quests with 'A-Me 01' in the title)
+122. `BUILT` `W-122` Gadgetzan water quests completed ('Water Pouch Bounty' turned in)
+123. `BUILT` `W-123` Dark Portal visits (Blasted Lands) (subzone visits)
+124. `BUILT` `W-124` Karazhan entrance visits (Deadwind Pass) (subzone visits)
+125. `BUILT` `W-125` Onyxia's Lair entrance visits (Dustwallow) (visits to the Wyrmbog or Onyxia's Lair)
+126. `BUILT` `W-126` Yetis slain in Winterspring (yetis, in Winterspring)
+127. `BUILT` `W-127` Desolace centaur faction kills (Magram vs Gelkis) (Magram and Gelkis kills in Desolace, by clan)
+128. `BUILT` `W-128` Zone you spent the most time in at each 10-level bracket (time per zone in each 10-level bracket from the 5-second ticks; the website picks the top zone)
+129. `BUILT` `W-129` Time spent in contested zones vs friendly zones (time by GetZonePVPInfo (friendly, contested, hostile, sanctuary))
 
 ## Rares and named mobs
 _[probe] Use UnitClassification and nameplate/target info._
 
-130. `TODO` `W-130` Rare spawns seen (targeted or nameplate) vs killed
-131. `TODO` `W-131` Rare kills by zone
-132. `TODO` `W-132` Named quest-boss mobs killed (mobs from 'Wanted' posters)
-133. `TODO` `W-133` First rare you ever killed: name, level, zone
-134. `TODO` `W-134` Rares that killed you
-135. `TODO` `W-135` Elite mobs soloed (only you in combat, no group)
-136. `TODO` `W-136` Elite deaths: times an elite killed you
-137. `TODO` `W-137` Highest-level elite soloed
-138. `TODO` `W-138` Mobs killed that were 5+ levels above you
-139. `TODO` `W-139` Times you were attacked by a mob 10+ levels above you
+130. `BUILT` `W-130` Rare spawns seen (targeted or nameplate) vs killed (rares on nameplates or targeted, once per spawn; rare kills)
+131. `BUILT` `W-131` Rare kills by zone (rare kills by zone)
+132. `BUILT` `W-132` Named quest-boss mobs killed (mobs from 'Wanted' posters) (kills of the mobs named in your 'Wanted:' quests)
+133. `BUILT` `W-133` First rare you ever killed: name, level, zone (first rare kill: name, its level, your level, zone)
+134. `BUILT` `W-134` Rares that killed you (deaths to a rare, by name)
+135. `BUILT` `W-135` Elite mobs soloed (only you in combat, no group) (elite kills while not in a group)
+136. `BUILT` `W-136` Elite deaths: times an elite killed you (deaths to an elite, rare elite or boss)
+137. `BUILT` `W-137` Highest-level elite soloed (highest mob level of an elite killed solo)
+138. `BUILT` `W-138` Mobs killed that were 5+ levels above you (kills of mobs 5+ levels above you (skull included))
+139. `BUILT` `W-139` Times you were attacked by a mob 10+ levels above you (fights where a mob 10+ levels above you (or a skull) had threat on you, read from nameplates)
 
 ## World PvP and ganking
 _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel, stealth state at combat start, UnitIsDeadOrGhost after combat. Store levels and classes only, never names._
@@ -406,8 +406,8 @@ _IsSwimming, IsFalling, IsFlying, IsIndoors, IsOutdoors, MIRROR_TIMER_START (BRE
 326. `TODO` `W-326` Times you logged out in an inn vs in the field
 327. `TODO` `W-327` Rested XP gained while logged out
 328. `TODO` `W-328` Times you hit max rested XP
-329. `TODO` `W-329` Boat rides total
-330. `TODO` `W-330` Zeppelin rides total
+329. `BUILT` `W-329` Boat rides total (boat rides from the dock-to-dock detector in JourneyTrackerIconic.lua)
+330. `BUILT` `W-330` Zeppelin rides total (zeppelin rides, same detector)
 331. `TODO` `W-331` Portal uses (mage portals, Rut'theran, etc.)
 332. `TODO` `W-332` Summons accepted
 333. `TODO` `W-333` Times you used a meeting stone
@@ -460,7 +460,7 @@ _PLAYER_MONEY deltas with context (merchant open, mail open, AH open, trade, que
 372. `TODO` `W-372` Mail sent and received
 373. `TODO` `W-373` COD mail sent and received
 374. `TODO` `W-374` Gold sent and received by mail
-375. `TODO` `W-375` Gold spent on mounts
+375. `BUILT` `W-375` Gold spent on mounts (price of a mount bought from a vendor (JourneyTrackerIconic.lua))
 376. `TODO` `W-376` Gold spent on talent respecs
 377. `TODO` `W-377` Gold earned from quests per level
 378. `TODO` `W-378` Times you went broke (under 1 silver)
@@ -577,7 +577,7 @@ _Each records level, /played, zone, and real timestamp._
 469. `TODO` `W-469` First time killed by an enemy player
 470. `TODO` `W-470` First trip to each capital city
 471. `TODO` `W-471` First flight path taken
-472. `TODO` `W-472` First boat or zeppelin ride
+472. `BUILT` `W-472` First boat or zeppelin ride (first boat or zeppelin ride, with the route)
 473. `TODO` `W-473` First mount summoned
 474. `TODO` `W-474` First profession maxed for its bracket (75, 150, 225, 300)
 475. `TODO` `W-475` First time hitting Exalted with any faction
@@ -634,3 +634,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-01: W-502..W-507 `BUILT` in JourneyTrackerStats.lua (statistics snapshots): every statistic keyed by ID with raw values, names and categories stored once in db.statistics; a baseline 10s after login, a diff at every ding (queued until combat ends), a full snapshot at every export and every 5 minutes as `latest`. Reads are spread over frames (4 ms each), stop if combat starts, and skip secret values (listed in db.statistics.skipped). `/journey stats` prints the count, baseline level, last snapshot and the cross-check. The export carries a `statistics` section (format unchanged; no migration needed, the new table is filled from defaults). tools/import: `--stats` prints the baseline level and statistic counts per export. W-508 stays `TODO` until the probe dump shows whether Forever's pane has the combat statistics.
 - 2026-10-01: Probe dump and first snapshots read from a level 20 character (client 1.60.1, build 70170): 195 statistics in 26 categories, every value text, 167 of them "--"; no hidden, secret or account-flagged statistics; no C_ statistics namespace (GetComparisonStatistic also exists). The baseline and a later login snapshot both saved all 195. Findings that matter for the website: "Total kills that grant experience or honor" includes honorable kills (52 here, all PvP), and some counters look like they started when Forever added the pane (Creatures killed is 3 at level 20) while others cover the whole character (Quests completed 133), so not every "lifetime" number is lifetime. Deaths and flights changed in step with our own counts. Fixes: the window's "all time" rows use Creatures killed (Summary, Kills) and add Total Honorable Kills (Bosses & PvP); the W-507 cross-check takes honorable kills off Blizzard's kill count. W-508 `BUILT`: the combat statistics exist and are read with everything else.
 - 2026-10-01: The window's separate Lifetime > Statistics Pane page is gone. Every statistic now shows on the existing page it fits (category to page by category ID; one with no page goes where its parent goes, else on the Summary), all of them, "--" included. Rows both sides count show the bigger of the two numbers (both start partway through a character's life): Summary, Quests completed/abandoned/gold, Total deaths, Deaths from falling, XP-granting kills (the game's experience-or-honor kills less honorable kills), Honorable kills, Hearthstone uses, Flights taken, the Gold page's earned/spent rows, profession skill bars, Fish caught, and health/mana potions; those statistics aren't listed again. The window reads the pane again when it opens and every 20 seconds while it's open (out of combat only).
+- 2026-10-05: Sections 2-6 (creature families, Alliance, Horde and neutral iconic, rares) done in the new JourneyTrackerIconic.lua, plus boats and zeppelins (W-329, W-330, W-472) and gold spent on mounts (W-375), which the iconic routes and racial mounts needed. W-022..W-139 `BUILT` except the world PvP ones (W-080, W-091, W-100, left for the PvP section); W-113 and W-114 `SKIP` (covered by #46 and #66). The main tracker now passes kills (with zone, creature type and beast family), fights (with who was in them and the highest mob level), deaths, falls, loot and money changes to the wrapped files (ns.OnKill and friends, each run protected so a wrapped tracker can't break the main one), and remembers enemy players' class and level for the session only. Kills without experience (critters, Gamon) are counted when a target you attacked dies, and from the combat log where Forever lets addons read it ([probe]); neither counts a kill the experience message already did. The window has a new Wrapped Stats section (folded at first) with Creature Families, Iconic Moments and Rares & Elites pages. Checked outside the game (fengari, real saved data): murlocs in and out of a fight, wolves vs worgen, Hogger and the two Princesses, a chicken and a kobold, capital visits, a boat and a zeppelin ride, a guard death, quests, a Wanted target, loot, a rare, the Horde items, the export and every page.
