@@ -14,7 +14,9 @@
 //
 // Uploads without a profile (tools/import doesn't make them) or with one
 // from an older MODEL get theirs worked out from their export here and
-// written back, a few per load.
+// written back, a few per load, before each character's is chosen. An
+// export it can't be worked out from gets a failed profile, so it's tried
+// once per MODEL, not on every load.
 
 const JourneyModel = require('./model');
 const RANKINGS = require('./rankings');
@@ -22,6 +24,7 @@ const RANKINGS = require('./rankings');
 const KEEP_FOR = 10 * 60 * 1000;   // ms a population is kept
 const PAGE = 1000;                 // rows per request, Supabase's cap
 const MAKE_PER_LOAD = 25;          // profiles worked out per load
+const MAKE_AT_ONCE = 5;            // exports read at once to work them out
 // Uploads made to test the importer and the site don't count.
 const TEST_VERSIONS = ['test', 'deploy-test'];
 
@@ -42,25 +45,37 @@ function profileOf(payload) {
   const journey = JourneyModel.journeyFromExport(payload);
   return JourneyModel.saved(JourneyModel.profileOf(journey, RANKINGS), RANKINGS);
 }
-function current(ranked) {
-  return !!ranked && ranked.model === JourneyModel.MODEL && !!ranked.values && typeof ranked.values === 'object' &&
-    Array.isArray(ranked.trades);
+// Whether a profile from this model is up to date: this one, or a newer
+// one (a deployment still on an older model mustn't redo a newer one's).
+function current(model) {
+  return model >= JourneyModel.MODEL;
 }
 
-// Profiles for uploads that need one, written back with their export.
+// Profiles for listed uploads that need one, written back with their
+// export, a few exports read at a time. The rows get what the listing has
+// of a profile (since, model, failed) and the profile itself (ranked).
 async function makeProfiles(rows) {
-  const ids = rows.map((r) => r.id);
-  const full = await (await supabase(`uploads?select=id,payload&id=in.(${ids.join(',')})`)).json();
-  await Promise.all(full.map(async ({ id, payload }) => {
-    const row = rows.find((r) => r.id === id);
-    try {
-      payload.ranked = row.ranked = profileOf(payload);
-      await supabase(`uploads?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({ payload }) });
-    } catch (err) {
-      console.error(`profile for upload ${id}:`, err.message);
-    }
-  }));
+  for (let i = 0; i < rows.length; i += MAKE_AT_ONCE) {
+    const batch = rows.slice(i, i + MAKE_AT_ONCE);
+    const full = await (await supabase(`uploads?select=id,payload&id=in.(${batch.map((r) => r.id).join(',')})`)).json();
+    await Promise.all(full.map(async ({ id, payload }) => {
+      const row = batch.find((r) => r.id === id);
+      try {
+        payload.ranked = profileOf(payload);
+      } catch (err) {
+        console.error(`profile for upload ${id}:`, err.message);
+        payload.ranked = { model: JourneyModel.MODEL, failed: true, values: {}, trades: [] };
+      }
+      Object.assign(row, { ranked: payload.ranked, since: payload.ranked.since, model: payload.ranked.model,
+        failed: payload.ranked.failed });
+      try {
+        await supabase(`uploads?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ payload }) });
+      } catch (err) {
+        console.error(`saving the profile for upload ${id}:`, err.message);
+      }
+    }));
+  }
 }
 
 // The levels that count toward a milestone: 30 is 30 to 39, 60 is 60 alone.
@@ -88,27 +103,34 @@ async function population(milestone) {
   const [lo, hi] = levelsOf(milestone), listed = [];
   for (let from = 0; ; from += PAGE) {
     const page = await (await supabase('uploads?select=id,character_id,level,exported_at,since:payload->ranked->since' +
+      ',model:payload->ranked->model,failed:payload->ranked->failed' +
       `&addon_version=not.in.(${TEST_VERSIONS.join(',')})&level=gte.${lo}&level=lte.${hi}` +
       `&order=id&offset=${from}&limit=${PAGE}`)).json();
     listed.push(...page);
     if (page.length < PAGE) break;
   }
+  // Older profiles are worked out again first (missing ones before the
+  // rest), so that each character's uploads are compared on the same terms:
+  // till then an older profile's `since` counts as unknown. An upload whose
+  // profile failed stands for nobody.
+  const todo = listed.filter((r) => !current(r.model)).sort((a, b) => Number(a.model != null) - Number(b.model != null));
+  if (todo.length) await makeProfiles(todo.slice(0, MAKE_PER_LOAD));
   const by = new Map();
   for (const r of listed) {
+    if (r.failed) continue;
+    if (!current(r.model)) r.since = undefined;
     const best = by.get(r.character_id);
     if (!best || closest(r, best) < 0) by.set(r.character_id, r);
   }
-  const rows = [...by.values()];
-  for (let i = 0; i < rows.length; i += 200) {
-    const chunk = rows.slice(i, i + 200);
+  const rows = [...by.values()], unread = rows.filter((r) => r.ranked === undefined);
+  for (let i = 0; i < unread.length; i += 200) {
+    const chunk = unread.slice(i, i + 200);
     const got = await (await supabase('uploads?select=id,ranked:payload->ranked' +
       `&id=in.(${chunk.map((r) => r.id).join(',')})`)).json();
     const ranked = new Map(got.map((g) => [g.id, g.ranked]));
     chunk.forEach((r) => { r.ranked = ranked.get(r.id) || null; });
   }
-  // Missing profiles first: an older one still ranks in the meantime.
-  const todo = rows.filter((r) => !current(r.ranked)).sort((a, b) => Number(!!a.ranked) - Number(!!b.ranked));
-  if (todo.length) await makeProfiles(todo.slice(0, MAKE_PER_LOAD));
+  // An older profile still ranks until it's worked out again.
   const usable = rows.filter((r) => r.ranked && r.ranked.values && Array.isArray(r.ranked.trades));
   kept.set(milestone, { at: Date.now(), rows: usable });
   return usable;
@@ -141,4 +163,4 @@ async function journeyOf(payload, characterId) {
   return { journey, ranks, picks: JourneyModel.picksFor(all, 9) };
 }
 
-module.exports = { supabase, profileOf, placesOf, population, journeyOf, closest, RANKINGS };
+module.exports = { supabase, profileOf, current, placesOf, population, journeyOf, closest, RANKINGS };

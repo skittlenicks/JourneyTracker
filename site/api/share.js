@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const { uuidOfShareId, shareIdOf } = require('./decode');
-const { supabase, journeyOf, closest } = require('./ranks');
+const { supabase, current, journeyOf, closest } = require('./ranks');
 const JourneyModel = require('./model');
 
 const PAGE = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
@@ -25,8 +25,10 @@ function attr(text) {
 // The page with `shared` in it for the page script (window.JT_SHARED) and,
 // for a journey, its own title, description and preview image. Every
 // replacement is a function, so nothing in the data can act as a "$"
-// pattern, and "<" is escaped in the JSON so no string in it can end the
-// script.
+// pattern. The data goes in as a JSON string for JSON.parse, so the page
+// reads it as this function does (in a script's object literal a
+// "__proto__" key would set the object's prototype), and "<" is escaped in
+// it so no string in it can end the script.
 function page(shared, meta) {
   let html = PAGE;
   if (meta) {
@@ -38,9 +40,10 @@ function page(shared, meta) {
       .replace(/(<meta property="og:image" content=")[^"]*/, (all, start) => start + attr(meta.image))
       .replace(/(<meta property="og:image:alt" content=")[^"]*/, (all, start) => start + attr(meta.imageAlt));
   }
-  const data = JSON.stringify(shared).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  const data = JSON.stringify(JSON.stringify(shared)).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
   const head = (meta ? `<meta property="og:url" content="${attr(meta.url)}">\n` : '') +
-    '<meta name="robots" content="noindex">\n' + `<script>window.JT_SHARED = ${data};</script>`;
+    '<meta name="robots" content="noindex">\n' + `<script>window.JT_SHARED = JSON.parse(${data});</script>`;
   return html.replace('<!--JT_SHARED-->', () => head);
 }
 
@@ -49,10 +52,12 @@ function page(shared, meta) {
 // [{ level, share, here }], or none when this is its only one.
 async function journeysOf(upload) {
   const rows = await (await supabase('uploads?select=id,level,exported_at,since:payload->ranked->since' +
-    '&order=exported_at.desc.nullslast&limit=500' +
+    ',model:payload->ranked->model&order=exported_at.desc.nullslast&limit=500' +
     '&character_id=eq.' + encodeURIComponent(upload.character_id))).json();
   const keep = new Map([[upload.id, upload]]), best = new Map();
   rows.forEach((r) => {
+    // An older profile's `since` is unknown until ranks.js works it out again.
+    if (!current(r.model)) r.since = undefined;
     const m = JourneyModel.milestoneOf(r.level), was = best.get(m);
     if (!was || closest(r, was) < 0) best.set(m, r);
   });
@@ -88,6 +93,16 @@ module.exports = async function share(req, res) {
     const upload = rows[0], payload = upload.payload || {};
     delete payload.ranked;   // the page works out its own numbers
     delete upload.payload;
+    // Shown to anyone, so not the character's own ID (with it, anyone could
+    // save made-up journeys as that character): the upload's, which the
+    // page only checks is a UUID. And of the typed words only the top one,
+    // all the page shows.
+    payload.characterId = upload.id;
+    const wrapped = JourneyModel.named(payload.wrapped);
+    if (wrapped['W-292'] !== undefined) {
+      const top = JourneyModel.topRows(wrapped['W-292'], 1)[0];
+      wrapped['W-292'] = top ? { [top[0]]: top[1] } : {};
+    }
     const [{ journey: J, ranks, picks }, journeys] = await Promise.all([journeyOf(payload, upload.character_id),
       journeysOf(upload).catch((err) => { console.error('journeys failed:', err.message); return []; })]);
     const who = `${J.race} ${J.className}`.trim() || 'A journey';

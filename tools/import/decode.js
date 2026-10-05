@@ -10,7 +10,12 @@
 const zlib = require('zlib');
 
 const PREFIX = 'JT1:';
-const MAX_JSON = 32 * 1024 * 1024; // bytes after decompressing; real exports are a few hundred KB at most
+// Bytes after decompressing. A level 60's export is about 0.3-0.6 MB (the
+// addon's size estimate for 150 to 600 hours of play), and the website
+// holds a few of them at once, so this is several times that and no more.
+const MAX_JSON = 4 * 1024 * 1024;
+const MAX_DEPTH = 32; // tables inside tables; an export nests six deep
+const EARLIEST = Date.UTC(2020, 0, 1) / 1000; // no export is older (seconds)
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 // Stats that can legitimately be negative (e.g. killing a mob 3 levels
@@ -39,6 +44,7 @@ function decode(text) {
     // something huge is refused rather than unpacked.
     json = zlib.inflateRawSync(Buffer.from(body, 'base64'), { maxOutputLength: MAX_JSON }).toString('utf8');
   } catch (err) {
+    if (err.code === 'ERR_BUFFER_TOO_LARGE') return fail(`export too big: over ${MAX_JSON / 1024 / 1024} MB unpacked`);
     return fail('corrupted export: could not decompress (was it cut off when pasting?)');
   }
   try {
@@ -48,13 +54,15 @@ function decode(text) {
   }
 }
 
-// Path of the first negative number (outside SIGNED_FIELDS), or null.
-function findNegative(value, path) {
-  if (typeof value === 'number') return value < 0 ? path : null;
+// Path of the first negative number (outside SIGNED_FIELDS), or null; or
+// TOO_DEEP, without looking further, where tables nest past MAX_DEPTH.
+const TOO_DEEP = {};
+function findNegative(value, path, depth, signed) {
+  if (typeof value === 'number') return value < 0 && !signed ? path : null;
   if (value && typeof value === 'object') {
+    if (depth >= MAX_DEPTH) return TOO_DEEP;
     for (const [key, child] of Object.entries(value)) {
-      if (SIGNED_FIELDS.has(key)) continue;
-      const found = findNegative(child, path ? `${path}.${key}` : key);
+      const found = findNegative(child, path ? `${path}.${key}` : key, depth + 1, signed || SIGNED_FIELDS.has(key));
       if (found) return found;
     }
   }
@@ -78,11 +86,14 @@ function validate(data) {
   }
   if (typeof data.addonVersion !== 'string' || !data.addonVersion) errors.push('missing addon version');
   if (!Number.isInteger(data.schemaVersion) || data.schemaVersion < 1) errors.push('missing schemaVersion');
-  if (data.exportedAt !== undefined && !(Number.isFinite(data.exportedAt) && data.exportedAt > 0)) {
+  // Seconds since 1970: from 2020 to two days from now (a clock set ahead).
+  if (data.exportedAt !== undefined && !(Number.isFinite(data.exportedAt) && data.exportedAt > EARLIEST &&
+      data.exportedAt < Date.now() / 1000 + 2 * 86400)) {
     errors.push('bad export timestamp');
   }
-  const negative = findNegative(data, '');
-  if (negative) errors.push(`negative number at ${negative}`);
+  const negative = findNegative(data, '', 0, false);
+  if (negative === TOO_DEEP) errors.push(`tables nested more than ${MAX_DEPTH} deep`);
+  else if (negative) errors.push(`negative number at ${negative}`);
   return errors;
 }
 

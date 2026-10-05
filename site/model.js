@@ -12,7 +12,11 @@ var JourneyModel = (function () {
   // 3: the wrapped stats' rankings (addon 0.6.0).
   // 4: how long after its milestone a journey was exported (since), and
   //    late ones ranked only on what was settled by then.
-  var MODEL = 4;
+  // 5: the class, dungeon and XP-per-hour rankings filled in; auction sales
+  //    no longer counted twice in what's earned; no more days played than
+  //    days counted; kinds of mob past the export's 200; no Hyjal before 60;
+  //    Statistics pane values and level times past belief left out.
+  var MODEL = 5;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -25,6 +29,11 @@ var JourneyModel = (function () {
   // From this many players up, a place reads as a share ("Top 3%") instead
   // of a place ("2nd of 9").
   var SHARE_FROM = 100;
+  // A level's /played past this is a broken record, not a slow level.
+  var LEVEL_TIME_MAX = 30 * 86400;
+  // A Statistics pane value past this is no count or copper amount a
+  // character has.
+  var PANE_MAX = 1e12;
 
   function sum(list) { return list.reduce(function (t, v) { return t + v; }, 0); }
   function num(n) { return Math.round(n).toLocaleString("en-US"); }
@@ -75,7 +84,10 @@ var JourneyModel = (function () {
   // Every ten levels is a milestone. A journey counts toward the last one
   // its level reached (one at 34 toward 30; one under 10 toward none, 0).
   function milestoneOf(level) { return level >= 60 ? 60 : Math.max(0, Math.floor(level / 10) * 10); }
-  function dayOf(t) { return new Date(t * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric" }); }
+  // "October 5". One formatter for every date: toLocaleDateString makes one
+  // each time, which is slow, and an export can bring thousands of dates.
+  var DAY_FORMAT = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" });
+  function dayOf(t) { var d = new Date(t * 1000); return isNaN(d) ? "Invalid Date" : DAY_FORMAT.format(d); }
   function own(map, key) { return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined; }
   var QUALITY = ["poor", "common", "uncommon", "rare", "epic", "legendary"];
   var QUALITY_BY_COLOR = { "9d9d9d": 0, ffffff: 1, "1eff00": 2, "0070dd": 3, a335ee: 4, ff8000: 5 };
@@ -88,17 +100,20 @@ var JourneyModel = (function () {
     return { name: name, q: QUALITY[q] || "common" };
   }
   // A Statistics pane value as a number: "--" is none, money is in copper.
+  // Null (unknown) for anything no statistic is: longer than gold, silver
+  // and copper written out (about 150 characters), negative or past PANE_MAX.
   function paneNumber(value) {
-    var s = String(value == null ? "" : value).trim(), copper = 0;
+    var s = String(value == null ? "" : value).trim(), n = 0;
     if (s === "--" || s === "") return 0;
+    if (s.length > 200) return null;
     if (s.indexOf("|T") >= 0) {
-      s.replace(/([\d,]+)\s*\|T[^|]*?(Gold|Silver|Copper)Icon[^|]*\|t/gi, function (all, n, coin) {
-        copper += Number(n.replace(/,/g, "")) * { gold: 10000, silver: 100, copper: 1 }[coin.toLowerCase()];
+      s.replace(/([\d,]+)\s*\|T[^|]*?(Gold|Silver|Copper)Icon[^|]*\|t/gi, function (all, digits, coin) {
+        n += Number(digits.replace(/,/g, "")) * { gold: 10000, silver: 100, copper: 1 }[coin.toLowerCase()];
       });
-      return copper;
+    } else {
+      n = Number(s.replace(/,/g, ""));
     }
-    var n = Number(s.replace(/,/g, ""));
-    return isFinite(n) ? n : null;
+    return n >= 0 && n <= PANE_MAX ? n : null;
   }
   var CLASS_NAMES = { WARRIOR: "Warrior", PALADIN: "Paladin", HUNTER: "Hunter", ROGUE: "Rogue", PRIEST: "Priest",
                       SHAMAN: "Shaman", MAGE: "Mage", WARLOCK: "Warlock", DRUID: "Druid" };
@@ -136,21 +151,31 @@ var JourneyModel = (function () {
     J.firstLogin = dayOf(since);
     J.reached60 = reachedMax ? dayOf(reachedMax) : null;
     J.calendarDays = Math.max(1, Math.ceil(((reachedMax || now) - since) / 86400));
-    J.daysPlayed = Object.keys(named(st.days)).length;
+    // The days played among them: the player's own dates ("2026-10-01"), so
+    // one counts if it could have begun by the last of those days anywhere
+    // (UTC+14), and there are never more of them than there were days.
+    var daysEnd = new Date(((reachedMax || now) + 14 * 3600) * 1000);
+    var lastDay = isNaN(daysEnd) ? "" : daysEnd.toISOString().slice(0, 10);
+    J.daysPlayed = Math.min(J.calendarDays,
+      Object.keys(named(st.days)).filter(function (d) { return d <= lastDay; }).length);
 
     // Each level's time: from the level's own counters, or the /played at
-    // the level-ups on either side. Levels before the tracker stay empty.
+    // the level-ups on either side. Levels before the tracker stay empty,
+    // and so does one past LEVEL_TIME_MAX.
     var levelStats = numbered(lv.stats), dings = numbered(lv.snapshots), L;
+    function levelTime(t) { return t > 0 && t <= LEVEL_TIME_MAX; }
     J.perLevel = [];
     for (L = 1; L <= 59; L++) {
       var took = number(named(levelStats[L]).played);
       var a = number(named(dings[L]).played), b = number(named(dings[L + 1]).played);
-      if (!(took > 0) && a > 0 && b > a) took = b - a;
-      J.perLevel.push(took > 0 ? took : null);
+      if (!levelTime(took) && a > 0 && b > a) took = b - a;
+      J.perLevel.push(levelTime(took) ? took : null);
     }
     var path = listOf(st.path);
-    var pathLevels = path.map(function (p) { return number(named(p).level); }).filter(function (l) { return l > 0; });
-    J.firstLevel = pathLevels.length ? Math.min.apply(null, pathLevels) : level;
+    J.firstLevel = path.reduce(function (lowest, p) {
+      var l = number(named(p).level);
+      return l > 0 && (!lowest || l < lowest) ? l : lowest;
+    }, 0) || level;
 
     // The milestone it counts toward, and whether it's "at" it: exported at
     // that level, as the addon does when you reach one (data.milestone).
@@ -164,7 +189,6 @@ var JourneyModel = (function () {
     var reach = named(dings[J.milestone]), sawIt = J.atMilestone && J.milestone && J.firstLevel < J.milestone;
     var reachedAt = number(reach.t) || (J.milestone === 60 && reachedMax) || (sawIt ? now : 0);
     J.complete = J.firstLevel <= 2 && J.milestone >= 10;   // tracked from the start to its milestone
-    J.playedTo = J.milestone ? number(reach.played) || (sawIt ? J.played : 0) || undefined : undefined;
     // Calendar days from the tracker's first day: the journey's own first
     // day only when it's complete, so only then "Level 30 in 12 days".
     function daysTo(t) { return Math.max(1, Math.ceil((t - since) / 86400)); }
@@ -182,6 +206,10 @@ var JourneyModel = (function () {
       J.milestone && number(reach.played) > 0 && J.played >= number(reach.played) ? J.played - number(reach.played) :
       undefined;
     J.late = J.atMilestone && J.milestone >= 10 && J.since !== undefined && J.since > LATE_AFTER;
+    // The /played it took: the level-up's, or standing in for it, the
+    // export's own less the time since (when the addon says how long).
+    var standIn = sawIt && J.played > (J.since || 0) ? J.played - (J.since || 0) : 0;
+    J.playedTo = J.milestone ? number(reach.played) || standIn || undefined : undefined;
     // Then and now: each milestone the tracker saw you reach, with how far
     // you'd come by then (the running totals saved at the level-up).
     J.milestoneRows = [];
@@ -210,8 +238,8 @@ var JourneyModel = (function () {
     var lengths = runs.map(function (r) { return number(named(r).last) - number(named(r).start); })
       .filter(function (s) { return s > 0; });
     J.sessions = runs.length;
-    J.longestSession = lengths.length ? Math.max.apply(null, lengths) : 0;
-    J.avgSession = lengths.length ? sum(lengths) / lengths.length : 0;
+    J.longestSession = lengths.reduce(function (most, s) { return Math.max(most, s); }, 0);
+    J.avgSession = lengths.length ? sum(lengths) / lengths.length : 0;   // 0: no session has a length
     J.bestSession = null;
     runs.forEach(function (r) {
       var gained = number(named(r).levels), from = number(named(r).startLevel);
@@ -238,7 +266,10 @@ var JourneyModel = (function () {
     var kills = named(st.kills), byClass = named(kills.byClass), combat = named(st.combat);
     J.kills = Math.max(number(kills.total), (pane[1198] || 0) - (pane[588] || 0));   // kills that give XP
     J.topMobs = topRows(kills.byName, 5);
-    J.mobKinds = Object.keys(named(kills.byName)).length;
+    // How many kinds: the addon's own count where the export has it (it keeps
+    // only the 200 most killed by name), or the names it kept.
+    J.mobKinds = typeof kills.uniqueNames === "number" ? number(kills.uniqueNames) :
+      Object.keys(named(kills.byName)).length;
     J.killTypes = Object.create(null);
     topRows(kills.byType, 50).forEach(function (r) { J.killTypes[r[0]] = r[1]; });
     J.elites = number(byClass.elite) + number(byClass.rareelite) + number(byClass.worldboss);
@@ -254,6 +285,19 @@ var JourneyModel = (function () {
     var gap = named(kills.maxLevelDiff);
     J.bestKill = number(gap.diff) > 0 ? { mob: number(gap.mobLevel), you: number(gap.level) } : null;
     J.levelKills = mostIn("kills");
+
+    // Dungeons: the times you went in, and the runs, each with how long it
+    // took. Only a run with a boss killed counts as done (walking in and
+    // out again isn't a run).
+    var dungeons = named(st.dungeons), entered = named(dungeons.entered);
+    var done = listOf(dungeons.runs).filter(function (r) { return number(named(r).bosses) > 0; });
+    J.dungeonsEntered = addUp(entered);
+    J.dungeonTypes = Object.keys(entered).length;
+    J.dungeonRuns = done.length;
+    J.fastestRun = done.reduce(function (fastest, r) {
+      var took = number(named(r).duration);
+      return took > 0 && (!fastest || took < fastest) ? took : fastest;
+    }, 0) || undefined;
 
     // Deaths
     var deaths = listOf(st.deaths), rez = named(st.rez);
@@ -304,6 +348,14 @@ var JourneyModel = (function () {
       .filter(function (p) { return p[1] > 0; });
     J.restedShare = xpShare(xp.restedUsed);
     J.groupXP = xpShare(xp.grouped);
+    // XP per hour over the levels with a time and their XP, as the addon's
+    // Level Timeline works it out.
+    var timedXP = 0, timedFor = 0;
+    J.perLevel.forEach(function (sec, i) {
+      var gained = number(named(levelStats[i + 1]).xp);
+      if (sec > 0 && gained > 0) { timedXP += gained; timedFor += sec; }
+    });
+    J.xpRate = timedFor > 0 ? timedXP / timedFor * 3600 : undefined;
 
     // The road: zones in the order you first reached them, the levels you
     // were while there, and the time spent in each.
@@ -337,13 +389,18 @@ var JourneyModel = (function () {
     J.zonesVisited = Object.keys(zones).filter(function (z) { return z !== "Unknown"; }).length;
     J.subzones = Object.keys(named(st.subzones)).length;
     // The level you were at a moment: the last level-up or zone change the
-    // tracker saw before it (levels only go up).
-    var ups = Object.keys(dings).map(function (l) { return [number(named(dings[l]).t), Number(l)]; });
+    // tracker saw before it (levels only go up). The places below ask in
+    // time order, so it reads through those once, oldest first.
+    var seen = Object.keys(dings).map(function (l) { return [number(named(dings[l]).t), Number(l)]; })
+      .filter(function (u) { return u[0] > 0; })
+      .concat(path.map(function (p) { return [number(named(p).t), number(named(p).level)]; }))
+      .sort(function (x, y) { return x[0] - y[0]; });
+    var seenTo = 0, levelThen = J.firstLevel || 0;
     function levelAt(t) {
-      var lvl = J.firstLevel || 0;
-      ups.forEach(function (u) { if (u[0] > 0 && u[0] <= t && u[1] > lvl) lvl = u[1]; });
-      path.forEach(function (p) { p = named(p); if (number(p.t) <= t && number(p.level) > lvl) lvl = number(p.level); });
-      return lvl;
+      for (; seenTo < seen.length && seen[seenTo][0] <= t; seenTo++) {
+        if (seen[seenTo][1] > levelThen) levelThen = seen[seenTo][1];
+      }
+      return levelThen;
     }
     // The places found in each zone ("Zone: Subzone" keys, each with when you
     // first went in), in the order you found them: [{ name, date, level }].
@@ -371,9 +428,10 @@ var JourneyModel = (function () {
       var rest = number(whole) - sum(rows.map(function (r) { return r[1]; }));
       return rest > 0 ? rows.concat([["Other", rest]]) : rows;
     }
+    // The addon's mail income includes auction sales, which have their own row.
     J.earned = withOther([["Quest rewards", J.questGold], ["Selling to vendors", best(money.vendor, 921)],
                           ["Looting", best(money.loot, 333)], ["Auction house sales", best(money.auctionIncome, 919)],
-                          ["Mail", money.mail]], best(money.earned, 328));
+                          ["Mail", Math.max(0, number(money.mail) - number(money.auctionIncome))]], best(money.earned, 328));
     J.spent = withOther([["Vendor purchases", money.vendorSpent], ["Auction house", money.auctionSpent],
                          ["Class training", money.training], ["Repairs", money.repairs], ["Flights", best(money.flights, 1146)]],
                         money.spent);
@@ -432,6 +490,7 @@ var JourneyModel = (function () {
     J.targets = named(cls.targets);
     J.powerSpent = named(cls.powerSpent);
     J.healing = addUp(cls.healing);
+    J.classStats = cls;
     J.classAll = all;
 
     // WoW Forever and friends
@@ -444,14 +503,17 @@ var JourneyModel = (function () {
     J.transmog = number(named(wr["W-019"]).changes);
     J.autoFlagged = number(wr["W-021"]);
     J.zephras = number(named(wr["W-001"]).level) || null;
-    J.hyjal = wr["W-006"] ? number(named(wr["W-006"]).daysAfter60) : undefined;
+    // Days after 60 you first reached Mount Hyjal: the addon notes the
+    // arrival before 60 too, without them.
+    var hyjal = named(wr["W-006"]);
+    J.hyjal = typeof hyjal.daysAfter60 === "number" ? number(hyjal.daysAfter60) : undefined;
     J.grouped = number(T.grouped);
     J.groupedWith = number(social.unique);
     J.guildLevel = number(social.guildJoinLevel) || null;
     J.guildBefore = !!social.guildBeforeTracking;
     J.jumps = number(social.jumps);
     // Everything else the wrapped stats hold, for the page's chapters
-    J.little = littleOf(wr);
+    J.little = littleOf(wr, J.played, deaths);
     return J;
   }
 
@@ -477,7 +539,8 @@ var JourneyModel = (function () {
       ["W-343", "Within 10 seconds of a ding", "n"], ["W-344", "Within a minute of logging in", "n"],
       ["W-345", "While AFK", "n"], ["W-346", "During an escort", "n"], ["W-347", "With Resurrection Sickness", "n"],
       ["W-354", "Twice in one minute", "n"], ["W-352", "With your Hearthstone ready", "n"],
-      ["W-355", "Longest stretch alive", "tmax"], ["W-358", "Time as a ghost", "t"]],
+      ["W-355", "Longest stretch alive", "tmax"], ["W-357", "Average /played between deaths", "t"],
+      ["W-358", "Time as a ghost", "t"]],
     travel: [["W-313", "Time swimming", "t"], ["W-315", "Time underwater", "t"], ["W-316", "Breath ran out", "n"],
       ["W-319", "Longest fall", "sec"], ["W-335", "Times you got lost", "n"], ["W-329", "Boat rides", "n"],
       ["W-330", "Zeppelin rides", "n"], ["W-331", "Portals taken", "n"], ["W-333", "Meeting stones used", "n"],
@@ -495,6 +558,7 @@ var JourneyModel = (function () {
       ["W-436", "Potions and elixirs made", "n"], ["W-432", "Explosives thrown", "n"], ["W-435", "Gadgets used", "n"]],
     social: [["W-254", "Groups joined", "n"], ["W-246", "Need rolls", "key:need"], ["W-247", "Loot rolls won", "key:won"],
       ["W-248", "Highest roll", "max"], ["W-277+W-278+W-279+W-280+W-281+W-283", "Chat messages sent", "n"],
+      ["W-293", "Messages sent per hour played", "n"],
       ["W-302", "Emotes used", "n"], ["W-303", "Favorite emote", "top"], ["W-311", "Emotes aimed at you", "n"],
       ["W-296", "Trades", "n"], ["W-439", "Reputation earned", "n"], ["W-439", "Best friends with", "top"],
       ["W-442", "Bloodsail reputation gains", "n"], ["W-455", "Darkmoon Faire visits", "n"]],
@@ -573,9 +637,25 @@ var JourneyModel = (function () {
   // The wrapped stats as the page shows them: { chapter: [[label, value,
   // kind]] } with only what has something in it, the creature families as
   // bars, the values a row's fourth field names for the chapter titles
-  // (`at`), and the values the rankings read (`v`, `best`).
-  function littleOf(wr) {
-    wr = named(wr);
+  // (`at`), and the values the rankings read (`v`, `best`). Two the spec
+  // leaves to the website are worked out here, given the journey's /played
+  // and death records: chat messages sent per hour played (W-293), and the
+  // average /played between deaths (W-357), from the /played each death
+  // has (addon 0.6.0 on).
+  function littleOf(wr, played, deaths) {
+    var stats = Object.create(null);
+    Object.keys(named(wr)).forEach(function (k) { stats[k] = wr[k]; });
+    var sent = littleValue(stats, "W-277+W-278+W-279+W-280+W-281+W-283", "n");
+    stats["W-293"] = played > 0 ? Math.round(sent / (played / 3600)) : 0;
+    var between = 0, gaps = 0, last = null;
+    listOf(deaths).forEach(function (d) {
+      var at = named(d).played;
+      if (typeof at !== "number" || !isFinite(at)) { last = null; return; }
+      if (last !== null && at > last) { between += at - last; gaps++; }
+      last = at;
+    });
+    stats["W-357"] = gaps ? between / gaps : 0;
+    wr = stats;
     var out = { families: [], v: Object.create(null), at: Object.create(null) };
     Object.keys(LITTLE).forEach(function (chapter) {
       out[chapter] = [];
@@ -674,7 +754,10 @@ var JourneyModel = (function () {
     rebirths: ["Rebirth", "Innervate"], moonfires: ["Wrath", "Moonfire", "Starfire", "Insect Swarm"],
     catAbilities: ["Claw", "Shred", "Rake", "Rip", "Ferocious Bite", "Ravage", "Pounce"],
     bearAbilities: ["Maul", "Swipe", "Growl", "Demoralizing Roar", "Bash", "Feral Charge"],
-    roots: ["Entangling Roots", "Hibernate"], moonglade: ["Teleport: Moonglade"], faerieFires: ["Faerie Fire*"]
+    roots: ["Entangling Roots", "Hibernate"], moonglade: ["Teleport: Moonglade"], faerieFires: ["Faerie Fire*"],
+    // Racial abilities, whatever the class (ALL-09: the addon's list, Classic's names)
+    racials: ["Will of the Forsaken", "Cannibalize", "Stoneform", "Find Treasure", "Escape Artist", "Perception",
+              "Shadowmeld", "War Stomp", "Berserking", "Blood Fury"]
   };
   var CLASS_TIMES = {   // [state group, state names...]; no names = the whole group
     battleStance: ["stance", "Battle Stance"], defensiveStance: ["stance", "Defensive Stance"],
@@ -710,6 +793,39 @@ var JourneyModel = (function () {
     v.shifts = number(named(own(J.swaps, "form")).total);
     v.rage = number(own(J.powerSpent, "RAGE"));
     v.priestMana = number(own(J.powerSpent, "MANA"));
+    // The class's own counters (JourneyTrackerClass.lua): weapon swaps, the
+    // class quest weapon, bubble hearths, ammo, pets and demons (a hunter's
+    // by name, a warlock's by family; the favorite is the one out longest),
+    // pockets, poisons, combo points, conjuring, shards and stones.
+    var c = named(J.classStats), obtained = named(c.obtained), ammo = named(c.ammo), pets = named(c.pets);
+    var conjured = named(c.conjured), shards = named(c.shards), stones = named(c.stones);
+    v.weaponSwaps = number(c.weaponSwaps);
+    v.whirlwindAxe = ["Whirlwind Axe", "Whirlwind Sword", "Whirlwind Heart"].reduce(function (first, name) {
+      var got = named(own(obtained, name)), at = number(got.level);
+      return at > 0 && !got.before && (!first || at < first) ? at : first;
+    }, 0) || undefined;
+    v.bubbleHearths = number(c.bubbleHearths);
+    v.ammo = addUp(ammo.used);
+    v.ammoGold = number(ammo.gold);
+    v.outOfAmmo = number(ammo.outOfAmmo);
+    v.tamed = listOf(pets.tamed).length;
+    v.petTime = listOf(pets.time).reduce(function (most, s) { return Math.max(most, number(s)); }, 0);
+    v.petDeaths = v.demonDeaths = addUp(pets.deaths);
+    v.voidwalker = number(own(named(pets.time), "Voidwalker"));
+    v.pocketGold = number(named(c.pickpocket).gold);
+    v.poisons = addUp(named(c.poisons).applied);
+    var points = 0, finishers = 0;
+    listOf(c.combo).forEach(function (f) { points += number(named(f).points); finishers += number(named(f).casts); });
+    v.comboPoints = finishers > 0 ? points / finishers : undefined;
+    v.conjured = addUp(conjured.water);
+    v.conjuredFood = addUp(conjured.food);
+    v.givenAway = addUp(conjured.given);
+    v.manaGems = addUp(conjured.gemsUsed);
+    v.shards = addUp(shards.gained);
+    v.shardsPeak = number(shards.peak);
+    v.healthstonesMade = addUp(own(stones, "Healthstone"));
+    v.soulstones = addUp(own(stones, "Soulstone"));
+    v.selfRez = number(c.soulstoneRez);
     var all = J.classAll, potions = named(all.potions);
     v.bandages = addUp(all.bandages);
     v.healPotions = Math.max(addUp(potions.healing), J.pane[345] || 0);
@@ -761,7 +877,8 @@ var JourneyModel = (function () {
                fav: home ? home[0] : "" },
       values: {
         // Time to the milestone: from its level-up (none before level 10).
-        played: J.imported ? J.playedTo : total, days: J.imported ? J.daysTo : J.calendarDays, sessions: J.sessions, avgSession: J.avgSession || total / J.sessions,
+        played: J.imported ? J.playedTo : total, days: J.imported ? J.daysTo : J.calendarDays, sessions: J.sessions,
+        avgSession: J.imported ? J.avgSession || undefined : J.avgSession || total / J.sessions,   // an export's 0: unknown
         session: J.longestSession, sessionLevels: J.bestSession && J.bestSession.levels, daysPlayed: J.daysPlayed,
         afk: part(J.timeSpent, "AFK"), resting: part(J.timeSpent, "Resting in inns and cities"),
         taxiTime: part(J.timeSpent, "On flight paths"), mounted: part(J.timeSpent, "Mounted"),
@@ -814,7 +931,8 @@ var JourneyModel = (function () {
         mountPlayed: J.firstMountPlayed || undefined, firstEpic: J.firstEpic && J.firstEpic.level,
         bestItem: J.bestLoot && J.bestLoot.ilvl, herbs: J.herbs, ore: J.ore, campShops: J.campShops,
         campCrafts: J.campCrafts, valthalak: J.valthalak, autoFlagged: J.autoFlagged, zephras: J.zephras || undefined,
-        hyjal: J.hyjal
+        hyjal: J.hyjal, xpRate: J.xpRate, dungeonsEntered: J.dungeonsEntered, dungeonTypes: J.dungeonTypes,
+        runs: J.dungeonRuns, fastRun: J.fastestRun
       });
       classValues(J, p.values);
     }
@@ -858,14 +976,16 @@ var JourneyModel = (function () {
              late: p.late || undefined, values: values };
   }
 
-  // Whether a ranking applies: a number to rank, the right class, race,
-  // faction or realm, the profession it's about, the milestone it's for
-  // (some only mean something at 60), and (where more is notable) something
-  // to count. Where less is notable (fewest deaths, fastest to 30), only a
-  // journey tracked from level 1 to its milestone counts.
+  // Whether a ranking applies: a number to rank that the game allows (none
+  // is negative; levels, skills and shares have their limits), the right
+  // class, race, faction or realm, the profession it's about, the milestone
+  // it's for (some only mean something at 60), and (where more is notable)
+  // something to count. Where less is notable (fewest deaths, fastest to
+  // 30), only a journey tracked from level 1 to its milestone counts.
   function applies(r, p) {
     var v = p.values[r.key];
-    if (typeof v !== "number" || !isFinite(v)) return false;
+    if (typeof v !== "number" || !isFinite(v) || v < 0) return false;
+    if ((r.min !== undefined && v < r.min) || (r.max !== undefined && v > r.max)) return false;
     if (r.trade && p.trades.indexOf(r.trade) < 0) return false;
     if (r.at60 && p.milestone !== undefined && p.milestone !== 60) return false;
     if (r.high ? !(v > 0) : p.partial) return false;
@@ -877,7 +997,7 @@ var JourneyModel = (function () {
   function cohortLabel(r, p) {
     var at = p.milestone === undefined || p.milestone >= 60 ? "" : p.milestone ? "Level " + p.milestone + " " : "Level 1-9 ";
     if (r.cohort === "class") return at + p.className + "s";
-    if (r.cohort === "race") return at + (RACE_PLURAL[p.race] || (p.race + "s"));
+    if (r.cohort === "race") return at + (own(RACE_PLURAL, p.race) || (p.race + "s"));
     if (r.cohort === "faction") return at + p.faction + " players";
     if (r.cohort === "ruleset") return at + p.ruleset + " realm players";
     return at ? at + "players" : "All players";
@@ -911,13 +1031,16 @@ var JourneyModel = (function () {
   }
 
   // A ranking's text, with the player's number and names filled in ("1
-  // deaths" reads "1 death").
+  // deaths" reads "1 death"). Below 10 a journey has no milestone yet, so
+  // "kept at {m}" reads "kept before 10" and "on the way to {m}" "on the
+  // way to 10".
   function fill(text, v, p) {
     if (Math.round(v) === 1) {
       text = text.replace(/\{n\} ([a-z\/]*[^su\W]s)\b(?!,| and | [a-z]+s\b)/gi, function (all, word) { return "{n} " + word.slice(0, -1); });
     }
+    if (p.milestone === 0) text = text.replace(/\bat \{m\}/g, "before {m}");
     return text.replace(/\{(\w+)\}/g, function (all, k) {
-      if (k === "m") return String(p.milestone || 60);
+      if (k === "m") return String(p.milestone === 0 ? 10 : p.milestone || 60);
       if (k === "n") return num(v);
       if (k === "t") return dur(v);
       if (k === "g") return coins(v);

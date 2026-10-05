@@ -14,6 +14,7 @@ const path = require('path');
 const { Resvg, initWasm } = require('@resvg/resvg-wasm');
 
 const W = 1200, H = 630;
+const MAX_TEXT = 200; // characters of any one text a card looks at (see wrap)
 // The page's colors (site/recap.template.html).
 const C = { ground: '#120e09', panel: '#1b150e', rule: '#3b2d1b', ink: '#ece3cf', soft: '#b3a386',
   gold: '#f2b234', pale: '#ffe9a3', deep: '#c4660a', glow: '#2b2014', box: '#231a10' };
@@ -84,18 +85,23 @@ function start() {
   return ready;
 }
 
+// Text as SVG: only the characters XML allows (resvg refuses the rest, such
+// as control characters from an export), escaped.
 function xml(text) {
-  return String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  return String(text).replace(/[^\t\n\r\u{20}-\u{D7FF}\u{E000}-\u{FFFD}\u{10000}-\u{10FFFF}]/gu, '')
+    .replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 }
 
 // Drawing helpers, given the loaded fonts.
 function painter(fonts) {
   // Text that fits in `max` px: as many lines as it takes (up to `lines`),
-  // the last cut short with an ellipsis if it still doesn't fit.
+  // the last cut short with an ellipsis if it still doesn't fit. Only the
+  // first MAX_TEXT characters are looked at: no card holds more, and a name
+  // from an export can be any length.
   function wrap(text, font, size, max, lines, spacing) {
     const f = fonts[font], fits = (s) => f.width(s, size) + (spacing || 0) * s.length <= max;
     const out = [];
-    let words = String(text).split(/\s+/).filter(Boolean);
+    let words = String(text).slice(0, MAX_TEXT).split(/\s+/).filter(Boolean);
     while (words.length && out.length < lines) {
       let line = words[0], used = 1;
       while (used < words.length && fits(line + ' ' + words[used])) line += ' ' + words[used++];

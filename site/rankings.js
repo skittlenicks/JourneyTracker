@@ -12,7 +12,8 @@
 //   detail     the player's number: {n} count, {t} time, {g} money (from copper),
 //              {p} whole number, {d} one decimal; {mob} {zone} {quest} {item}
 //              {kept} {fav} are the player's own names; {m} the milestone the
-//              journey is ranked at (30 for one at level 30-39, 60 at 60)
+//              journey is ranked at (30 for one at level 30-39, 60 at 60;
+//              below 10, "at {m}" reads "before 10")
 //   direction  "+" when more is the notable way, "-" when less is. A "+"
 //              ranking skips players at 0: nobody is top 1% of Onyxia
 //              slayers without killing her.
@@ -26,18 +27,19 @@
 //              class, race, faction and realm rankings (`only` can list
 //              several), `trade` for a profession's own rankings (only players
 //              with it), `min`/`max` for the values the game allows (levels,
-//              skill, percentages), `at60` for rankings that only mean
+//              skill, percentages; site/model.js's applies() leaves out a
+//              value past them), `at60` for rankings that only mean
 //              something at level 60, `fixed` for values settled by the time
 //              a journey reaches its milestone (the time to it, the level you
 //              did something at): all a journey exported long after reaching
 //              it is ranked on (site/model.js's late). "at level {n}" details
-//              are fixed by themselves.
+//              are fixed and kept to levels 1-60 by themselves, "{p}%" ones
+//              to 100.
 var RANKINGS = (function () {
   function R(key, source, group, who, detail, direction, median, spread, line, extra) {
     var r = { id: key, key: key, source: source, group: group, name: who, detail: detail,
               high: direction === "+", pop: [median, spread], line: line };
-    if (/level \{n\}/.test(detail)) r.max = 60;
-    if (/at level \{n\}/.test(detail)) r.fixed = true;
+    if (/at level \{n\}/.test(detail)) { r.min = 1; r.max = 60; r.fixed = true; }   // not "item level {n}"
     if (/\{p\}%/.test(detail)) r.max = 100;
     for (var k in extra || {}) r[k] = extra[k];
     return r;
@@ -272,7 +274,7 @@ var RANKINGS = (function () {
     R("locks", "ROG-04", "class", "safecrackers", "{n} locks picked", "+", 100, 0.9, "No box can keep you out.", C("ROGUE")),
     R("poisons", "ROG-05", "class", "poisoners", "{n} poisons applied", "+", 800, 0.5, "Every blade comes with a side effect.", C("ROGUE")),
     R("finishers", "ROG-07", "class", "Eviscerate enthusiasts", "{n} finishing moves", "+", 4000, 0.5, "Five combo points, one very bad day for them.", C("ROGUE")),
-    R("comboPoints", "ROG-08", "class", "patient finishers", "{d} combo points per finisher", "+", 3.6, 0.12, "You wait for five. Always.", C("ROGUE")),
+    R("comboPoints", "ROG-08", "class", "patient finishers", "{d} combo points per finisher", "+", 3.6, 0.12, "You wait for five. Always.", C("ROGUE", { max: 5 })),
     R("escapes", "ROG-09", "class", "escape artists", "{n} Vanishes, Sprints and Evasions", "+", 300, 0.6, "Now you see me...", C("ROGUE")),
     R("kicks", "ROG-10", "class", "kickers", "{n} Kicks", "+", 400, 0.6, "Spellcasting is a privilege you revoke.", C("ROGUE")),
     R("blinds", "ROG-11", "class", "blinders", "{n} Gouges and Blinds", "+", 300, 0.7, "They never saw it coming. Literally.", C("ROGUE")),
