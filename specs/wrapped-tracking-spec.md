@@ -244,65 +244,65 @@ _Forever battlegrounds: Warsong Gulch (10v10, brackets from 10-19), Arathi Basin
 ## Dungeons deep dive
 _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo and ENCOUNTER_START/END. Read boss names from the encounter events instead of hardcoding, since the new dungeons' full boss rosters aren't published yet and Forever may rename Classic bosses._
 
-191. `TODO` `W-191` Runs per dungeon: Classic (RFC, WC, Deadmines, SFK, BFD, Stockade, Gnomeregan, RFK, SM wings, RFD, Uldaman, ZF, Maraudon, Temple of Atal'Hakkar, BRD, LBRS, UBRS, Dire Maul wings, Stratholme, Scholomance) and new (see below)
-192. `TODO` `W-192` Clear time per dungeon run (enter to final boss)
-193. `TODO` `W-193` Fastest clear per dungeon
-194. `TODO` `W-194` Wipes per dungeon
-195. `TODO` `W-195` Dungeon runs abandoned (left before final boss)
-196. `TODO` `W-196` Every boss killed, keyed by the encounter name the game reports
-197. `TODO` `W-197` First kill of each dungeon's final boss: level and /played
-198. `TODO` `W-198` Hall of Thanes runs (13-18, beneath Ironforge)
-199. `TODO` `W-199` Ruins of Lordaeron runs (15-20, Tirisfal Glades)
-200. `TODO` `W-200` Excavation Site runs (24-29, Wetlands)
-201. `TODO` `W-201` City of Dalaran runs (28-33, Alterac Mountains) and Shade of the Archmage kills
-202. `TODO` `W-202` The Drowned City runs (35-40, Stranglethorn Vale)
-203. `TODO` `W-203` Krol'dok Stronghold runs (40-45, Riverglades)
-204. `TODO` `W-204` Alcaz Island Prison runs (48-53, Dustwallow Marsh)
-205. `TODO` `W-205` Blackmaw Hold runs (55-60, Azshara)
-206. `TODO` `W-206` Shaper's Terrace runs (58-60, Un'Goro Crater)
-207. `TODO` `W-207` New Forever dungeons vs Classic dungeons: runs and time split
-208. `TODO` `W-208` Scarlet Monastery runs per wing: Graveyard, Library, Armory, Cathedral
-209. `TODO` `W-209` Dire Maul runs per wing and Stratholme runs per side
-210. `TODO` `W-210` Herod killed
-211. `TODO` `W-211` Mograine and Whitemane killed
-212. `TODO` `W-212` Arugal killed (Shadowfang Keep)
-213. `TODO` `W-213` Mr. Smite and Cookie killed (Deadmines)
-214. `TODO` `W-214` Mutanus the Devourer killed and Naralex awakened (Wailing Caverns)
-215. `TODO` `W-215` Aku'mai killed (Blackfathom Deeps)
-216. `TODO` `W-216` Mekgineer Thermaplugg killed (Gnomeregan)
-217. `TODO` `W-217` Charlga Razorflank killed (Razorfen Kraul)
-218. `TODO` `W-218` Amnennar the Coldbringer killed (Razorfen Downs)
-219. `TODO` `W-219` Archaedas killed (Uldaman)
-220. `TODO` `W-220` Zul'Farrak graveyard stair event survived
-221. `TODO` `W-221` Chief Ukorz Sandscalp killed (Zul'Farrak)
-222. `TODO` `W-222` Princess Theradras killed (Maraudon)
-223. `TODO` `W-223` Shade of Eranikus killed (Temple of Atal'Hakkar)
-224. `TODO` `W-224` Emperor Dagran Thaurissan killed (BRD)
-225. `TODO` `W-225` Times you were the last party member alive in a wipe
-226. `TODO` `W-226` Times you died first in a wipe
-227. `TODO` `W-227` Dungeon deaths by boss
-228. `TODO` `W-228` Dungeon XP earned per run (Forever shifts XP toward quests, so this is interesting to compare)
-229. `TODO` `W-229` Rare-quality boss drops looted per dungeon
-230. `TODO` `W-230` Dungeon quests completed per dungeon
-231. `TODO` `W-231` Times you ran a dungeon 5+ levels over (boosting or farming)
-232. `TODO` `W-232` Times you were boosted through a dungeon by a much higher player [probe]
-233. `TODO` `W-233` Party compositions run with (class counts only)
-234. `TODO` `W-234` Tank, healer, or DPS role per run (by spec or self-assigned)
-235. `TODO` `W-235` Times you hearthed out of a dungeon
-236. `TODO` `W-236` Instance lockouts hit ('too many instances')
-237. `TODO` `W-237` Times you released and corpse-ran into a dungeon
-238. `TODO` `W-238` Dungeon you ran most at each 10-level bracket
-239. `TODO` `W-239` Dungeon bosses defeated per Legacy bracket (15-25, 26-45, 46-60)
+191. `SKIP` `W-191` Runs per dungeon: Classic (RFC, WC, Deadmines, SFK, BFD, Stockade, Gnomeregan, RFK, SM wings, RFD, Uldaman, ZF, Maraudon, Temple of Atal'Hakkar, BRD, LBRS, UBRS, Dire Maul wings, Stratholme, Scholomance) and new (see below) (covered by #73: dungeons entered, by name, every run)
+192. `BUILT` `W-192` Clear time per dungeon run (enter to final boss) (time from entering to the final boss's kill, each run kept (newest 100) with your level; final bosses listed in JourneyTrackerDungeons.lua, wings by their bosses, Forever's new dungeons to their last boss)
+193. `BUILT` `W-193` Fastest clear per dungeon (fastest clear per dungeon or wing)
+194. `BUILT` `W-194` Wipes per dungeon (failed encounters per dungeon)
+195. `BUILT` `W-195` Dungeon runs abandoned (left before final boss) (runs that ended without the final boss (or with no boss at all for an unlisted dungeon))
+196. `SKIP` `W-196` Every boss killed, keyed by the encounter name the game reports (covered by #41: every boss kill by its encounter name)
+197. `BUILT` `W-197` First kill of each dungeon's final boss: level and /played (first kill of each dungeon's (or wing's) final boss, with level and /played)
+198. `SKIP` `W-198` Hall of Thanes runs (13-18, beneath Ironforge) (covered by #73: runs by dungeon name)
+199. `SKIP` `W-199` Ruins of Lordaeron runs (15-20, Tirisfal Glades) (covered by #73: runs by dungeon name)
+200. `SKIP` `W-200` Excavation Site runs (24-29, Wetlands) (covered by #73: runs by dungeon name)
+201. `SKIP` `W-201` City of Dalaran runs (28-33, Alterac Mountains) and Shade of the Archmage kills (covered by #73 (runs by dungeon name) and #41 (Shade of the Archmage kills))
+202. `SKIP` `W-202` The Drowned City runs (35-40, Stranglethorn Vale) (covered by #73: runs by dungeon name)
+203. `SKIP` `W-203` Krol'dok Stronghold runs (40-45, Riverglades) (covered by #73: runs by dungeon name)
+204. `SKIP` `W-204` Alcaz Island Prison runs (48-53, Dustwallow Marsh) (covered by #73: runs by dungeon name)
+205. `SKIP` `W-205` Blackmaw Hold runs (55-60, Azshara) (covered by #73: runs by dungeon name)
+206. `SKIP` `W-206` Shaper's Terrace runs (58-60, Un'Goro Crater) (covered by #73: runs by dungeon name)
+207. `BUILT` `W-207` New Forever dungeons vs Classic dungeons: runs and time split (runs and seconds, Forever's new dungeons vs Classic's)
+208. `BUILT` `W-208` Scarlet Monastery runs per wing: Graveyard, Library, Armory, Cathedral (Scarlet Monastery runs by wing, told apart by the bosses killed)
+209. `BUILT` `W-209` Dire Maul runs per wing and Stratholme runs per side (Dire Maul and Stratholme runs by wing, the same way)
+210. `SKIP` `W-210` Herod killed (covered by #28 and #41: kills by name and boss kills)
+211. `SKIP` `W-211` Mograine and Whitemane killed (covered by #28 and #41)
+212. `SKIP` `W-212` Arugal killed (Shadowfang Keep) (covered by #28 and #41)
+213. `SKIP` `W-213` Mr. Smite and Cookie killed (Deadmines) (covered by #28 and #41)
+214. `BUILT` `W-214` Mutanus the Devourer killed and Naralex awakened (Wailing Caverns) (Naralex awakened: his disciple's last words in Wailing Caverns; Mutanus kills are #28 and #41)
+215. `SKIP` `W-215` Aku'mai killed (Blackfathom Deeps) (covered by #28 and #41)
+216. `SKIP` `W-216` Mekgineer Thermaplugg killed (Gnomeregan) (covered by #28 and #41)
+217. `SKIP` `W-217` Charlga Razorflank killed (Razorfen Kraul) (covered by #28 and #41)
+218. `SKIP` `W-218` Amnennar the Coldbringer killed (Razorfen Downs) (covered by #28 and #41)
+219. `SKIP` `W-219` Archaedas killed (Uldaman) (covered by #28 and #41)
+220. `BUILT` `W-220` Zul'Farrak graveyard stair event survived (killing Nekrum Gutchewer or Shadowpriest Sezz'ziz, who end the stair event, once a run)
+221. `SKIP` `W-221` Chief Ukorz Sandscalp killed (Zul'Farrak) (covered by #28 and #41)
+222. `SKIP` `W-222` Princess Theradras killed (Maraudon) (covered by #28 and #41)
+223. `SKIP` `W-223` Shade of Eranikus killed (Temple of Atal'Hakkar) (covered by #28 and #41)
+224. `SKIP` `W-224` Emperor Dagran Thaurissan killed (BRD) (covered by #28 and #41)
+225. `BUILT` `W-225` Times you were the last party member alive in a wipe (everyone in the group dead and you last, from each member's death time, checked every second in instance fights)
+226. `BUILT` `W-226` Times you died first in a wipe (the same, you first)
+227. `BUILT` `W-227` Dungeon deaths by boss (your deaths during an encounter, by its name)
+228. `BUILT` `W-228` Dungeon XP earned per run (Forever shifts XP toward quests, so this is interesting to compare) (XP gained during each run (newest 100))
+229. `BUILT` `W-229` Rare-quality boss drops looted per dungeon (blue or better items looted within a minute of a boss dying, by dungeon)
+230. `BUILT` `W-230` Dungeon quests completed per dungeon (Dungeon-tagged quests (or quests under a dungeon's quest log header), by that header)
+231. `BUILT` `W-231` Times you ran a dungeon 5+ levels over (boosting or farming) (runs at 5+ levels over the dungeon's range)
+232. `BUILT` `W-232` Times you were boosted through a dungeon by a much higher player [probe] (runs with a group member 10+ levels above you)
+233. `BUILT` `W-233` Party compositions run with (class counts only) (class lists, sorted, per run)
+234. `BUILT` `W-234` Tank, healer, or DPS role per run (by spec or self-assigned) (UnitGroupRolesAssigned, or your class and biggest talent tree)
+235. `BUILT` `W-235` Times you hearthed out of a dungeon (Hearthstone within 20 seconds of a run ending)
+236. `BUILT` `W-236` Instance lockouts hit ('too many instances') ('too many instances' messages)
+237. `SKIP` `W-237` Times you released and corpse-ran into a dungeon (covered by #48 and #49: each death's dungeon and how you came back)
+238. `SKIP` `W-238` Dungeon you ran most at each 10-level bracket (derived from #74's run list (name and level))
+239. `BUILT` `W-239` Dungeon bosses defeated per Legacy bracket (15-25, 26-45, 46-60) (boss kills by bracket (15-25, 26-45, 46-60))
 
 ## Raids (post-launch, level 60)
 _Raids open December 9, 2026: Onyxia's Lair (40-player), The Barrow Deeps (10-player), Hyjal Summit (20-player). Optional for a 1-60 recap, but cheap to add with the same encounter events._
 
-240. `TODO` `W-240` Raid runs by raid
-241. `TODO` `W-241` Raid bosses killed, by encounter name
-242. `TODO` `W-242` Onyxia killed: /played and days after hitting 60
-243. `TODO` `W-243` Raid wipes by boss
-244. `TODO` `W-244` Time from hitting 60 to first raid boss kill
-245. `TODO` `W-245` Deaths in raids, and deaths to Onyxia's Deep Breath and whelps
+240. `SKIP` `W-240` Raid runs by raid (covered by #73: raids are counted with the dungeons)
+241. `SKIP` `W-241` Raid bosses killed, by encounter name (covered by #41)
+242. `BUILT` `W-242` Onyxia killed: /played and days after hitting 60 (first Onyxia kill, with /played and days after 60)
+243. `SKIP` `W-243` Raid wipes by boss (covered by #42: wipes by boss, raids included)
+244. `BUILT` `W-244` Time from hitting 60 to first raid boss kill (first raid boss kill, days after 60)
+245. `BUILT` `W-245` Deaths in raids, and deaths to Onyxia's Deep Breath and whelps (deaths in raids by raid; deaths to whelps; Deep Breath from the combat log where Forever allows it)
 
 ## Loot rolls and group life
 _START_LOOT_ROLL, CHAT_MSG_LOOT, CHAT_MSG_SYSTEM for /roll results, GROUP_ROSTER_UPDATE._
@@ -636,3 +636,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-01: The window's separate Lifetime > Statistics Pane page is gone. Every statistic now shows on the existing page it fits (category to page by category ID; one with no page goes where its parent goes, else on the Summary), all of them, "--" included. Rows both sides count show the bigger of the two numbers (both start partway through a character's life): Summary, Quests completed/abandoned/gold, Total deaths, Deaths from falling, XP-granting kills (the game's experience-or-honor kills less honorable kills), Honorable kills, Hearthstone uses, Flights taken, the Gold page's earned/spent rows, profession skill bars, Fish caught, and health/mana potions; those statistics aren't listed again. The window reads the pane again when it opens and every 20 seconds while it's open (out of combat only).
 - 2026-10-05: Sections 2-6 (creature families, Alliance, Horde and neutral iconic, rares) done in the new JourneyTrackerIconic.lua, plus boats and zeppelins (W-329, W-330, W-472) and gold spent on mounts (W-375), which the iconic routes and racial mounts needed. W-022..W-139 `BUILT` except the world PvP ones (W-080, W-091, W-100, left for the PvP section); W-113 and W-114 `SKIP` (covered by #46 and #66). The main tracker now passes kills (with zone, creature type and beast family), fights (with who was in them and the highest mob level), deaths, falls, loot and money changes to the wrapped files (ns.OnKill and friends, each run protected so a wrapped tracker can't break the main one), and remembers enemy players' class and level for the session only. Kills without experience (critters, Gamon) are counted when a target you attacked dies, and from the combat log where Forever lets addons read it ([probe]); neither counts a kill the experience message already did. The window has a new Wrapped Stats section (folded at first) with Creature Families, Iconic Moments and Rares & Elites pages. Checked outside the game (fengari, real saved data): murlocs in and out of a fight, wolves vs worgen, Hogger and the two Princesses, a chicken and a kobold, capital visits, a boat and a zeppelin ride, a guard death, quests, a Wanted target, loot, a rare, the Horde items, the export and every page.
 - 2026-10-05: Sections 7-8 (world PvP, battlegrounds and duels) done in the new JourneyTrackerPvP.lua, with the iconic PvP items (W-080, W-091, W-100) and the PvP firsts (W-468, W-469, W-479, W-480). W-140..W-190 `BUILT` except W-164 `BLOCKED` (health is secret on Forever). Enemy players killed come from honorable kill messages, enemy player targets you attacked dying, and the combat log where allowed; one player within 10 seconds counts once, and only class and level are kept. Battleground objectives come from your scoreboard row at the end, column by column, so Darkspear Islands' columns are kept whatever they're called. Duel results come from the system messages; the client's format there uses numbered parts (%1$s), so the pattern builder handles those. Checked outside the game: a stealth gank and an honorable kill (and the same player not counted twice), a corpse camp, two duels, a Warsong Gulch win with its scoreboard, and every page.
+- 2026-10-05: Sections 9-10 (dungeons deep dive, raids) done in the new JourneyTrackerDungeons.lua. `BUILT`: clear times, fastest clears, wipes and abandoned runs per dungeon, first final-boss kills, Forever vs Classic runs, Scarlet Monastery, Dire Maul and Stratholme wings (told apart by the bosses killed), Naralex awakened, the Zul'Farrak stairs, last one standing and first to fall in a wipe, deaths by boss, XP per run, blue boss drops, dungeon quests by dungeon, runs over level or boosted, party compositions (classes only), your role, hearthing out, lockouts, bosses by Legacy bracket, Onyxia and the first raid boss after 60, deaths in raids. `SKIP`: runs per dungeon and the nine new dungeons' runs (#73), each named boss (#28, #41), corpse runs into dungeons (#48-49), most-run dungeon per bracket (#74), raid runs, kills and wipes (#73, #41-42). The window can now draw maps of records (the Forever vs Classic split) as rows. Checked outside the game: a Deadmines run with a trash wipe, a death on Mr. Smite, VanCleef, a blue drop, a dungeon quest and a hearth out; a Scarlet Monastery Armory run from Herod's kill; Shadowfang Keep left early; a lockout; Onyxia. No stray globals.

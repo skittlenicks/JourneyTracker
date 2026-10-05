@@ -522,6 +522,42 @@ local function Value(v, how)
     return nil -- a map or list
 end
 
+-- A map whose values are all numbers can be drawn as bars.
+local function AllNumbers(map)
+    for _, v in pairs(map) do
+        if type(v) ~= "number" then return false end
+    end
+    return true
+end
+
+-- One line for a record that isn't a number ("runs 3, seconds 1200").
+local function Summary(v)
+    if type(v) ~= "table" then return tostring(v) end
+    local parts = {}
+    for k, x in pairs(v) do
+        if type(x) == "number" or type(x) == "string" or type(x) == "boolean" then
+            parts[#parts + 1] = tostring(k) .. " " .. tostring(type(x) == "number" and ns.UI.Num(x) or x)
+        end
+    end
+    table.sort(parts)
+    return table.concat(parts, ", ")
+end
+
+-- Bars for a map of numbers; a row each for a map of records.
+local function DrawMap(B, v, fmt)
+    if AllNumbers(v) then
+        B:BarList(v, fmt, nil, 12)
+        return
+    end
+    local n = 0
+    for k, x in pairs(v) do
+        n = n + 1
+        if n > 12 then break end
+        B:Row("  " .. tostring(k), type(x) == "number" and (fmt and fmt(x) or ns.UI.Num(x)) or (Value(x) or Summary(x)))
+    end
+end
+ns.DrawWrappedMap = DrawMap
+
 -- Draw a page of items. Each row is { id, label, how } (how: nil for a
 -- count, "time", "money", "map" for bars, "firsts" for a map of first
 -- times), or { heading = text } or { note = text }.
@@ -538,7 +574,7 @@ function ns.ShowItems(B, rows)
             if how == "map" or how == "timemap" or how == "moneymap" then
                 B:Row(label, type(v) == "table" and next(v) and "" or "-")
                 if type(v) == "table" and next(v) then
-                    B:BarList(v, how == "timemap" and U.Dur or how == "moneymap" and U.Money or nil, nil, 12)
+                    DrawMap(B, v, how == "timemap" and U.Dur or how == "moneymap" and U.Money or nil)
                 end
             elseif how == "firsts" then
                 B:Row(label, type(v) == "table" and next(v) and "" or "-")
@@ -551,7 +587,7 @@ function ns.ShowItems(B, rows)
                     B:Row(label, text)
                 else
                     B:Row(label, "")
-                    B:BarList(v, nil, nil, 12)
+                    DrawMap(B, v)
                 end
             end
         end
