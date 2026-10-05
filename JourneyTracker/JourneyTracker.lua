@@ -40,11 +40,12 @@ local db -- JourneyTrackerDB, set on ADDON_LOADED
 -- kept for /journey status.
 local hooks = { kill = {}, fight = {}, death = {}, fall = {}, loot = {}, money = {}, gather = {} }
 local hookErrors = {}
+local function Run(kind, fn, ...)
+    local ok, err = pcall(fn, ...)
+    if not ok and #hookErrors < 10 then table.insert(hookErrors, kind .. ": " .. tostring(err)) end
+end
 local function Fire(kind, ...)
-    for _, fn in ipairs(hooks[kind]) do
-        local ok, err = pcall(fn, ...)
-        if not ok and #hookErrors < 10 then table.insert(hookErrors, kind .. ": " .. tostring(err)) end
-    end
+    for _, fn in ipairs(hooks[kind]) do Run(kind, fn, ...) end
 end
 
 ---------------------------------------------------------------------------
@@ -104,9 +105,11 @@ local function Inc(t, key, amount)
     t[key] = (t[key] or 0) + (amount or 1)
 end
 
--- Map coordinate (0-1) to a percentage with one decimal, like 45.3.
+-- Map coordinate (0-1) to a percentage with one decimal, like 45.3. The
+-- game can place you a little past a map's edge; that reads as the edge
+-- (an export with a negative number in it is turned away).
 local function Pct(v)
-    if v then return math.floor(v * 1000 + 0.5) / 10 end
+    if v then return math.floor(math.max(0, math.min(1, v)) * 1000 + 0.5) / 10 end
 end
 
 -- Turn a Blizzard format string ("%s dies, you gain %d experience.") into a
@@ -384,7 +387,7 @@ local function FreshXPSource(window)
     end
 end
 
-local lastXP, lastXPMax, lastRested
+local lastXP, lastXPMax, lastRested, lastLevel
 local function ReadXP()
     local xp = Num(Call("UnitXP", "player"))
     local xpMax = Num(Call("UnitXPMax", "player"))
@@ -394,6 +397,7 @@ end
 
 local function SeedXP()
     lastXP, lastXPMax, lastRested = ReadXP()
+    lastLevel = Level()
 end
 
 local function OnXPUpdate()
@@ -416,14 +420,24 @@ local function OnXPUpdate()
             else
                 X.solo = X.solo + gained
             end
-            local L = LevelStats()
-            L.xp = L.xp + gained
+            if xp < lastXP and lastLevel and lastLevel > 0 then
+                -- A ding: what finished the old level is that level's, the
+                -- rest the new one's.
+                local old = LevelStats(lastLevel)
+                old.xp = old.xp + (gained - xp)
+                local new = LevelStats(lastLevel + 1)
+                new.xp = new.xp + xp
+            else
+                local L = LevelStats()
+                L.xp = L.xp + gained
+            end
             if lastRested and rested < lastRested then            -- #22 rested XP used
                 X.restedUsed = X.restedUsed + (lastRested - rested)
             end
         end
     end
     lastXP, lastXPMax, lastRested = xp, xpMax, rested
+    lastLevel = Level()
 end
 
 ---------------------------------------------------------------------------
@@ -520,7 +534,13 @@ local playerInfo = {} -- session cache, never saved: [player name] = { class, le
 local plates = {}    -- active nameplate unit tokens
 local fight          -- the current fight while in combat
 local lastHostile    -- last attackable thing we targeted (name or "Player (PvP)")
+local lastHostileAt = 0 -- GetTime() it was targeted
 local lastTargetGUID, lastTargetTime
+local HOSTILE_FRESH = 60 -- seconds a targeted hostile can still be what you fight or die to
+
+local function RecentHostile()
+    if lastHostile and GetTime() - lastHostileAt <= HOSTILE_FRESH then return lastHostile end
+end
 
 -- A unit's name, or "Player (PvP)" so player names are never stored.
 local function UnitLabel(unit)
@@ -622,7 +642,7 @@ end
 local fightTicker
 local function StartFight()
     fight = { start = GetTime(), kills = {}, threat = {}, targeted = {},
-              ambush = 0, maxMobs = 0, lastHostile = lastHostile, names = {}, grouped = InGroup(),
+              ambush = 0, maxMobs = 0, lastHostile = RecentHostile(), names = {}, grouped = InGroup(),
               zone = Zone(), subzone = SubZone() }
     -- Whatever we targeted just before the pull counts as "targeted".
     if lastTargetGUID and GetTime() - lastTargetTime <= 10 then
@@ -670,7 +690,7 @@ local function KillerName()
         local n = UnitLabel("target")
         if n then return n end
     end
-    return (fight and fight.lastHostile) or lastHostile or "Unknown"
+    return (fight and fight.lastHostile) or RecentHostile() or "Unknown"
 end
 
 ---------------------------------------------------------------------------
@@ -681,7 +701,10 @@ local function FinishRun()
     local D = db.dungeons
     local run = D.current
     if not run then return end
-    run.duration = time() - run.start                         -- #74 time per run
+    -- #74 time per run: the time you were logged in during it, or for a run
+    -- begun before that was counted, the clock time since it began.
+    run.duration = run.active and math.floor(run.active + 0.5) or (time() - run.start)
+    run.active = nil
     table.insert(D.runs, run)
     D.current = nil
 end
@@ -693,7 +716,7 @@ local function CheckDungeon()
         local name = Str(Call("GetInstanceInfo")) or "Unknown"
         if not D.current or D.current.name ~= name then
             FinishRun()
-            D.current = { name = name, start = time(), level = Level(), bosses = 0, deaths = 0 }
+            D.current = { name = name, start = time(), level = Level(), bosses = 0, deaths = 0, active = 0 }
             Inc(D.entered, name)                              -- #73 dungeons entered
         end
     elseif D.current then
@@ -845,7 +868,8 @@ end
 
 -- Which window is open, so a money change can be attributed.
 local ctx = { merchant = false, trainer = false, auction = false, mail = false,
-              loot = false, lootUntil = 0, repairUntil = 0, flightUntil = 0 }
+              loot = false, lootUntil = 0, repairUntil = 0, flightUntil = 0,
+              tradeskill = false } -- the open trainer teaches a profession, not your class
 
 local function OnMoney()
     local now = Num(Call("GetMoney"))
@@ -879,7 +903,7 @@ local function OnMoney()
             M.repairs = M.repairs + d                         -- #81 repairs (all, or one item)
         elseif t < ctx.flightUntil then
             M.flights = M.flights + d                         -- #82 flights
-        elseif ctx.trainer then
+        elseif ctx.trainer and not ctx.tradeskill then
             M.training = M.training + d                       -- #80 class training
         elseif ctx.auction then
             M.auctionSpent = M.auctionSpent + d               -- #83 bids, buyouts, deposits
@@ -1297,6 +1321,8 @@ local function Tick()
     if InGroup() then T.grouped = T.grouped + dt else T.solo = T.solo + dt end -- #97
     local Z = currentZone and db.zones[currentZone]
     if Z then Z.seconds = Z.seconds + dt end                               -- #66 time per zone
+    local run = db.dungeons.current
+    if run and run.active then run.active = run.active + dt end            -- #74 time in the run
 
     -- #108 where you spend your time: the square of the zone's map you're
     -- in, read out of combat like the distance below, so a fight's time
@@ -1349,12 +1375,13 @@ local function OnLevelUp(level)
         mapID = mapID, x = x, y = y,                          -- #20 coordinates
         cause = FreshXPSource(3) or "other",                  -- #21 what caused the ding
         gold = Num(Call("GetMoney")),                         -- #76 gold at ding
-        -- Running totals so the website can chart per level:
-        xpTotal = db.xp.total, kills = db.kills.total, deaths = #db.deaths,
+        -- Running totals so the website can chart per level (with the kills
+        -- of a fight still going, which count when it ends):
+        xpTotal = db.xp.total, kills = db.kills.total + (fight and #fight.kills or 0), deaths = #db.deaths,
         quests = db.quests.completed, grouped = InGroup(),
     }
     db.dings[level] = snapshot
-    for _, fn in ipairs(dingCallbacks) do fn(snapshot, level) end
+    for _, fn in ipairs(dingCallbacks) do Run("ding", fn, snapshot, level) end
     pendingDing = level
     Call("RequestTimePlayed")                                 -- #2 reply fills in .played
     local sess = db.sessions.current
@@ -1378,7 +1405,7 @@ local function OnTimePlayed(total, thisLevel)
         if d then d.played = total end                        -- #2 /played at each ding
         -- #3 /played spent on the level just finished
         if P.levelStart and thisLevel then
-            LevelStats(pendingDing - 1).played = (total - thisLevel) - P.levelStart
+            LevelStats(pendingDing - 1).played = math.max(0, (total - thisLevel) - P.levelStart)
         end
         pendingDing = nil
     end
@@ -1411,7 +1438,8 @@ handlers.PLAYER_REGEN_ENABLED = function() EndFight() end
 handlers.PLAYER_TARGET_CHANGED = function()
     CacheUnit("target")
     if Call("UnitCanAttack", "player", "target") ~= true then return end
-    lastHostile = UnitLabel("target") or lastHostile
+    local label = UnitLabel("target")
+    if label then lastHostile, lastHostileAt = label, GetTime() end
     local guid = Str(Call("UnitGUID", "target"))
     if guid then
         lastTargetGUID, lastTargetTime = guid, GetTime()
@@ -1560,7 +1588,9 @@ end
 handlers.PLAYER_MONEY = function() OnMoney() end
 handlers.MERCHANT_SHOW = function() ctx.merchant = true end
 handlers.MERCHANT_CLOSED = function() ctx.merchant = false end
-handlers.TRAINER_SHOW = function() ctx.trainer = true end
+handlers.TRAINER_SHOW = function()
+    ctx.trainer, ctx.tradeskill = true, Call("IsTradeskillTrainer") == true
+end
 handlers.TRAINER_CLOSED = function() ctx.trainer = false end
 handlers.AUCTION_HOUSE_SHOW = function() ctx.auction = true end
 handlers.AUCTION_HOUSE_CLOSED = function() ctx.auction = false end
@@ -1581,6 +1611,7 @@ end
 handlers.PLAYER_INTERACTION_MANAGER_FRAME_SHOW = function(itype)
     local key = InteractionKey(itype)
     if key then ctx[key] = true end
+    if key == "trainer" then ctx.tradeskill = Call("IsTradeskillTrainer") == true end
 end
 handlers.PLAYER_INTERACTION_MANAGER_FRAME_HIDE = function(itype)
     local key = InteractionKey(itype)
@@ -1672,7 +1703,7 @@ function ns.OnDing(fn) table.insert(dingCallbacks, fn) end -- adds fields to eac
 local function Dispatch(event, ...)
     local list = listeners[event]
     if not list then return end
-    for _, fn in ipairs(list) do fn(...) end
+    for _, fn in ipairs(list) do Run(event, fn, ...) end
 end
 
 -- Post-hook a function if it exists. hooksecurefunc runs after Blizzard's
@@ -1760,7 +1791,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         RegisterEvents()
         InstallHooks()
         if IsFalling then self:SetScript("OnUpdate", WatchFalling) end -- #101-102
-        for _, fn in ipairs(loadCallbacks) do fn(db) end
+        for _, fn in ipairs(loadCallbacks) do Run("load", fn, db) end
         return
     end
 
