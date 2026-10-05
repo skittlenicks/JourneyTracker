@@ -38,7 +38,7 @@ local db -- JourneyTrackerDB, set on ADDON_LOADED
 -- friends). Each callback runs protected: an error in one of them can't
 -- stop this file recording the kill, death or loot. The first errors are
 -- kept for /journey status.
-local hooks = { kill = {}, fight = {}, death = {}, fall = {}, loot = {}, money = {} }
+local hooks = { kill = {}, fight = {}, death = {}, fall = {}, loot = {}, money = {}, gather = {} }
 local hookErrors = {}
 local function Fire(kind, ...)
     for _, fn in ipairs(hooks[kind]) do
@@ -951,6 +951,7 @@ local function OnGather(kind)
         lastVein = x and { x = x, y = y, inst = inst, t = now } or nil
     end
     G.nodes = G.nodes + 1                                     -- #103 nodes gathered
+    Fire("gather", kind)
 end
 
 local function ItemQuality(link)
@@ -1899,8 +1900,10 @@ ns.MAX_LEVEL, ns.PROFESSIONS = MAX_LEVEL, PROFESSIONS
 ns.PatternFrom, ns.MapPos, ns.WorldPos, ns.ItemQuality = PatternFrom, MapPos, WorldPos, ItemQuality
 -- What this file records, for the other files: fn(kill), fn(fight) as it
 -- ends, fn(deathRecord, extra), fn(fall, airTime), fn(link, count,
--- quality, extra), fn(moneyChange, where, total).
+-- quality, extra), fn(moneyChange, where, total), fn(kind) for each new
+-- node gathered (herb, mining, skinning).
 function ns.OnKill(fn) table.insert(hooks.kill, fn) end
+function ns.OnGather(fn) table.insert(hooks.gather, fn) end
 function ns.OnFightEnd(fn) table.insert(hooks.fight, fn) end
 function ns.OnDeathRecord(fn) table.insert(hooks.death, fn) end
 function ns.OnFall(fn) table.insert(hooks.fall, fn) end

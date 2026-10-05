@@ -15,6 +15,7 @@ JourneyTrackerDungeons.lua
 JourneyTrackerSocial.lua
 JourneyTrackerWorld.lua
 JourneyTrackerEconomy.lua
+JourneyTrackerProfessions.lua
 JourneyTrackerStats.lua
 JourneyTrackerSerialize.lua
 JourneyTrackerExport.lua

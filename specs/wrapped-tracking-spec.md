@@ -504,65 +504,65 @@ _Snapshot out of combat at each ding: UnitStat, UnitArmor, UnitAttackPower, GetC
 ## Professions deep dive
 _Item diffs, CHAT_MSG_LOOT, CHAT_MSG_SKILL, TRADE_SKILL events, UNIT_SPELLCAST_SUCCEEDED for gathering._
 
-411. `TODO` `W-411` Herbs picked by type (Peacebloom, Silverleaf, Earthroot, Mageroyal, Briarthorn, Bruiseweed, Kingsblood, Fadeleaf, Goldthorn, Firebloom, Sungrass, and more)
-412. `TODO` `W-412` Black Lotus picked
-413. `TODO` `W-413` Ore mined by type (Copper, Tin, Silver, Iron, Gold, Mithril, Truesilver, Thorium)
-414. `TODO` `W-414` Truesilver and Silver veins found
-415. `TODO` `W-415` Gems found while mining
-416. `TODO` `W-416` Skins gathered by type (Light, Medium, Heavy, Thick, Rugged leather)
-417. `TODO` `W-417` Cloth looted by type (Linen, Wool, Silk, Mageweave, Runecloth)
-418. `TODO` `W-418` Total cloth looted
-419. `TODO` `W-419` Gathering nodes by zone
-420. `TODO` `W-420` Nodes you lost to another player (node vanished mid-gather) [probe]
-421. `TODO` `W-421` Fishing casts and catch rate
-422. `TODO` `W-422` Fish caught by type
-423. `TODO` `W-423` Junk vs fish from fishing
-424. `TODO` `W-424` Fishing pools fished
-425. `TODO` `W-425` Longest fishing session
-426. `TODO` `W-426` Items cooked and most cooked recipe
-427. `TODO` `W-427` Recipes learned per profession
-428. `TODO` `W-428` Rare recipes learned from drops
-429. `TODO` `W-429` Profession skill at each ding
-430. `TODO` `W-430` Items disenchanted and materials gained
-431. `TODO` `W-431` Enchants cast on other players' gear
-432. `TODO` `W-432` Engineering explosives thrown
-433. `TODO` `W-433` Target Dummies deployed
-434. `TODO` `W-434` Goblin Jumper Cables used: successes vs failures
-435. `TODO` `W-435` Gnomish gadgets used (Mind Control Cap, Death Ray, Net-o-Matic, etc.)
-436. `TODO` `W-436` Potions and elixirs crafted
-437. `TODO` `W-437` Gold earned from selling gathered materials
-438. `TODO` `W-438` Professions dropped (unlearned)
+411. `SKIP` `W-411` Herbs picked by type (Peacebloom, Silverleaf, Earthroot, Mageroyal, Briarthorn, Bruiseweed, Kingsblood, Fadeleaf, Goldthorn, Firebloom, Sungrass, and more) (covered by #103 (db.gathering.herb.items: what each herb node gave, by item))
+412. `SKIP` `W-412` Black Lotus picked (covered by #103 (Black Lotus is one of the herb items))
+413. `SKIP` `W-413` Ore mined by type (Copper, Tin, Silver, Iron, Gold, Mithril, Truesilver, Thorium) (covered by #103 (db.gathering.mining.items, by ore))
+414. `BUILT` `W-414` Truesilver and Silver veins found (mining nodes whose name (the gathering cast's target) says Truesilver or Silver (JourneyTrackerProfessions.lua))
+415. `BUILT` `W-415` Gems found while mining (uncommon or better items from mining nodes, by name)
+416. `SKIP` `W-416` Skins gathered by type (Light, Medium, Heavy, Thick, Rugged leather) (covered by #103 (db.gathering.skinning.items, by leather))
+417. `BUILT` `W-417` Cloth looted by type (Linen, Wool, Silk, Mageweave, Runecloth) (Linen, Wool, Silk, Mageweave, Runecloth and Felcloth looted, by type)
+418. `BUILT` `W-418` Total cloth looted (the total of W-417)
+419. `BUILT` `W-419` Gathering nodes by zone (each new node the main tracker counts (#103), by zone)
+420. `BUILT` `W-420` Nodes you lost to another player (node vanished mid-gather) [probe] ([probe] a gathering cast interrupted while you stood still out of combat)
+421. `BUILT` `W-421` Fishing casts and catch rate (Fishing casts and fishing loot windows (catch rate = catches / casts))
+422. `BUILT` `W-422` Fish caught by type (fishing loot, by item)
+423. `BUILT` `W-423` Junk vs fish from fishing (fishing loot that's gray (junk) or not (fish))
+424. `BUILT` `W-424` Fishing pools fished (fishing loot from an object that isn't the bobber (unverified on Forever))
+425. `BUILT` `W-425` Longest fishing session (the longest run of Fishing casts no more than 2 minutes apart)
+426. `BUILT` `W-426` Items cooked and most cooked recipe (items made with the Cooking window open, by item; the top one is the most cooked)
+427. `BUILT` `W-427` Recipes learned per profession (recipes each profession's window lists (the most seen))
+428. `BUILT` `W-428` Rare recipes learned from drops (recipe items you looted and then learned, by name)
+429. `SKIP` `W-429` Profession skill at each ding (covered by #92 (skill progression; the export has the highest rank at each level))
+430. `BUILT` `W-430` Items disenchanted and materials gained (Disenchant casts, and what you looted right after as W-430.mats)
+431. `BUILT` `W-431` Enchants cast on other players' gear (Enchant casts while a trade window is open, by enchant)
+432. `BUILT` `W-432` Engineering explosives thrown (dynamite, bombs, grenades, sapper charges, land mines and Explosive Sheep used, by item)
+433. `BUILT` `W-433` Target Dummies deployed (target dummies used, by item)
+434. `BUILT` `W-434` Goblin Jumper Cables used: successes vs failures (Goblin Jumper Cables (Defibrillate) casts that went off and ones that failed; whether the player came back can't be read)
+435. `BUILT` `W-435` Gnomish gadgets used (Mind Control Cap, Death Ray, Net-o-Matic, etc.) (an engineering gadget used (from your bags, gear, action bar or by name) and its cast going off, by item)
+436. `BUILT` `W-436` Potions and elixirs crafted (potions, elixirs and flasks you made, by item)
+437. `BUILT` `W-437` Gold earned from selling gathered materials (herbs, ore, leather and cloth sold to vendors (their sell price) and on the auction house (the money from the sale))
+438. `BUILT` `W-438` Professions dropped (unlearned) (a profession that's no longer in GetProfessions, with the level)
 
 ## Reputation and factions
 _CHAT_MSG_COMBAT_FACTION_CHANGE and the reputation API._
 
-439. `TODO` `W-439` Reputation gained by faction
-440. `TODO` `W-440` Level reached Friendly, Honored, Revered, and Exalted with each faction
-441. `TODO` `W-441` Reputation lost by faction
-442. `TODO` `W-442` Times you turned on Booty Bay (Bloodsail Buccaneers rep gained)
-443. `TODO` `W-443` Timbermaw Hold reputation progression
-444. `TODO` `W-444` Cenarion Circle reputation progression
-445. `TODO` `W-445` Argent Dawn reputation progression
-446. `TODO` `W-446` Thorium Brotherhood reputation progression
-447. `TODO` `W-447` Ravenholdt reputation (rogues)
-448. `TODO` `W-448` Steamwheedle Cartel reputation progression
-449. `TODO` `W-449` Home city reputation at 60
-450. `TODO` `W-450` Other faction cities reputation at 60
-451. `TODO` `W-451` Faction you gained the most reputation with
-452. `TODO` `W-452` Reputation turn-ins (cloth donations, etc.)
-453. `TODO` `W-453` Cloth donated to city quartermasters
-454. `TODO` `W-454` Desolace centaur faction chosen
+439. `BUILT` `W-439` Reputation gained by faction (reputation gain messages, by faction)
+440. `BUILT` `W-440` Level reached Friendly, Honored, Revered, and Exalted with each faction ('You are now <standing> with <faction>' messages: the level you reached each standing, by faction)
+441. `BUILT` `W-441` Reputation lost by faction (reputation loss messages, by faction)
+442. `BUILT` `W-442` Times you turned on Booty Bay (Bloodsail Buccaneers rep gained) (Bloodsail Buccaneers reputation gains)
+443. `BUILT` `W-443` Timbermaw Hold reputation progression (Timbermaw Hold reputation at each ding)
+444. `BUILT` `W-444` Cenarion Circle reputation progression (Cenarion Circle reputation at each ding)
+445. `BUILT` `W-445` Argent Dawn reputation progression (Argent Dawn reputation at each ding)
+446. `BUILT` `W-446` Thorium Brotherhood reputation progression (Thorium Brotherhood reputation at each ding)
+447. `BUILT` `W-447` Ravenholdt reputation (rogues) (Ravenholdt reputation at each ding)
+448. `BUILT` `W-448` Steamwheedle Cartel reputation progression (Booty Bay, Everlook, Gadgetzan and Ratchet reputation at each ding)
+449. `BUILT` `W-449` Home city reputation at 60 (your race's capital's reputation at the 60 ding)
+450. `BUILT` `W-450` Other faction cities reputation at 60 (your faction's other capitals' reputation at the 60 ding)
+451. `BUILT` `W-451` Faction you gained the most reputation with (the top of W-439)
+452. `BUILT` `W-452` Reputation turn-ins (cloth donations, etc.) (quests that gave reputation and were turned in before or have a turn-in name (Donation, Insignia, Feathers...), by quest as W-452.byQuest)
+453. `BUILT` `W-453` Cloth donated to city quartermasters (cloth handed over with a donation quest, by type)
+454. `BUILT` `W-454` Desolace centaur faction chosen (the Desolace centaur clan you've gained more reputation with)
 
 ## Holidays and world events
 _Forever's holiday calendar isn't confirmed yet. Build these behind a flag and mark BLOCKED if an event never shows up._
 
-455. `TODO` `W-455` Darkmoon Faire visits
-456. `TODO` `W-456` Darkmoon Faire tickets turned in
-457. `TODO` `W-457` Darkmoon Faire fortune received
-458. `TODO` `W-458` Hallow's End candy buckets looted and tricks/treats
-459. `TODO` `W-459` Winter Veil presents opened
-460. `TODO` `W-460` Stranglethorn Fishing Extravaganza participation
-461. `TODO` `W-461` Holiday quests completed total
+455. `BUILT` `W-455` Darkmoon Faire visits (the Darkmoon Faire subzone or one of its people targeted, once per 10 minutes (behind the holiday flag; unverified on Forever))
+456. `BUILT` `W-456` Darkmoon Faire tickets turned in (Darkmoon Faire Prize Tickets leaving your bags (holiday flag))
+457. `BUILT` `W-457` Darkmoon Faire fortune received (Sayge's fortunes you got, by name (holiday flag))
+458. `BUILT` `W-458` Hallow's End candy buckets looted and tricks/treats (Hallow's End treats you got, by name (holiday flag))
+459. `BUILT` `W-459` Winter Veil presents opened (Winter Veil presents opened, by name (holiday flag))
+460. `BUILT` `W-460` Stranglethorn Fishing Extravaganza participation (Speckled Tastyfish caught and the Master Angler quest (holiday flag))
+461. `BUILT` `W-461` Holiday quests completed total (quests with a holiday's name, or turned in at the Darkmoon Faire, by title (holiday flag))
 
 ## Milestones and firsts
 _Each records level, /played, zone, and real timestamp._
@@ -640,3 +640,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-05: Sections 11-14 (loot rolls and group life, bloopers, social and chat, emotes) done in the new JourneyTrackerSocial.lua, all `BUILT`, plus W-013..W-015 (Legacy) as a [probe]: the game's system messages that mention Legacy are kept with level and date, and the Legacy-named functions the client has are listed, until the Legacy API is known. Chat is counted, never kept: what you send is read once as it goes out (SendChatMessage hook) to count channels and a few words, and only your own words are tallied (capped); whispers and emotes aimed at you are counted without the sender. Bloopers match the client's own error strings. Your interrupted casts are counted on a frame of their own, because the class tracker listens to the same event for your target and the shared frame keeps one unit filter per event. Checked outside the game: rolls won and passed, /roll, a group, errors, chat and typed words, guild gz after a ding, emotes, a trade, a Legacy message, joining a guild. No stray globals.
 - 2026-10-05: Sections 15-16 (movement and world mechanics, death memes) done in the new JourneyTrackerWorld.lua. `BUILT`: time and yards swimming, time underwater, breath running out, fatigue, falls by seconds in the air (from the main tracker's fall timer), yards on foot and mounted (with swimming they add up to #71's ground distance), hearthstone moves and binds by inn, time at your bound inn, where you logged out and rested XP gained while away (counted at the next login, so a /reload isn't a logout), rested XP reaching its cap, portals clicked and the Rut'theran portal, meeting stones, corpse run yards, getting lost; deaths by drowning, fatigue, town guards, murlocs and critters ([probe]), and deaths within 10 seconds of a ding, within a minute of logging in, while AFK, during an escort, with Resurrection Sickness, soon after a spirit healer, in a friendly town, with a healthstone, potion or Hearthstone ready, mounted when the fight began, twice in a minute, plus the longest stretch alive and time as a ghost. Each death record now keeps /played (for the longest stretch and the website's death clock), and the main tracker remembers a mob's faction for the session, to tell town guards from mobs with the same name. `SKIP`: summons (ALL-08), deaths by falling (#102), deaths to elites (W-136), deaths by 10 levels (#45). `BLOCKED`: fall damage and one-shots (health is secret on Forever). Checked outside the game: a corpse run, a spirit healer and a death with Resurrection Sickness, drowning, fatigue, a guard and a grunt that isn't one, a murloc, a rat, a ding, a mounted fight, an escort, a 6-second fall, swimming, walking, riding and a teleport, getting lost, binding at an inn, rested XP across a logout, a portal and a meeting stone. No stray globals.
 - 2026-10-05: Sections 17-18 (economy, vendors, AH and mail; gear and character stats) done in the new JourneyTrackerEconomy.lua, all `BUILT` except W-410 `SKIP` (the class tracker already counts every cast). Vendors: junk sold and its gold, the most valuable junk, items bought, the biggest purchase and gold on bags (a merchant payment paired with the item bought), items destroyed, the first bag of each size, bank slots. The auction house: auctions posted, sold, expired and cancelled, deposits paid and refunded, the house's cut, the best sale and the biggest buy (from invoices, never reading the other player). Mail: sent, cleared from your inbox, COD sent and paid, gold sent and received (auction mail left out); no sender, recipient or text is kept. Gold moments: respecs, quest gold by level, going broke, richest for your level, lockboxes, treasure chests and their gold. Gear: suffixes looted, items equipped and swaps per level, the first two-hander, items broken, gear turning yellow or red, the biggest repair bill, enchants, kits and stones, BoE gear and quest rewards sold without being worn, the quest reward slot you picked. Talents: points in order with level, respecs, the split at 60, and where spells were learned. Your character sheet (stats, armor, health and mana, attack and spell power, crit, resistances, main hand DPS, average item level, gear by rarity) is added to each ding's snapshot, read out of combat a few seconds after the ding. The export leaves out the wrapped trackers' own bookkeeping. Checked outside the game: junk, a bag and a repair at a vendor, a cloak and quest boots sold unworn, a destroyed item, a stone, an auction posted and one bought, sale, expiry and cancel messages, mail in and out, a bank slot, a respec, going broke, a suffix item, a lockbox, a chest (not a herb or a quest object), a two-hander, an enchant, durability, talents, trainer spells, and two dings (one in a fight). No stray globals.
+- 2026-10-05: Sections 19-21 (professions deep dive, reputation and factions, holidays and world events) done in the new JourneyTrackerProfessions.lua. `SKIP`: herbs, Black Lotus, ore and skins by type (#103 has what every node gave) and skill at each ding (#92). Everything else `BUILT`. Gathering: Truesilver and Silver veins (from the node your gathering cast was aimed at), gems from mining, cloth by type and in all, nodes by zone (the main tracker now tells the other files about each new node), nodes lost to someone else ([probe]). Fishing: casts and catches, catches by type, fish vs junk, pools, the longest session. Crafting: food cooked, recipes known per profession, dropped recipes learned, potions and elixirs made, disenchanting and what it gave, enchants through the trade window, gathered goods sold. Engineering: explosives, target dummies, jumper cables, gadgets. Professions dropped. Reputation: gained and lost by faction, the level each standing was reached, Bloodsail gains, the progression factions at each ding, the capitals at 60, reputation turn-ins, cloth donations, the Desolace centaur side. Holidays, behind a "holiday" flag until Forever's calendar is known: Darkmoon Faire visits, tickets, fortunes, Hallow's End treats, Winter Veil presents, the Fishing Extravaganza, holiday quests. Checked outside the game: mining with a gem, cloth, fishing a pool and the bobber, disenchanting, an enchant for someone else, cooking, alchemy, a dropped recipe, dynamite, a dummy, cables, the Mind Control Cap, a lost herb, ore and herbs sold, a dropped profession, reputation messages, a cloth donation, dings, the Faire, a present, a treat bag, the Master Angler. No stray globals.

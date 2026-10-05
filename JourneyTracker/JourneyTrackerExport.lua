@@ -68,7 +68,8 @@ local function BuildSummary(db, milestone)
 
     local wrapped = Copy(db.wrapped or {})
     -- Settings and bookkeeping the wrapped trackers keep for themselves.
-    for _, key in ipairs({ "flags", "wasNeutral", "autoFlagged", "uiFolded", "logout", "rewardIDs", "bagsSeen" }) do
+    for _, key in ipairs({ "flags", "wasNeutral", "autoFlagged", "uiFolded", "logout", "rewardIDs", "bagsSeen",
+                         "lootedRecipes", "professionsKnown", "questsTurnedIn" }) do
         wrapped[key] = nil
     end
 
