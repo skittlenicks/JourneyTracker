@@ -144,6 +144,11 @@ if ($Site) {
     # preview image and puts its journey where the JT_SHARED marker is.
     $about = "Journey Tracker is a free WoW Forever addon that records your climb from level 1 to 60. " +
         "Paste its export for a recap: the route across Azeroth, every death and quest, and where you place."
+    # Vercel Web Analytics: cookieless page views, counted once it's turned on
+    # in the project's Analytics tab (Vercel serves the script from the site
+    # itself). The share pages are this page too, so they count as well.
+    $analytics = "<script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script>`n" +
+        "<script defer src=`"/_vercel/insights/script.js`"></script>`n"
     $page = "<!doctype html>`n<html lang=`"en`">`n<meta charset=`"utf-8`">`n" +
         "<meta name=`"viewport`" content=`"width=device-width, initial-scale=1`">`n" +
         "<meta name=`"description`" content=`"$about`">`n" +
@@ -159,7 +164,7 @@ if ($Site) {
         "<meta name=`"theme-color`" content=`"#120e09`">`n" +
         "<link rel=`"icon`" type=`"image/png`" href=`"/favicon.png`">`n" +
         "<style>body { margin: 0; } img { max-width: 100%; } [hidden] { display: none !important; }</style>`n" +
-        "<!--JT_SHARED-->`n" + $html
+        $analytics + "<!--JT_SHARED-->`n" + $html
     [System.IO.File]::WriteAllText((Join-Path $siteDir "index.html"), $page, $utf8)
     [System.IO.File]::WriteAllBytes((Join-Path $siteDir "favicon.png"), $ms.ToArray())
     # The site's own link preview (site\api\preview.js draws it).
