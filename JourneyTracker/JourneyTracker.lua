@@ -1770,7 +1770,20 @@ local listeners = {}
 local loadCallbacks = {}
 local eventsRegistered = false
 
+-- Events addons may only register where the client lets them read it.
+-- Forever (a Midnight-era client) keeps the combat log from addons: there,
+-- registering for it isn't an error pcall can catch but a blocked action
+-- ("JourneyTracker tried UNKNOWN()" at login), and the client has no
+-- CombatLogGetCurrentEventInfo to read it with anyway.
+local function Restricted(event)
+    return event == "COMBAT_LOG_EVENT_UNFILTERED" and type(CombatLogGetCurrentEventInfo) ~= "function"
+end
+
 local function RegisterOne(event)
+    if Restricted(event) then
+        table.insert(unknownEvents, event)                    -- (listed in /journey status)
+        return
+    end
     -- Unknown event names throw on modern clients; skip them quietly
     -- (several events here are Classic-only or modern-only).
     local unit = UNIT_FILTERS[event]

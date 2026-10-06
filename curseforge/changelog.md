@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.5
+
+- **Fixed the error at login**, "Journey Tracker has been blocked from an action only available to the Blizzard UI": WoW Forever doesn't let addons read the combat log, and Journey Tracker no longer asks for it.
+
 ## 0.6.4
 
 ### Made for WoW Forever
