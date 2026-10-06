@@ -45,8 +45,8 @@ reaching it (more than two hours of play) is only ranked on the time it
 took and the levels you did things at, since everything else kept growing.
 Your "At 60" save is always there for the full rankings.
 
-Don't want the pop-up? Turn it off in the window's Options page (the last
-entry in the list on the left), or type /journey options.
+Don't want the pop-up? Turn it off with the Options button at the bottom of
+the window, or type /journey options.
 
 You can also paste the export to me in Discord. If it's long, Discord turns
 it into a file attachment. That's fine, just send it.

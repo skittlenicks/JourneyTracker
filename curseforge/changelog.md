@@ -2,7 +2,7 @@
 
 ## 0.6.6
 
-- **Options button** at the bottom of the window, next to Export and Print to Chat. It opens the settings for the every-10-levels export pop-up and the screenshot at every level-up, which were easy to miss at the very end of the list.
+- **Options** is now a button at the bottom of the window, next to Export and Print to Chat, instead of the last entry in the list on the left. It has the settings for the every-10-levels export pop-up and the screenshot at every level-up.
 
 ## 0.6.5
 

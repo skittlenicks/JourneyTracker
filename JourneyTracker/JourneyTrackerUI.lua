@@ -1199,8 +1199,10 @@ local SECTIONS = {
         { "Skills", PageSkills }, { "Professions & Spells", PageProfs },
         { "Gathering", PageGathering } } },
     { name = "Social", pages = { { "Social", PageSocial } } },
-    { name = "Options", pages = { { "Options", PageOptions } } },
 }
+-- Pages opened by a button of their own rather than from the list: Options
+-- (the Options button at the bottom, /journey options, the reminder's link).
+local OTHER_PAGES = { { "Options", PageOptions } }
 
 -- Levels tab: one row per level, like a ledger.
 local LEVEL_COLS = { 34, 110, 92, 60, 50, 56, 56, 150, 80 }
@@ -1238,6 +1240,9 @@ local function FindPage(name)
         for _, p in ipairs(sec.pages) do
             if p[1] == name then return p[2] end
         end
+    end
+    for _, p in ipairs(OTHER_PAGES) do
+        if p[1] == name then return p[2] end
     end
     return PageSummary
 end
@@ -1591,7 +1596,6 @@ function ns.ShowOptions()
     if not ns.GetDB() then return end
     local state = UIState()
     state.page = "Options"
-    state.collapsed["Options"] = nil
     if not frame then CreateWindow() end
     if frame:IsShown() then RenderList() end
     frame:Show()
