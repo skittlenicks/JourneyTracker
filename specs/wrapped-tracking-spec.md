@@ -603,7 +603,7 @@ _From login/logout timestamps and per-session counters._
 491. `BUILT` `W-491` Average time from login to first kill (seconds from a session's start to its first kill, on the session record and summed (average = seconds / sessions))
 492. `BUILT` `W-492` Reloads (/reload) count (PLAYER_ENTERING_WORLD after a /reload)
 493. `BUILT` `W-493` Screenshots taken (SCREENSHOT_SUCCEEDED) (SCREENSHOT_SUCCEEDED)
-494. `BUILT` `W-494` Auto-screenshot at every ding (optional setting, Screenshot()) (/journey screenshots turns on a screenshot a second after every ding (off by default))
+494. `BUILT` `W-494` Auto-screenshot at every ding (optional setting, Screenshot()) (a screenshot a second after every ding, on unless turned off in the window's Options or with /journey screenshots (flags.screenshots = false))
 495. `SKIP` `W-495` Times you logged in, played under 5 minutes, and logged out (covered by #6 (each session's start and end))
 496. `BUILT` `W-496` Most productive hour of /played (most XP in one hour) (the most XP gained within any hour of play (a sliding hour, within a session))
 497. `SKIP` `W-497` Percentage of time spent in combat vs out (covered by #37 (time in combat) and #1 (/played))

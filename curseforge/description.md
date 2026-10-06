@@ -100,5 +100,5 @@ Every 10 levels, the addon saves your journey as it was when you got there, and 
 - **/journey backup**: save a backup copy of your data
 - **/journey stats**: show what's been read from the game's Statistics pane
 - **/journey options**: open the Options page (the export reminder and screenshots)
-- **/journey screenshots**: take a screenshot at every ding (type it again to stop)
+- **/journey screenshots**: turn the screenshot at every ding off (it's on to start), or back on
 - **/journey version**: show which version you have

@@ -108,6 +108,6 @@ COMMANDS
 /journey backup    Save a backup copy of your data
 /journey stats     Show what's been read from the game's Statistics pane
 /journey options   Open the Options page (the export reminder, screenshots)
-/journey screenshots  Take a screenshot at every ding (type it again to
-                   stop)
+/journey screenshots  Turn the screenshot at every ding off (it's on to
+                   start), or back on
 /journey version   Show which version you have

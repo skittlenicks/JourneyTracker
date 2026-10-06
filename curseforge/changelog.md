@@ -3,6 +3,7 @@
 ## 0.6.6
 
 - **Options** is now a button at the bottom of the window, next to Export and Print to Chat, instead of the last entry in the list on the left. It has the settings for the every-10-levels export pop-up and the screenshot at every level-up.
+- **A screenshot at every level-up** is now on to start with. Turn it off with the Options button, or `/journey screenshots`.
 
 ## 0.6.5
 

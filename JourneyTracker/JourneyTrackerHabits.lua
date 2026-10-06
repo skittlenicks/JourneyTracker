@@ -168,22 +168,23 @@ local function OnDing(snapshot, level)
         Track.list("W-487", { level = level, hour = hour }, 60) -- W-487 late-night dings
     end
     if level >= ns.MAX_LEVEL then DingTo60(snapshot) end
-    -- W-494 a screenshot of each ding, if you turned it on
-    local flags = Track.get("flags")
-    if type(flags) == "table" and flags.screenshots == true and C_Timer and C_Timer.After then
+    -- W-494 a screenshot of each ding, unless you turned it off
+    if ns.DingScreenshotsOn() and C_Timer and C_Timer.After then
         C_Timer.After(1, function() pcall(Screenshot) end)
     end
 end
 
--- W-494 the setting, for /journey screenshots and the window's Options.
+-- W-494 the setting, for /journey screenshots and the window's Options: on
+-- unless turned off (flags.screenshots = false).
 function ns.DingScreenshotsOn()
     local flags = Track.get("flags")
-    return type(flags) == "table" and flags.screenshots == true
+    return not (type(flags) == "table" and flags.screenshots == false)
 end
 
 function ns.SetDingScreenshots(on)
     local flags = Track.get("flags")
-    if type(flags) == "table" then flags.screenshots = on and true or nil end
+    if type(flags) ~= "table" then return end
+    if on then flags.screenshots = nil else flags.screenshots = false end
 end
 
 function ns.ToggleDingScreenshots()
@@ -232,8 +233,7 @@ local function DrawHabits(B)
     end
     local late = Track.get("W-487")
     B:Row("Late-night dings (midnight to 5am)", type(late) == "table" and #late or 0)
-    local flags = Track.get("flags")
-    B:Note("Screenshots at each ding are " .. ((type(flags) == "table" and flags.screenshots) and "on" or "off")
+    B:Note("Screenshots at each ding are " .. (ns.DingScreenshotsOn() and "on" or "off")
         .. ": /journey screenshots")
 end
 
