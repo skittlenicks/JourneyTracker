@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.6
+
+- **Options button** at the bottom of the window, next to Export and Print to Chat. It opens the settings for the every-10-levels export pop-up and the screenshot at every level-up, which were easy to miss at the very end of the list.
+
 ## 0.6.5
 
 - **Fixed the error at login**, "Journey Tracker has been blocked from an action only available to the Blizzard UI": WoW Forever doesn't let addons read the combat log, and Journey Tracker no longer asks for it.

@@ -5,7 +5,7 @@
 --   * left: dark list of collapsible categories (quest log style)
 --   * right: parchment page with dark ink text, gold-free headings, and
 --     blue skill-style bars
---   * red buttons along the bottom (Export, Print to Chat, Close), tabs
+--   * red buttons along the bottom (Export, Print to Chat, Options, Close), tabs
 --     underneath (Journey / Levels)
 --
 -- The UI only reads JourneyTrackerDB, which holds plain (non-secret) values,
@@ -1522,6 +1522,14 @@ local function CreateWindow()
     printButton:SetPoint("LEFT", export, "RIGHT", 6, 0)
     printButton:SetText("Print to Chat")
     printButton:SetScript("OnClick", function() ns.PrintSummary() end)
+
+    -- The Options page (the milestone reminder, screenshots) is the last in
+    -- a long list, so it has a button here too.
+    local options = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    options:SetSize(90, 22)
+    options:SetPoint("LEFT", printButton, "RIGHT", 6, 0)
+    options:SetText("Options")
+    options:SetScript("OnClick", function() ns.ShowOptions() end)
 
     -- Tabs under the frame, like Character / Reputation / Skills / Honor.
     local names = { "Journey", "Levels" }
