@@ -2,7 +2,7 @@
 
 Journey Tracker keeps a detailed record of your character's road from level 1 to 60 in WoW Forever. It tracks your time, XP, kills, deaths, quests, gold, travel, gear and class, saves a snapshot every time you level up, and shows it all in an in-game window laid out like the classic quest log.
 
-Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap.
+Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap. Don't want the button? Hide it in Options, or type **/journey minimap**.
 
 ## What it tracks
 
@@ -99,6 +99,7 @@ Every 10 levels, the addon saves your journey as it was when you got there, and 
 - **/journey export 30**: your journey as it was at level 30 (saved every 10 levels)
 - **/journey backup**: save a backup copy of your data
 - **/journey stats**: show what's been read from the game's Statistics pane
-- **/journey options**: open the Options page (the export reminder and screenshots)
+- **/journey options**: open the Options page (the export reminder, screenshots and the minimap button)
 - **/journey screenshots**: turn the screenshot at every ding off (it's on to start), or back on
+- **/journey minimap**: hide the minimap button, or bring it back
 - **/journey version**: show which version you have

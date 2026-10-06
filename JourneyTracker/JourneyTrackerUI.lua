@@ -1162,7 +1162,8 @@ local function PageSocial(B, db)
     Block(B, "social")
 end
 
--- #109 Options: the milestone reminder, and a screenshot at every ding.
+-- #109 Options: the milestone reminder, a screenshot at every ding, and
+-- (#111) the minimap button.
 local function PageOptions(B, db)
     B:Title("Options")
     B:Heading("Milestones")
@@ -1178,6 +1179,10 @@ local function PageOptions(B, db)
     B:Check("Take a screenshot at every ding", ns.DingScreenshotsOn and ns.DingScreenshotsOn(),
         function(on) if ns.SetDingScreenshots then ns.SetDingScreenshots(on) end end)
     B:Note("A second after each level-up. They go in the game's Screenshots folder.")
+    B:Heading("Minimap")
+    B:Check("Show the button on the minimap", ns.MinimapButtonOn and ns.MinimapButtonOn(),
+        function(on) if ns.SetMinimapButton then ns.SetMinimapButton(on) end end)
+    B:Note("Without it, /journey or /jt opens this window, and /journey minimap brings the button back.")
 end
 
 local SECTIONS = {
@@ -1528,8 +1533,8 @@ local function CreateWindow()
     printButton:SetText("Print to Chat")
     printButton:SetScript("OnClick", function() ns.PrintSummary() end)
 
-    -- The Options page (the milestone reminder, screenshots) is the last in
-    -- a long list, so it has a button here too.
+    -- The Options page (the milestone reminder, screenshots, the minimap
+    -- button) opens from here, not from the list.
     local options = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     options:SetSize(90, 22)
     options:SetPoint("LEFT", printButton, "RIGHT", 6, 0)
@@ -1605,9 +1610,13 @@ end
 ---------------------------------------------------------------------------
 -- Minimap button: "JT" in the style of the World of Warcraft logo. Click to
 -- open the window; drag to move it around the minimap (the spot is saved).
+-- #111 It can be hidden from the window's Options or with /journey minimap
+-- (db.ui.hideMinimap); the window still opens with /journey or /jt.
 ---------------------------------------------------------------------------
 
+local PREFIX = "|cff33ff99Journey|r"
 local LOGO_GOLD = { 1.00, 0.84, 0.24 } -- tooltip title, matching the icon's gold
+local minimapButton
 
 local function PlaceMinimapButton(button, angle)
     local radius = Minimap:GetWidth() / 2 + 10
@@ -1674,6 +1683,27 @@ local function CreateMinimapButton()
     end)
     b:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
     PlaceMinimapButton(b, ui.minimapAngle)
+    b:SetShown(not ui.hideMinimap)
+    minimapButton = b
 end
 
 ns.OnLoad(function() CreateMinimapButton() end)
+
+-- #111 whether the minimap button shows (it does unless hidden).
+function ns.MinimapButtonOn()
+    local db = ns.GetDB()
+    return not (db and db.ui and db.ui.hideMinimap)
+end
+
+function ns.SetMinimapButton(on)
+    if not ns.GetDB() then return end
+    UIState().hideMinimap = (not on) or nil
+    if minimapButton then minimapButton:SetShown(on and true or false) end
+end
+
+-- /journey minimap: hide the button, or bring it back.
+function ns.ToggleMinimapButton()
+    ns.SetMinimapButton(not ns.MinimapButtonOn())
+    print(PREFIX, ns.MinimapButtonOn() and "The minimap button is back."
+        or "The minimap button is hidden. Type /journey to open the window, or /journey minimap to bring the button back.")
+end

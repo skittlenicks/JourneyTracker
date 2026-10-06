@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.7
+
+- **Hide the minimap button** if you'd rather not have it: untick "Show the button on the minimap" in Options, or type `/journey minimap`. The window still opens with `/journey` or `/jt`, and `/journey minimap` brings the button back.
+
 ## 0.6.6
 
 - **Options** is now a button at the bottom of the window, next to Export and Print to Chat, instead of the last entry in the list on the left. It has the settings for the every-10-levels export pop-up and the screenshot at every level-up.

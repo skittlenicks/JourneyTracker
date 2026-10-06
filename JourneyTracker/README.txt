@@ -112,7 +112,9 @@ COMMANDS
                    10 levels)
 /journey backup    Save a backup copy of your data
 /journey stats     Show what's been read from the game's Statistics pane
-/journey options   Open the Options page (the export reminder, screenshots)
+/journey options   Open the Options page (the export reminder, screenshots,
+                   the minimap button)
 /journey screenshots  Turn the screenshot at every ding off (it's on to
                    start), or back on
+/journey minimap   Hide the minimap button, or bring it back
 /journey version   Show which version you have
