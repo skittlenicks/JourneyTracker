@@ -136,7 +136,8 @@ var JourneyModel = (function () {
     var level = number(ch.level), className = own(CLASS_NAMES, classToken) || capFirst(classToken.toLowerCase());
     var race = own(RACE_NAMES, ch.race) || String(ch.race || "").replace(/([a-z])([A-Z])/g, "$1 $2");
     var J = { imported: true, level: level, played: number(ch.played), className: className, classToken: classToken,
-              race: race, faction: String(ch.faction || ""), ruleset: String(ch.ruleset || "Normal"), hoursAreSeconds: true };
+              race: race, faction: String(ch.faction || ""), ruleset: String(ch.ruleset || "Normal"), hoursAreSeconds: true,
+              exportedAt: number(data.exportedAt) || undefined };
     J.who = [race + " " + className, J.faction, J.ruleset + " realm"].filter(Boolean).join(" · ");
     // The Statistics pane, by statistic ID. It has counted since before the
     // tracker was installed, so where both count the same thing the page
@@ -216,7 +217,7 @@ var JourneyModel = (function () {
     for (var m = 10; m <= J.milestone; m += 10) {
       var at = named(dings[m]);
       if (!(number(at.t) > 0)) continue;
-      J.milestoneRows.push({ level: m, date: dayOf(number(at.t)), days: daysTo(number(at.t)),
+      J.milestoneRows.push({ level: m, t: number(at.t), date: dayOf(number(at.t)), days: daysTo(number(at.t)),
                              played: number(at.played) || null, kills: number(at.kills), deaths: number(at.deaths),
                              quests: number(at.quests) });
     }
@@ -1088,8 +1089,33 @@ var JourneyModel = (function () {
   }
   function bestFirst(a, b) { return a.score - b.score || (b.players || 0) - (a.players || 0); }
 
+  // A journey in brief, kept with each saved one (payload.summary, from
+  // site/api/ranks.js) for its character's page: what changed between two of
+  // its saves, and how it compares with another character's. A few KB, so a
+  // page reads that instead of each save's export in full. Bump SUMMARY when
+  // it changes: older ones are worked out again (site/api/character.js).
+  var SUMMARY = 1;
+  function summaryOf(J) {
+    return {
+      v: SUMMARY, level: J.level, played: J.played, exportedAt: J.exportedAt,
+      race: J.race, className: J.className, classToken: J.classToken, faction: J.faction, ruleset: J.ruleset,
+      milestone: J.milestone, atMilestone: J.atMilestone, playedTo: J.playedTo, daysTo: J.daysTo, complete: J.complete,
+      kills: J.kills, deaths: J.deaths, quests: J.quests.completed, earned: J.earnedTotal, bosses: J.bosses,
+      runs: J.dungeonRuns, honor: J.honorKills, elites: J.elites, jumps: J.jumps,
+      miles: Math.round((J.travel.groundYards + J.travel.airYards) / 176) / 10,
+      // The zones in the order reached, and the moments along the way: [level, what].
+      zones: J.path.map(function (p) { return p[0]; }),
+      marks: J.milestones.map(function (m) { return [m[0], m[1]]; }),
+      // Each tenth level-up the tracker saw, with its running totals.
+      tens: J.milestoneRows.map(function (r) {
+        return { level: r.level, t: r.t, days: r.days, played: r.played || 0, kills: r.kills, deaths: r.deaths, quests: r.quests };
+      })
+    };
+  }
+
   return {
-    MODEL: MODEL, MIN_PLAYERS: MIN_PLAYERS, SHARE_FROM: SHARE_FROM, LATE_AFTER: LATE_AFTER,
+    MODEL: MODEL, MIN_PLAYERS: MIN_PLAYERS, SHARE_FROM: SHARE_FROM, LATE_AFTER: LATE_AFTER, SUMMARY: SUMMARY,
+    summaryOf: summaryOf,
     sum: sum, num: num, dur: dur, coins: coins, named: named, number: number, numbered: numbered, listOf: listOf,
     addUp: addUp, topRows: topRows, tally: tally, capFirst: capFirst, dayOf: dayOf, own: own, itemOf: itemOf,
     milestoneOf: milestoneOf,

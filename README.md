@@ -3,8 +3,9 @@
 A World of Warcraft: Forever addon that records a character's journey from
 level 1 to 60: time played, kills, deaths, quests, gold, travel, class stats
 and more. Paste its export at [www.journeytracker.dev](https://www.journeytracker.dev)
-for a "Wrapped"-style recap of your road to 60, with a link to share it and
-where you rank among other players' saved journeys.
+for a "Wrapped"-style recap of your road to 60, with a link to share it,
+where you rank among other players' saved journeys, and a side-by-side
+comparison with a friend's.
 
 ## Install
 
@@ -30,6 +31,12 @@ It records as you play. Each character's data is saved in the game's
 Every 10 levels the addon also keeps your journey as it was then, so you can
 share your road to 30 after you've passed it: pick **At 30** in the export
 window, or type `/journey export 30`.
+
+Each character has one link on the website. Paste a newer export as you level
+and the same link shows it, with what changed since your last save; the
+levels you saved before stay a click away. A character can be saved once
+every 30 minutes, and the journey the addon keeps at each tenth level can
+always be saved. **Compare** on your journey's page puts it beside a friend's.
 
 ## What's collected, and what isn't
 
@@ -68,7 +75,7 @@ rankings, and anyone you give its link to can see the recap.
 | `art/` | The JT logo and the maps. `make-logo.ps1` draws both the in-game icon (`JourneyTracker/JT.tga`) and the CurseForge logo (`curseforge-logo.png`). `build-maps.ps1` turns a wow.export export of the Forever client (kept in the git-ignored `art/export/`) into web maps (parchment and terrain zone maps, and minimap tiles of both continents, which the site no longer uses) and `maps.json`, every map's ID, continent and world rectangle. `worldmap.js` reads the game's own world map straight from a Forever install (`game-files.js` reads the game's files): Azeroth, both continents and each zone's highlight, into `art/export/worldmap/`, and `worldmap.json`. |
 | `curseforge/` | The CurseForge page text: `summary.txt` and `description.md` (paste with the description editor set to Markdown), and `changelog.md` for each upload. |
 | `tools/import/` | Node tool that decodes exports and inserts them into Supabase. |
-| `site/` | The recap website, www.journeytracker.dev (run `art/build-maps.ps1` and `node art/worldmap.js "<WoW folder>"` first). `build.ps1 -Site` builds it into `dist/site` with the addon zip to download and the link preview image; `deploy.ps1` puts it on Vercel with its functions in `api/` (saving pasted exports, share pages, card images). `model.js` turns an export into a journey and ranks it on `rankings.js`; the page and the functions share both. Without `-Site`, `build.ps1` makes the one-file draft `dist/road-to-60.html`. |
+| `site/` | The recap website, www.journeytracker.dev (run `art/build-maps.ps1` and `node art/worldmap.js "<WoW folder>"` first). `build.ps1 -Site` builds it into `dist/site` with the addon zip to download and the link preview image; `deploy.ps1` puts it on Vercel with its functions in `api/` (saving pasted exports, each character's page and comparisons, card images). `model.js` turns an export into a journey and ranks it on `rankings.js`; the page and the functions share both. Without `-Site`, `build.ps1` makes the one-file draft `dist/road-to-60.html`. |
 
 ### Common tasks
 

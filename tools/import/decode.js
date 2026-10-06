@@ -142,7 +142,8 @@ function describeStatistics(data) {
 }
 
 // Share links (journeytracker.dev/j/<share ID>): an upload's ID, a random
-// UUID, written as 22 URL-safe characters, and back.
+// UUID, written as 22 URL-safe characters, and back. Any of a character's
+// opens its page (site/api/character.js).
 function shareIdOf(uuid) {
   const hex = String(uuid || '').replace(/-/g, '');
   return /^[0-9a-f]{32}$/i.test(hex) ? Buffer.from(hex, 'hex').toString('base64url') : null;

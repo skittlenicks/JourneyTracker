@@ -9,7 +9,8 @@
 // new row in "uploads" (a full snapshot); one already imported (same
 // character and export time) is skipped as a duplicate. Statistics pane
 // data rides along in payload like everything else. Each line's output
-// ends with the link to that upload's recap on the website, to send back.
+// ends with a link to send back: the upload's, which opens its character's
+// page on the website (it shows the character's latest journey).
 //
 //   --dry-run  decode and validate only, nothing is inserted (no .env needed)
 //   --print    pretty-print each decoded export
@@ -20,7 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseExport, describeStatistics, shareIdOf } = require('./decode');
 
-// Where an upload's recap can be seen and shared.
+// Where an upload's character can be seen and shared.
 const SITE = 'https://www.journeytracker.dev';
 function shareLink(id) { return `${SITE}/j/${shareIdOf(id)}`; }
 

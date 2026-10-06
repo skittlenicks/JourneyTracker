@@ -1,14 +1,19 @@
 'use strict';
-// GET /j/<share ID>/card.png: a shared journey's link preview, the share
-// page's card as an image (preview.js): who, level and time played, and its
-// three best places. A rewrite in site/deploy.ps1 sends it here as
-// ?id=<share ID>. Places change as more journeys are saved, so Vercel's CDN
-// keeps each image for a day and then serves it while making a fresh one.
+// GET /j/<share ID>/card.png: a character's link preview, its page's card
+// as an image (preview.js): who, level and time played, and its three best
+// places, for its latest journey (character.js); /j/<share ID>/<level>/card.png
+// for its journey at that level. Rewrites in site/deploy.ps1 send them here
+// as ?id=<share ID>[&at=<level>]. Places change as more journeys are saved,
+// so Vercel's CDN keeps a level's image for a day and then serves it while
+// making a fresh one. The latest changes with the character's next save:
+// its page asks for it with ?v= the save's own, and the CDN keeps it ten
+// minutes.
 
 const fs = require('fs');
 const path = require('path');
 const { uuidOfShareId } = require('./decode');
 const { supabase, journeyOf } = require('./ranks');
+const { levelOf, characterOf } = require('./character');
 const { journeyCard } = require('./preview');
 const JourneyModel = require('./model');
 
@@ -43,18 +48,24 @@ function fail(res, code) {
 }
 
 module.exports = async function card(req, res) {
-  const id = String((req.query && req.query.id) || new URL(req.url, SITE).searchParams.get('id') || '');
-  const uuid = uuidOfShareId(id);
+  const url = new URL(req.url, SITE);
+  const param = (k) => String((req.query && req.query[k]) || url.searchParams.get(k) || '');
+  const uuid = uuidOfShareId(param('id'));
   if (!uuid) return fail(res, 404);
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return fail(res, 503);
   try {
-    const rows = await (await supabase('uploads?select=character_id,payload&limit=1&id=eq.' + uuid)).json();
+    const character = await characterOf(uuid, false);
+    if (!character) return fail(res, 404);
+    const level = levelOf(param('at'));
+    const shown = (level && character.at(level)) || character.latest;
+    const rows = await (await supabase('uploads?select=payload&limit=1&id=eq.' + shown.id)).json();
     if (!rows.length) return fail(res, 404);
-    const { journey, ranks, picks } = await journeyOf(rows[0].payload || {}, rows[0].character_id);
+    const { journey, ranks, picks } = await journeyOf(rows[0].payload || {}, character.characterId);
     const png = await journeyCard(cardOf(journey, picks), LOGO);
     res.statusCode = 200;
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', ranks.error ? 'public, max-age=0, s-maxage=60' :
+      shown.id === character.latest.id ? 'public, max-age=600, s-maxage=600, stale-while-revalidate=86400' :
       'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800');
     return res.end(png);
   } catch (err) {

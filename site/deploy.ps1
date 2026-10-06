@@ -6,8 +6,11 @@ param(
 # (build.ps1 -Site), stages it and its three functions as Vercel's prebuilt
 # output and uploads it with the Vercel CLI:
 #   /api/upload          saves a pasted export to Supabase (api\upload.js)
-#   /j/<id>              a shared journey's recap page (api\share.js)
-#   /j/<id>/card.png     its link preview image (api\card.js)
+#   /j/<id>              a character's page, its latest journey (api\share.js)
+#   /j/<id>/<level>      its journey at a level
+#   /j/<id>/vs/<id>      two characters side by side
+#   /j/<id>/card.png     the link preview image (api\card.js), and
+#   /j/<id>/<level>/card.png  a level's
 # The map art is Blizzard's and stays out of git, so Vercel gets the built
 # site from this machine, and vercel.json at the repo root stops deploys on
 # git push (they would replace the site with the bare repo, which has no page).
@@ -41,18 +44,20 @@ robocopy (Join-Path $dist "site") (Join-Path $output "static") /MIR /NFL /NDL /N
 if ($LASTEXITCODE -ge 8) { throw "Staging the site in $output failed (robocopy exit $LASTEXITCODE)." }
 
 # The functions, each with copies of what it shares with the rest of the
-# site: the importer's decoder, the rankings and the journey model, and
-# ranks.js, which ranks a journey against every saved one. The share page
-# also gets the page it fills in; the preview image its drawing code, the
-# fonts, resvg and the logo. They read SUPABASE_URL and
-# SUPABASE_SERVICE_ROLE_KEY from the project's environment variables.
+# site: the importer's decoder, the rankings and the journey model, ranks.js,
+# which ranks a journey against every saved one, and character.js, which
+# finds a character's saves. The share page also gets the page it fills in;
+# the preview image its drawing code, the fonts, resvg and the logo. They
+# read SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from the project's
+# environment variables.
 function Stage-Function([string]$name, [string[]]$extra) {
     $func = Join-Path $output "functions\api\$name.func"
     if (Test-Path $func) { Remove-Item -Recurse -Force $func }
     New-Item -ItemType Directory -Force $func | Out-Null
     Copy-Item (Join-Path $PSScriptRoot "api\$name.js") (Join-Path $func "index.js")
     $shared = @((Join-Path $root "tools\import\decode.js"), (Join-Path $PSScriptRoot "api\ranks.js"),
-        (Join-Path $PSScriptRoot "model.js"), (Join-Path $PSScriptRoot "rankings.js"))
+        (Join-Path $PSScriptRoot "api\character.js"), (Join-Path $PSScriptRoot "model.js"),
+        (Join-Path $PSScriptRoot "rankings.js"))
     foreach ($file in $shared + $extra) { Copy-Item $file $func -Recurse }
     [System.IO.File]::WriteAllText((Join-Path $func ".vc-config.json"),
         '{ "runtime": "nodejs22.x", "handler": "index.js", "launcherType": "Nodejs", "shouldAddHelpers": true }', $utf8)
@@ -65,13 +70,17 @@ $card = Stage-Function "card" @((Join-Path $PSScriptRoot "api\preview.js"), (Joi
 Copy-Item (Join-Path $dist "site\favicon.png") (Join-Path $card "logo.png")
 
 # The map art only changes when it's read from the game again, so browsers
-# may keep it a day. /j/<id> is a shared journey's page, made by the share
-# function, and /j/<id>/card.png its preview image, made by the card function.
+# may keep it a day. The pages under /j/ are made by the share function and
+# their preview images by the card function. (A page's own query, like the
+# ?saved= a save opens it with, rides along.)
 $config = [ordered]@{
     version = 3
     routes = @(
         [ordered]@{ src = "^/(worldmap|zones)/(.*)$"; headers = @{ "Cache-Control" = "public, max-age=86400" }; continue = $true },
         [ordered]@{ src = "^/j/([^/]*)/card\.png$"; dest = "/api/card?id=`$1" },
+        [ordered]@{ src = "^/j/([^/]*)/(\d{1,2})/card\.png$"; dest = "/api/card?id=`$1&at=`$2" },
+        [ordered]@{ src = "^/j/([^/]*)/vs/([^/]*)/?$"; dest = "/api/share?id=`$1&vs=`$2" },
+        [ordered]@{ src = "^/j/([^/]*)/(\d{1,2})/?$"; dest = "/api/share?id=`$1&at=`$2" },
         [ordered]@{ src = "^/j/([^/]*)/?$"; dest = "/api/share?id=`$1" },
         @{ handle = "filesystem" }
     )

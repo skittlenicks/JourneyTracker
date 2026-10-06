@@ -29,6 +29,9 @@
   --coin-gold: #ffd100;
   --coin-silver: #c7c7cf;
   --coin-copper: #c8793c;
+  /* Two journeys side by side: the second in steel beside the first's gold */
+  --steel: #b9c6d6;
+  --steel-deep: #5f6f84;
   --font-display: "Marcellus", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", Consolas, "Liberation Mono", monospace;
@@ -231,6 +234,29 @@ kbd {
 }
 .journeys a:hover { color: var(--ink); border-color: var(--ink-soft); }
 .journeys a[aria-current="page"] { color: var(--ground); background: var(--gold); border-color: var(--gold); font-weight: 500; }
+/* A saved journey's actions: compare it with another */
+.hero-actions { display: grid; gap: 12px; justify-items: start; margin-top: 6px; }
+.action-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.action {
+  padding: 8px 16px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--gold-pale);
+  background: transparent;
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.action:hover, .action[aria-expanded="true"] { color: var(--ground); background: var(--gold); }
+.action.main { color: var(--ground); background: var(--gold); }
+.action.main:hover { background: var(--gold-pale); border-color: var(--gold-pale); }
+.compare-form { width: min(100%, 37rem); display: grid; gap: 8px; }
+.compare-form label { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.compare-note { margin: 0; font-size: var(--step--1); color: #ff9c7a; }
+.compare-note:empty { display: none; }
 
 /* Chapters */
 .chapter {
@@ -685,6 +711,81 @@ kbd {
 .all-ranks li i { color: var(--gold-pale); }
 .all-ranks li small { font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
 
+/* What changed since an earlier save of the same character */
+.since-zones { margin: 0; line-height: 1.6; }
+
+/* Two journeys side by side, like a duel's tale of the tape: the first in
+   gold on the left, the second in steel on the right, each stat named
+   between them with its bars growing out from the middle. On this page the
+   recap's own parts stay hidden. */
+.comparing #journey, .comparing .chapter, .comparing .share { display: none; }
+.versus { display: grid; gap: 44px; padding-block: 44px 28px; }
+.vs-head { display: grid; gap: 10px; justify-items: center; text-align: center; }
+.vs-head h1 { font-size: var(--step-3); line-height: 1.1; color: var(--gold-pale); overflow-wrap: anywhere; }
+.vs-lede { margin: 0; max-width: 40rem; color: var(--ink-soft); }
+.vs-sides { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 14px; }
+.vs-side {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.vs-side.a { justify-items: end; text-align: right; border-color: var(--gold); }
+.vs-side.b { justify-items: start; border-color: var(--steel); }
+.vs-side .who { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.vs-side .lvl { font-family: var(--font-display); font-size: 2.1rem; line-height: 1.05; }
+.vs-side.a .lvl { color: var(--gold); }
+.vs-side.b .lvl { color: var(--steel); }
+.vs-side .played { font-size: var(--step--1); color: var(--ink-soft); }
+.vs-side a { margin-top: 4px; font-size: var(--step--1); color: var(--gold-pale); text-underline-offset: 3px; }
+.vs-mark { font-family: var(--font-display); font-size: var(--step-2); color: var(--gold-deep); }
+.vs-block { display: grid; gap: 12px; }
+.vs-block h2 { font-size: var(--step-2); line-height: 1.22; color: var(--gold-pale); text-align: center; }
+.vs-note { margin: 0 auto; max-width: 40rem; font-size: var(--step--1); text-align: center; color: var(--ink-soft); }
+/* Each row on the same columns as the rest (subgrid; without it, its own) */
+.tape {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr) minmax(7rem, 13rem) minmax(0, 1fr) minmax(5.5rem, auto);
+  column-gap: 12px;
+}
+.tape li {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(5.5rem, auto) minmax(0, 1fr) minmax(7rem, 13rem) minmax(0, 1fr) minmax(5.5rem, auto);
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: 4px 12px;
+  padding-block: 9px;
+  border-bottom: 1px dashed var(--rule);
+}
+.tape li:last-child { border-bottom: 0; }
+.tape .val { font-family: var(--font-mono); font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--ink-soft); overflow-wrap: anywhere; }
+.tape .val.a { text-align: right; }
+.tape .val.lead { font-weight: 500; }
+.tape .val.a.lead { color: var(--gold); }
+.tape .val.b.lead { color: var(--steel); }
+.tape .bar { display: flex; height: 10px; background: var(--panel); border-radius: 2px; overflow: hidden; }
+.tape .bar.a { justify-content: flex-end; }
+.tape .fill { display: block; height: 100%; }
+.tape .bar.a .fill { background: linear-gradient(90deg, var(--gold-deep), var(--gold)); }
+.tape .bar.b .fill { background: linear-gradient(90deg, var(--steel), var(--steel-deep)); }
+.tape .name { line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
+.tape .name small { display: block; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.04em; color: var(--ink-soft); }
+.vs-picks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 22px; }
+.vs-col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
+.vs-col .big, .vs-col .cohort { min-width: 0; overflow-wrap: anywhere; }
+.vs-col > .label { margin: 0; }
+.vs-col.a > .label { color: var(--gold); }
+.vs-col.b > .label { color: var(--steel); }
+.vs-links { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
 @media (max-width: 860px) {
   .start { grid-template-columns: minmax(0, 1fr); }
   .chapter { grid-template-columns: minmax(0, 1fr); gap: 22px; }
@@ -697,6 +798,15 @@ kbd {
   .bars .track { grid-column: 1 / -1; grid-row: 2; }
   .ranks { grid-template-columns: 1fr; }
   .card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Side by side on a phone: each stat's name above its two values */
+  .vs-sides { gap: 8px; }
+  .vs-side { padding: 14px; }
+  .vs-side .lvl { font-size: 1.6rem; }
+  .vs-mark { font-size: var(--step-1); }
+  .tape, .tape li { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .tape li { grid-template-columns: subgrid; }
+  .tape .name { grid-column: 1 / -1; grid-row: 1; }
+  .vs-picks { grid-template-columns: minmax(0, 1fr); }
   .card-lines { grid-template-columns: 1fr; }
   .card-lines dd { margin-bottom: 6px; }
   /* Every ten levels fits a phone without the running /played */
@@ -725,7 +835,7 @@ kbd {
         <li>Unzip it into your WoW Forever AddOns folder, so you end up with <code>World of Warcraft\_classic_beta_\Interface\AddOns\JourneyTracker</code>.</li>
         <li>Restart the game. Type <code>/journey</code> or click the gold JT button on the minimap to see your stats.</li>
         <li>Play. It records as you go: the road you took, every death and quest, kills, gold and more.</li>
-        <li>For your recap, click <b>Export</b> in its window (or right-click the minimap button), press <kbd>Ctrl</kbd>+<kbd>C</kbd> and paste it in the box here.</li>
+        <li>For your recap, click <b>Export</b> in its window (or right-click the minimap button), press <kbd>Ctrl</kbd>+<kbd>C</kbd> and paste it in the box here. Paste a new one as you level: your character keeps one link, and its page shows what changed.</li>
         <li>Every ten levels it also keeps your journey as it was then. Pick <b>At 30</b> in the export window (or type <code>/journey export 30</code>) to share your road to 30.</li>
       </ol>
     </section>
@@ -735,10 +845,43 @@ kbd {
         <input id="export-text" type="text" spellcheck="false" autocomplete="off" placeholder="JT1:...">
         <button type="submit" id="import-button">Show my journey</button>
       </div>
-      <p class="import-help">Saving your export counts it toward the rankings and gives your recap a link you can share. Exports never include your character's name or realm.</p>
+      <p class="import-help">Saving your export counts it toward the rankings and gives your character one link to share, which always shows its latest save. Exports never include your character's name or realm.</p>
       <p class="import-status" id="import-status" role="status" aria-live="polite"></p>
     </form>
   </div>
+
+  <section class="versus" id="compare" aria-labelledby="vs-title" hidden>
+    <div class="vs-head">
+      <p class="eyebrow">Side by side</p>
+      <h1 id="vs-title"></h1>
+      <p class="vs-lede" id="vs-lede"></p>
+    </div>
+    <div class="vs-sides">
+      <div class="vs-side a" id="vs-a"></div>
+      <span class="vs-mark" aria-hidden="true">vs</span>
+      <div class="vs-side b" id="vs-b"></div>
+    </div>
+    <div class="vs-block" id="vs-race-block">
+      <h2>Time to every ten levels</h2>
+      <p class="vs-note">The /played when each reached the level, as the addon saved it at the level-up.</p>
+      <ul class="tape" id="vs-race"></ul>
+    </div>
+    <div class="vs-block" id="vs-at-block">
+      <h2 id="vs-at-title"></h2>
+      <p class="vs-note" id="vs-at-note"></p>
+      <ul class="tape" id="vs-at"></ul>
+    </div>
+    <div class="vs-block">
+      <h2>So far</h2>
+      <p class="vs-note" id="vs-now-note"></p>
+      <ul class="tape" id="vs-now"></ul>
+    </div>
+    <div class="vs-block">
+      <h2>Where each stands out</h2>
+      <div class="vs-picks" id="vs-picks"></div>
+    </div>
+    <p class="vs-links" id="vs-links"></p>
+  </section>
 
   <section class="hero" id="journey" aria-labelledby="hero-title">
     <nav class="journeys" id="journeys" aria-label="This character's saved journeys" hidden></nav>
@@ -747,11 +890,48 @@ kbd {
     <p class="hero-total"><span class="big" id="total-played"></span><span class="unit">of /played</span></p>
     <p class="pill" id="hero-rank"></p>
     <p class="hero-sub" id="hero-sub"></p>
+    <div class="hero-actions" id="hero-actions" hidden>
+      <div class="action-row">
+        <a class="action main" id="compare-mine" hidden>Compare with my journey</a>
+        <button type="button" class="action" id="compare-open" aria-expanded="false" aria-controls="compare-form">Compare with a friend</button>
+      </div>
+      <form class="compare-form" id="compare-form" novalidate hidden>
+        <label for="compare-link">Paste the link of a journey to compare with this one</label>
+        <div class="link-row">
+          <input id="compare-link" type="text" spellcheck="false" autocomplete="off" placeholder="journeytracker.dev/j/...">
+          <button type="submit" class="copy-link">Compare</button>
+        </div>
+        <p class="compare-note" id="compare-note" role="status" aria-live="polite"></p>
+      </form>
+    </div>
     <figure class="road" id="road">
       <svg id="road-chart" role="img" aria-label="Time spent at each level from 1 to 59"></svg>
       <figcaption id="road-caption">Time spent at each level, 1 to 59. Hover a bar for the exact time.</figcaption>
     </figure>
     <ul class="milestones" id="milestones" aria-label="Milestones"></ul>
+  </section>
+
+  <section class="chapter" id="chapter-since" aria-labelledby="since-title" hidden>
+    <div class="chapter-head">
+      <p class="eyebrow">What changed</p>
+      <h2 id="since-title"></h2>
+      <p id="since-lede"></p>
+    </div>
+    <div class="chapter-body">
+      <div class="subhead" id="since-pick-wrap">
+        <p class="label">Since this character's journey at</p>
+        <div class="toggle" id="since-pick" role="group" aria-label="Since this character's journey at"></div>
+      </div>
+      <dl class="stats" id="since-stats"></dl>
+      <div>
+        <p class="label">New zones</p>
+        <p class="since-zones" id="since-zones"></p>
+      </div>
+      <div>
+        <p class="label">Along the way</p>
+        <ul class="milestones" id="since-marks"></ul>
+      </div>
+    </div>
   </section>
 
   <section class="chapter" id="chapter-tens" aria-labelledby="tens-title">
@@ -1045,7 +1225,7 @@ kbd {
         <button type="button" class="copy-link" id="copy-link">Copy link</button>
       </div>
     </div>
-    <p class="share-note" id="share-note">Paste your export at the top for a card of your own and a link to share it.</p>
+    <p class="share-note" id="share-note">Paste your export at the top for a card of your own and a link to share it, then compare your journey with a friend's.</p>
   </section>
 </main>
 
@@ -1351,13 +1531,24 @@ kbd {
   function remembered(key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } }
   function remember(key, value) { try { sessionStorage.setItem(key, value); return true; } catch (e) { return false; } }
   function forget() { try { sessionStorage.removeItem("jt-export"); sessionStorage.removeItem("jt-save"); } catch (e) { /* nothing kept */ } }
+  // The character this browser last saved, kept past this tab (localStorage):
+  // its link, so other journeys' pages can offer to compare with it.
+  var LINK = /^[A-Za-z0-9_-]{22}$/;
+  // A page's path, as site/api/share.js gives it: a character's link, a
+  // level on it, or two links side by side.
+  var PAGE_PATH = /^\/j\/[A-Za-z0-9_-]{22}(\/\d{1,2}|\/vs\/[A-Za-z0-9_-]{22})?$/;
+  function myLink() {
+    try { var link = localStorage.getItem("jt-mine"); return LINK.test(link || "") ? link : null; } catch (e) { return null; }
+  }
+  function keepMine(link) { try { localStorage.setItem("jt-mine", link); } catch (e) { /* not kept */ } }
 
   // Pasting an export: checked here, then saved by /api/upload
-  // (site/api/upload.js, the importer's own checks). A saved export opens at
-  // its own link, /j/<share ID>; one that couldn't be saved still shows,
-  // from this tab's storage. This is wired before anything else, so a paste
-  // works while the page is loading and whatever a journey does to the
-  // recap. (The box has no name, so a submit that comes sooner sends nothing.)
+  // (site/api/upload.js, the importer's own checks). A saved export opens on
+  // its character's page (?saved= skips the copy Vercel's CDN may keep of
+  // it from before); one that couldn't be saved still shows, from this
+  // tab's storage. This is wired before anything else, so a paste works
+  // while the page is loading and whatever a journey does to the recap.
+  // (The box has no name, so a submit that comes sooner sends nothing.)
   function say(html, kind) {
     var line = $("import-status");
     line.className = "import-status" + (kind ? " " + kind : "");
@@ -1393,10 +1584,12 @@ kbd {
       if (problems.length) throw new Error(problems.join(" ") + " Make a fresh one with Export in the addon's window.");
       say("Saving…");
       return saveExport(text).then(function (result) {
-        if (result.share) {
+        if (LINK.test(String(result.share))) {
           forget();
-          remember("jt-saved", JSON.stringify({ share: result.share, status: result.status }));
-          location.assign("/j/" + result.share);
+          remember("jt-saved", JSON.stringify({ link: result.share, status: result.status }));
+          keepMine(result.share);
+          var to = PAGE_PATH.test(String(result.path)) ? result.path : "/j/" + result.share;
+          location.assign(to + "?saved=" + Date.now().toString(36));
           return;
         }
         if (!remember("jt-export", text)) throw new Error("This browser won't keep the export for the page. Allow this site's data and try again.");
@@ -1410,12 +1603,195 @@ kbd {
     });
   });
 
+  // ---- Two journeys side by side (/j/<link>/vs/<link>) ----
+  // A page of its own: the two characters' latest journeys, as
+  // site/api/share.js sends them, { compare, path, sides: [{ link, path,
+  // summary, ranks, picks }] }, each summary from site/model.js's summaryOf.
+  // The first is in gold on the left, the second in steel on the right, like
+  // a duel's tale of the tape. The recap's own parts stay hidden. False when
+  // there aren't two to show.
+  function drawCompare(data) {
+    var sides = Array.isArray(data.sides) ? data.sides.filter(function (s) {
+      return s && s.summary && typeof s.summary === "object" && PAGE_PATH.test(String(s.path)) && LINK.test(String(s.link));
+    }) : [];
+    if (sides.length !== 2) return false;
+    var A = sides[0], B = sides[1], a = named(A.summary), b = named(B.summary), listOf = M.listOf;
+    // Who each is: "Night Elf Druid". Where that's the same for both, the
+    // level tells them apart, or else which side.
+    function label(x) { return (String(x.race || "") + " " + String(x.className || "")).trim() || "Journey"; }
+    var fullA = label(a), fullB = label(b);
+    if (fullA === fullB) { fullA += " (level " + number(a.level) + ")"; fullB += " (level " + number(b.level) + ")"; }
+    if (fullA === fullB) { fullA = label(a) + " (left)"; fullB = label(b) + " (right)"; }
+    var shortA = String(a.className || ""), shortB = String(b.className || "");
+    if (!shortA || shortA === shortB) { shortA = fullA; shortB = fullB; }
+
+    document.body.classList.add("comparing");
+    $("journey-chip").textContent = "Side by side";
+    $("foot-note").textContent = "Built from two journeys shared with Journey Tracker.";
+    say("<b>Two journeys side by side.</b> Paste your own export above to save yours and compare it." + COPY, "good");
+    $("status-copy").addEventListener("click", function () { copyLink($("status-copy")); });
+    $("vs-title").textContent = fullA + " vs " + fullB;
+    function sideCard(s, x) {
+      var zones = listOf(x.zones).length;
+      return '<span class="who">' + esc(label(x) + (x.faction ? " · " + x.faction : "")) + "</span>" +
+        '<span class="lvl">Level ' + number(x.level) + "</span>" +
+        '<span class="played">' + dur(number(x.played)) + " /played" + (zones ? " · " + plural(zones, "zone") : "") + "</span>" +
+        '<a href="' + s.path + '">See the recap</a>';
+    }
+    $("vs-a").innerHTML = sideCard(A, a);
+    $("vs-b").innerHTML = sideCard(B, b);
+
+    // One stat on the tape: each side's value (null when it hasn't one), its
+    // bars to scale and, between them, its name and the gap, said by `gap`
+    // of the one it's about. `low`: the smaller value leads (time taken,
+    // deaths) and the gap is about it; false: the bigger leads; null:
+    // neither does, and the gap is about the bigger.
+    function row(name, va, vb, show, low, gap) {
+      function known(v) { return typeof v === "number" && isFinite(v) && v >= 0; }
+      va = known(va) ? va : null; vb = known(vb) ? vb : null;
+      var top = Math.max(va || 0, vb || 0) || 1, lead = "", note = "";
+      if (va !== null && vb !== null) {
+        var d = Math.abs(va - vb), first = low ? va < vb : va > vb;
+        if (low !== null && d) lead = first ? "a" : "b";
+        note = !d ? "Even" : (first ? shortA : shortB) + " " + gap(d);
+      } else if (va !== null || vb !== null) {
+        note = "Only " + (va !== null ? shortA : shortB);
+      }
+      function value(v, side) {
+        return '<span class="val ' + side + (lead === side ? " lead" : "") + '">' + (v === null ? "–" : show(v)) + "</span>";
+      }
+      function bar(v, side) {
+        return '<span class="bar ' + side + '" aria-hidden="true"><span class="fill" style="width:' +
+          (v === null ? 0 : Math.min(100, v / top * 100)).toFixed(1) + '%"></span></span>';
+      }
+      return "<li>" + value(va, "a") + bar(va, "a") + '<span class="name">' + esc(name) +
+        (note ? "<small>" + esc(note) + "</small>" : "") + "</span>" + bar(vb, "b") + value(vb, "b") + "</li>";
+    }
+    function more(d) { return "+" + num(d); }
+    function faster(d) { return dur(d) + " faster"; }
+    function fewer(d) { return num(d) + " fewer"; }
+    function count(v) { return num(v); }
+    function time(v) { return dur(v); }
+
+    // The race: the /played at each tenth level-up the addon saved.
+    function tensOf(x) {
+      var out = {};
+      listOf(x.tens).forEach(function (t) {
+        t = named(t);
+        if (number(t.level) >= 10) out[number(t.level)] = t;
+      });
+      return out;
+    }
+    var ta = tensOf(a), tb = tensOf(b), race = [], both = 0;
+    for (var L = 10; L <= 60; L += 10) {
+      if (!ta[L] && !tb[L]) continue;
+      race.push(row("Level " + L, ta[L] ? number(ta[L].played) || null : null, tb[L] ? number(tb[L].played) || null : null,
+        time, true, faster));
+      if (ta[L] && tb[L]) both = L;
+    }
+    $("vs-race").innerHTML = race.join("");
+    hide("vs-race-block", !race.length);
+
+    // By the last tenth level both reached: their totals then, and the
+    // calendar days it took where the tracker saw each start at level 1.
+    if (both) {
+      var x = ta[both], y = tb[both];
+      $("vs-at-title").textContent = "By level " + both;
+      $("vs-at-note").textContent = "Each one's totals as they reached level " + both + ".";
+      $("vs-at").innerHTML = [
+        row("Kills", number(x.kills), number(y.kills), count, false, more),
+        row("Deaths", number(x.deaths), number(y.deaths), count, true, fewer),
+        row("Quests", number(x.quests), number(y.quests), count, false, more),
+        a.complete && b.complete && number(x.days) && number(y.days) &&
+          row("Days", number(x.days), number(y.days), count, true, fewer)
+      ].filter(Boolean).join("");
+      var pa = number(x.played), pb = number(y.played);
+      $("vs-lede").textContent = "Both reached level " + both + (pa && pb ? (pa === pb ? " in the same /played." :
+        ": the " + (pa < pb ? shortA : shortB) + " got there " + dur(Math.abs(pa - pb)) + " of /played sooner.") : ".");
+    } else {
+      $("vs-lede").textContent = "Level " + number(a.level) + " and level " + number(b.level) +
+        ". The addon hasn't seen both reach the same tenth level yet, so here's how far each has come.";
+    }
+    hide("vs-at-block", !both);
+
+    // So far: everything each has done, whatever its level.
+    $("vs-now-note").textContent = "Everything so far, at level " + number(a.level) + " and level " + number(b.level) + ".";
+    function now(name, key, show, gap) {
+      var va = a[key] === undefined ? null : number(a[key]), vb = b[key] === undefined ? null : number(b[key]);
+      return (va || vb) ? row(name, va, vb, show, key === "played" ? null : false, gap) : "";
+    }
+    $("vs-now").innerHTML = [
+      now("Level", "level", count, more),
+      now("/played", "played", time, function (d) { return "+" + dur(d); }),
+      now("Kills", "kills", count, more),
+      row("Deaths", number(a.deaths), number(b.deaths), count, null, more),
+      now("Quests", "quests", count, more),
+      now("Gold earned", "earned", function (v) { return coins(v); }, function (d) { return "+" + coins(d); }),
+      row("Zones", listOf(a.zones).length, listOf(b.zones).length, count, false, more),
+      now("Dungeon bosses", "bosses", count, more),
+      now("Honorable kills", "honor", count, more),
+      now("Miles traveled", "miles", count, more),
+      now("Jumps", "jumps", count, more)
+    ].join("");
+
+    // Where each stands out: their three best places, at their own milestones.
+    $("vs-picks").innerHTML = [[A, fullA, "a"], [B, fullB, "b"]].map(function (s) {
+      var side = s[0], picks = Array.isArray(side.picks) ? side.picks.filter(function (p) { return p && p.big; }) : [];
+      var ranks = named(side.ranks), at = number(ranks.milestone) ? "level " + number(ranks.milestone) : "level 1-9";
+      return '<div class="vs-col ' + s[2] + '"><p class="label">' + esc(s[1]) + "</p>" + (picks.length ? picks.map(function (p) {
+        return '<div class="rank"><div class="rank-top"><span class="big">' + esc(p.big) + '</span><span class="cohort">' +
+          esc(p.cohort) + '</span></div><p class="who">' + esc(p.who) + '</p><p class="detail">' + esc(cap(String(p.detail))) +
+          '</p><p class="line">' + esc(p.line) + "</p></div>";
+      }).join("") : '<p class="footnote">' + (ranks.error ? "Its places couldn't be worked out just now. Reload in a minute." :
+        "No places yet: a ranking needs " + M.MIN_PLAYERS + " saved " + at + " journeys.") + "</p>") + "</div>";
+    }).join("");
+
+    $("vs-links").innerHTML = '<a class="action" href="' + A.path + '">' + esc(fullA) + "’s recap</a>" +
+      '<a class="action" href="' + B.path + '">' + esc(fullB) + "’s recap</a>" +
+      '<a class="action" href="/j/' + B.link + "/vs/" + A.link + '">Swap sides</a>';
+    hide("compare", false);
+    return true;
+  }
+
   // The journey this page shows: a shared one (a /j/<id> page comes with its
   // journey as window.JT_SHARED, from site/api/share.js), one pasted in this
   // tab that couldn't be saved, or the sample. A shared journey that doesn't
   // pass the checks never will: it's "invalid", not an error to try again.
+  // Two journeys side by side are a page of their own (drawCompare).
   var S = SAMPLE, pastedSave = null, pasted = remembered("jt-export");
   var shared = window.JT_SHARED || null;
+  // A shared page's address is its character's link (or a level on it, or
+  // two side by side), however it was reached, and a save's ?saved= goes.
+  var sharedPath = shared && PAGE_PATH.test(String(shared.path)) ? shared.path : "";
+  if (sharedPath && location.pathname + location.search !== sharedPath && window.history && history.replaceState) {
+    history.replaceState(null, "", sharedPath + location.hash);
+  }
+  // Its link, to copy (at the top and in the share section).
+  var shareUrl = sharedPath ? location.origin + sharedPath : "";
+  function copyLink(button) {
+    function done() { button.textContent = "Copied"; setTimeout(function () { button.textContent = "Copy link"; }, 2000); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareUrl).then(done, function () { $("share-url").select(); });
+    } else {
+      $("share-url").select();
+      if (document.execCommand && document.execCommand("copy")) done();
+    }
+  }
+  var COPY = ' <button type="button" class="copy-link" id="status-copy">Copy link</button>';
+  var SAMPLE_LINK = ' <a class="link-button" id="show-sample" href="/">Show the sample journey</a>';
+  if (shared && shared.compare) {
+    var compared = false;
+    try {
+      compared = drawCompare(shared);
+    } catch (err) {
+      console.error("Left out #compare:", err);
+      document.body.classList.remove("comparing");
+      hide("compare", true);
+    }
+    if (compared) return;
+    shared = { invalid: true };
+    shareUrl = "";
+  }
   if (shared && shared.payload) {
     try {
       if (checkExport(shared.payload, true).length) throw new Error("not a valid export");
@@ -1423,6 +1799,7 @@ kbd {
       S.shareId = shared.id;
     } catch (err) {
       shared = { invalid: true };
+      shareUrl = "";
     }
   } else if (!shared && pasted) {
     try {
@@ -1479,22 +1856,20 @@ kbd {
     $("road-caption").textContent = "Time spent at each level the tracker saw level up. Hover a bar for the exact time.";
   }
 
-  // A shared journey's link, to copy (at the top and in the share section).
-  var shareUrl = S.shareId ? location.origin + "/j/" + S.shareId : "";
-  function copyLink(button) {
-    function done() { button.textContent = "Copied"; setTimeout(function () { button.textContent = "Copy link"; }, 2000); }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(shareUrl).then(done, function () { $("share-url").select(); });
-    } else {
-      $("share-url").select();
-      if (document.execCommand && document.execCommand("copy")) done();
-    }
-  }
+  // A shared journey's character at its saved levels, from its page
+  // (site/api/share.js): [{ level, path, here, latest, summary }], lowest
+  // level first. None when it has one save.
+  var journeys = S.shareId && Array.isArray(shared.journeys) ? shared.journeys.filter(function (j) {
+    return j && PAGE_PATH.test(String(j.path)) && number(j.level) >= 1;
+  }) : [];
+  var latestSave = journeys.filter(function (j) { return j.latest; })[0];
+
   if (shareUrl) {
     $("share-url").value = shareUrl;
     hide("share-link", false);
-    $("share-note").innerHTML = "Anyone with the link can see this recap, and posting it shows this card. " +
-      '<a href="/j/' + encodeURIComponent(S.shareId) + '/card.png" target="_blank" rel="noopener">Open the card as an image</a>';
+    $("share-note").innerHTML = "Anyone with the link can see this recap" +
+      (shared.latest ? ", and it always shows this character's latest save" : "") + ". Posting it shows this card. " +
+      '<a href="' + sharedPath + '/card.png" target="_blank" rel="noopener">Open the card as an image</a>';
     $("copy-link").addEventListener("click", function () { copyLink($("copy-link")); });
     $("share-url").addEventListener("focus", function () { $("share-url").select(); });
   } else if (S.imported) {
@@ -1502,19 +1877,27 @@ kbd {
   }
 
   // What this page is showing, at the top: said before the recap is drawn,
-  // whatever happens there.
-  var COPY = ' <button type="button" class="copy-link" id="status-copy">Copy link</button>';
-  var SAMPLE_LINK = ' <a class="link-button" id="show-sample" href="/">Show the sample journey</a>';
+  // whatever happens there. Saving opens the character's page with a word
+  // about the save (once); after that, a character this browser saved is
+  // "your journey". A journey at an earlier level links to the latest.
   if (shared && shared.payload) {
     var justSaved = JSON.parse(remembered("jt-saved") || "null");
-    if (justSaved && justSaved.share === shared.id) {
+    var older = shared.latest === false && latestSave && latestSave.path !== sharedPath ?
+      ' <a class="link-button" href="' + latestSave.path + '">See the latest, level ' + number(latestSave.level) + "</a>" : "";
+    var atThen = older ? " This is its journey at level " + S.level + "." : "";
+    if (justSaved && justSaved.link === shared.link) {
+      try { sessionStorage.removeItem("jt-saved"); } catch (e) { /* nothing kept */ }
       say("<b>" + (justSaved.status === "duplicate" ? "This export was already saved." :
-        "Saved: it counts toward the " + atLevel + " rankings.") +
-        "</b> This page's link shows your recap to anyone you send it to." + COPY, "good");
+        "Saved: it counts toward the " + atLevel + " rankings.") + "</b> " + (journeys.length ?
+        "Your character keeps one link, and anyone you've sent it to sees your latest save." :
+        "This page's link shows your recap to anyone you send it to.") + atThen + COPY + older, "good");
+    } else if (myLink() === shared.link) {
+      say("<b>Your journey, saved with Journey Tracker.</b> Its link always shows your latest save." + atThen + COPY + older, "good");
     } else {
       $("journey-chip").textContent = "Shared journey";
       $("foot-note").textContent = "Built from a journey shared with Journey Tracker.";
-      say("<b>A journey shared with Journey Tracker.</b> Paste your own export above to see yours." + COPY + SAMPLE_LINK, "good");
+      say("<b>A journey shared with Journey Tracker.</b>" + atThen + " Paste your own export above to see yours." + COPY + older +
+        SAMPLE_LINK, "good");
       // The sample, not a journey this tab kept from a paste of its own.
       $("show-sample").addEventListener("click", forget);
     }
@@ -1526,10 +1909,13 @@ kbd {
   } else if (shared && shared.error) {
     say("<b>Couldn't load that shared journey right now.</b> Try again in a minute. Below is the sample journey.", "bad");
   } else if (S.imported) {
-    var saved = pastedSave || {};
+    // Not saved: something went wrong, or (a "wait") the character was saved
+    // less than 30 minutes ago and its page has that save.
+    var saved = pastedSave || {}, waiting = saved.status === "wait";
     say("<b>This is the journey you pasted.</b> Not saved: " + esc(saved.message || "something went wrong.") +
-      " The recap below still works, but it has no link to share." +
-      ' <button type="button" class="link-button" id="show-sample">Show the sample journey instead</button>', "bad");
+      (waiting && PAGE_PATH.test(String(saved.path)) ? ' <a class="link-button" href="' + saved.path + '">See its last save</a>' :
+        " The recap below still works, but it has no link to share.") +
+      ' <button type="button" class="link-button" id="show-sample">Show the sample journey instead</button>', waiting ? "" : "bad");
     $("show-sample").addEventListener("click", function () { forget(); window.scrollTo(0, 0); location.reload(); });
   }
 
@@ -1547,13 +1933,10 @@ kbd {
         S.reachedMilestone + (S.daysTo ? ", " + days(S.daysTo) + " later" : "") + playedThen + "." :
         ", " + days(S.calendarDays) + " ago. Level " + S.level + " so far.")) + levelNote;
 
-    // A shared journey's character at its other saved levels, from the share
-    // page (site/api/share.js): [{ level, share, here }].
-    var journeys = shared && Array.isArray(shared.journeys) ? shared.journeys.filter(function (j) {
-      return j && /^[A-Za-z0-9_-]{22}$/.test(String(j.share)) && number(j.level) >= 1;
-    }) : [];
+    // The character's saves: each level it was saved at, and its latest.
     $("journeys").innerHTML = '<span class="label">This character</span>' + journeys.map(function (j) {
-      return '<a href="/j/' + j.share + '"' + (j.here ? ' aria-current="page"' : "") + ">Level " + number(j.level) + "</a>";
+      return '<a href="' + j.path + '"' + (j.here ? ' aria-current="page"' : "") + ">Level " + number(j.level) +
+        (j.latest ? " · latest" : "") + "</a>";
     }).join("");
     hide("journeys", journeys.length < 2);
     hide("road", knownLevels.length < 2);
@@ -1561,6 +1944,100 @@ kbd {
       return "<li><b>" + m[0] + "</b>" + esc(m[1]) + "</li>";
     }).join("");
     hide("milestones", !S.milestones.length);
+  });
+
+  // Comparing a saved journey with another: /j/<this>/vs/<other>, with a
+  // link pasted here, or in one click with the character this browser last
+  // saved (the one on the left is the one doing the comparing).
+  draw("hero-actions", function () {
+    var link = S.shareId && LINK.test(String(shared.link)) ? shared.link : "", mine = myLink();
+    hide("hero-actions", !link);
+    if (!link) return;
+    if (mine && mine !== link) {
+      $("compare-mine").href = "/j/" + mine + "/vs/" + link;
+      hide("compare-mine", false);
+      $("compare-open").textContent = "Compare with another";
+    }
+    $("compare-open").addEventListener("click", function () {
+      var opening = $("compare-form").hidden;
+      hide("compare-form", !opening);
+      $("compare-open").setAttribute("aria-expanded", String(opening));
+      if (opening) $("compare-link").focus();
+    });
+    $("compare-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      // A link as copied (journeytracker.dev/j/<link>, maybe with a level),
+      // or the 22 characters alone.
+      var found = /(?:^|\/j\/)([A-Za-z0-9_-]{22})(?=$|[\/?#])/.exec($("compare-link").value.trim());
+      $("compare-note").textContent = !found ?
+        "That isn't a Journey Tracker link. One looks like journeytracker.dev/j/ and then 22 letters and numbers." :
+        found[1] === link ? "That's this journey's own link. Paste the other one's." : "";
+      if (found && found[1] !== link) location.assign("/j/" + link + "/vs/" + found[1]);
+    });
+  });
+
+  // What changed since an earlier save of the same character: its saves
+  // before this one, each with its summary (site/model.js's summaryOf), the
+  // one just before to start with. The sample shows its own since level 50.
+  draw("chapter-since", function () {
+    var list = journeys.filter(function (j) { return j.summary && typeof j.summary === "object"; });
+    if (!S.imported) {
+      var sampleAt = function (level) {
+        var r = S.milestoneRows.filter(function (m) { return m.level === level; })[0];
+        return { level: level, played: r.played, kills: r.kills, deaths: r.deaths, quests: r.quests,
+                 zones: S.path.filter(function (p) { return p[1] < level; }).map(function (p) { return p[0]; }) };
+      };
+      list = [{ level: 50, date: S.milestoneRows[4].date, summary: sampleAt(50) },
+              { level: 60, here: true, summary: Object.assign(sampleAt(60), { played: total, zones: S.path.map(function (p) { return p[0]; }),
+                marks: S.milestones }) }];
+    }
+    var here = list.filter(function (j) { return j.here; })[0];
+    var earlier = here ? list.slice(0, list.indexOf(here)) : [];
+    hide("chapter-since", !earlier.length);
+    if (!earlier.length) return;
+    var x = named(here.summary), listOf = M.listOf;
+    function since(base) {
+      var y = named(base.summary), gained = number(x.level) - number(y.level);
+      var played = Math.max(0, number(x.played) - number(y.played)), at = "level " + number(y.level);
+      $("since-title").textContent = gained > 0 ? "Since " + at + ": " + plural(gained, "level") + " in " + dur(played) + " of /played." :
+        "Since your save at " + at + ": " + dur(played) + " more of /played.";
+      var day = base.date || (number(y.exportedAt) > 0 ? M.dayOf(number(y.exportedAt)) : "");
+      $("since-lede").textContent = (S.imported ? "Compared with this character's journey saved at " : "Compared with the sample's journey at ") +
+        at + (realDay(day) ? " on " + day : "") + ".";
+      // What grew: only what both saves have, and not what stood still (but
+      // no deaths is worth saying).
+      function grew(key) {
+        return x[key] === undefined || y[key] === undefined ? null : Math.max(0, number(x[key]) - number(y[key]));
+      }
+      var kills = grew("kills"), deaths = grew("deaths"), quests = grew("quests"), earned = grew("earned");
+      var bosses = grew("bosses"), honor = grew("honor"), miles = grew("miles");
+      stats("since-stats", [
+        kills && ["Kills", "+" + num(kills)],
+        deaths !== null && ["Deaths", deaths ? "+" + num(deaths) : "None"],
+        quests && ["Quests", "+" + num(quests)],
+        earned && ["Gold earned", "+" + coins(earned)],
+        bosses && ["Dungeon bosses", "+" + num(bosses)],
+        honor && ["Honorable kills", "+" + num(honor)],
+        miles >= 1 && ["Miles traveled", "+" + num(miles)]
+      ].filter(Boolean));
+      var seen = Object.create(null);
+      listOf(y.zones).forEach(function (z) { seen[z] = true; });
+      var fresh = listOf(x.zones).filter(function (z) { return typeof z === "string" && !seen[z]; });
+      $("since-zones").textContent = fresh.join(", ");
+      hideBlock("since-zones", !fresh.length);
+      var marks = listOf(x.marks).filter(function (m) {
+        return Array.isArray(m) && number(m[0]) > number(y.level) && number(m[0]) <= number(x.level);
+      });
+      $("since-marks").innerHTML = marks.map(function (m) { return "<li><b>" + number(m[0]) + "</b>" + esc(m[1]) + "</li>"; }).join("");
+      hideBlock("since-marks", !marks.length);
+      earlier.forEach(function (j, i) { $("since-" + i).setAttribute("aria-pressed", String(j === base)); });
+    }
+    $("since-pick").innerHTML = earlier.map(function (j, i) {
+      return '<button type="button" id="since-' + i + '" aria-pressed="false">Level ' + number(j.level) + "</button>";
+    }).join("");
+    earlier.forEach(function (j, i) { $("since-" + i).addEventListener("click", function () { since(j); }); });
+    hide("since-pick-wrap", earlier.length < 2);
+    since(earlier[earlier.length - 1]);
   });
 
   // Every ten levels: the totals the tracker saved at each milestone's

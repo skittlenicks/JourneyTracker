@@ -16,7 +16,9 @@
 // from an older MODEL get theirs worked out from their export here and
 // written back, a few per load, before each character's is chosen. An
 // export it can't be worked out from gets a failed profile, so it's tried
-// once per MODEL, not on every load.
+// once per MODEL, not on every load. Each upload's summary (site/model.js's
+// summaryOf, in payload.summary, for its character's page) is worked out
+// and written back with its profile.
 
 const JourneyModel = require('./model');
 const RANKINGS = require('./rankings');
@@ -40,10 +42,14 @@ async function supabase(path, options) {
   return response;
 }
 
-// A decoded export's profile.
-function profileOf(payload) {
+// A decoded export's profile (ranked) and summary, to save with it.
+function analyze(payload) {
   const journey = JourneyModel.journeyFromExport(payload);
-  return JourneyModel.saved(JourneyModel.profileOf(journey, RANKINGS), RANKINGS);
+  return { ranked: JourneyModel.saved(JourneyModel.profileOf(journey, RANKINGS), RANKINGS),
+    summary: JourneyModel.summaryOf(journey) };
+}
+function profileOf(payload) {
+  return analyze(payload).ranked;
 }
 // Whether a profile from this model is up to date: this one, or a newer
 // one (a deployment still on an older model mustn't redo a newer one's).
@@ -51,9 +57,10 @@ function current(model) {
   return model >= JourneyModel.MODEL;
 }
 
-// Profiles for listed uploads that need one, written back with their
-// export, a few exports read at a time. The rows get what the listing has
-// of a profile (since, model, failed) and the profile itself (ranked).
+// Profiles and summaries for listed uploads that need them, written back
+// with their export, a few exports read at a time. The rows get what the
+// listing has of a profile (since, model, failed), the profile itself
+// (ranked) and the summary.
 async function makeProfiles(rows) {
   for (let i = 0; i < rows.length; i += MAKE_AT_ONCE) {
     const batch = rows.slice(i, i + MAKE_AT_ONCE);
@@ -61,13 +68,14 @@ async function makeProfiles(rows) {
     await Promise.all(full.map(async ({ id, payload }) => {
       const row = batch.find((r) => r.id === id);
       try {
-        payload.ranked = profileOf(payload);
+        Object.assign(payload, analyze(payload));
       } catch (err) {
         console.error(`profile for upload ${id}:`, err.message);
         payload.ranked = { model: JourneyModel.MODEL, failed: true, values: {}, trades: [] };
+        delete payload.summary;
       }
       Object.assign(row, { ranked: payload.ranked, since: payload.ranked.since, model: payload.ranked.model,
-        failed: payload.ranked.failed });
+        failed: payload.ranked.failed, summary: payload.summary });
       try {
         await supabase(`uploads?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
           body: JSON.stringify({ payload }) });
@@ -163,4 +171,5 @@ async function journeyOf(payload, characterId) {
   return { journey, ranks, picks: JourneyModel.picksFor(all, 9) };
 }
 
-module.exports = { supabase, profileOf, current, placesOf, population, journeyOf, closest, RANKINGS };
+module.exports = { supabase, analyze, profileOf, current, makeProfiles, placesOf, population, journeyOf, closest,
+  RANKINGS };

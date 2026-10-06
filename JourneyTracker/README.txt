@@ -30,8 +30,13 @@ Nothing uploads by itself: your data only leaves the game when you paste it.
 
 Pasting saves your export so it counts toward the rankings. Anyone you give
 the link to can see your recap, but never your character's name or realm.
-Each export gets its own link, and pasting the same one twice only counts
-once.
+Each character has one link: paste a newer export as you level and the same
+link shows it, with what changed since your last save. Pasting the same
+export twice only counts once, and a character can be saved once every 30
+minutes (the journeys the addon keeps every 10 levels can always be saved).
+
+On your journey's page, Compare puts it side by side with a friend's: paste
+their link, or open theirs and click "Compare with my journey".
 
 Every 10 levels, the addon also saves your journey as it was when you got
 there, so you can share your road to 10, 20, 30 and on even after you've

@@ -74,7 +74,7 @@ Type **/journey** (or **/jt**), or click the gold **JT** button on your minimap.
 
 ## See your recap
 
-Click **Export** at the bottom of the window (or right-click the minimap button, or type **/journey export**), press Ctrl+C, and paste it at **www.journeytracker.dev**. You get a Wrapped-style recap of your road to 60: your route across Azeroth, deaths, quests, gold, gear and where you rank, with a link to share it.
+Click **Export** at the bottom of the window (or right-click the minimap button, or type **/journey export**), press Ctrl+C, and paste it at **www.journeytracker.dev**. You get a Wrapped-style recap of your road to 60: your route across Azeroth, deaths, quests, gold, gear and where you rank, with a link to share it. Your character keeps that one link: paste a newer export as you level and it shows what changed since. **Compare** puts your journey side by side with a friend's: time to every ten levels, kills, deaths, quests and where each of you ranks.
 
 Every 10 levels, the addon saves your journey as it was when you got there, and a small window offers to export it right away. Share your road to 10, 20, 30 and on, even after you've passed it, and see how you rank against other players at the same level. A journey shared long after reaching its level is ranked only on the time it took, so nobody's fresh 60 is up against someone who's been 60 for weeks. Turn the pop-up off with the Options button at the bottom of the window.
 
