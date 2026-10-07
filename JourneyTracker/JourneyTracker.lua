@@ -383,7 +383,13 @@ end
 ---------------------------------------------------------------------------
 
 local function Level() return Num(Call("UnitLevel", "player")) or 0 end
-local function Zone() return Str(Call("GetZoneText")) or "Unknown" end
+-- The zone you're in. Forever gives some buildings' names (its inns:
+-- "Lakeshire Inn") as the zone's, and some moments no name at all: then
+-- the zone the map says you're in (ns.ZoneFromMap). "Unknown" if neither.
+local function Zone()
+    local z = Str(Call("GetZoneText"))
+    return (ns.ZoneFromMap and ns.ZoneFromMap(z)) or z or "Unknown"
+end
 local function SubZone() return Str(Call("GetSubZoneText")) end
 local function InGroup() return Call("IsInGroup") == true end
 local function InCombat() return InCombatLockdown() == true end
@@ -922,6 +928,58 @@ local function OnSubZoneChange()
     if not sub then return end
     local key = Zone() .. ": " .. sub
     if not db.subzones[key] then db.subzones[key] = time() end -- #64 subzones visited
+end
+
+-- What was saved under a building's name that Forever gave as the zone's
+-- (see Zone) moves to the zone it's in: the path (#67), first visit and
+-- time (#63, #66), subzones (#64), quests (#55), the zone at each ding
+-- (#19) and of each death (#46), and the wrapped stats by zone (W-128,
+-- W-154, W-419, the inn you're bound at). (On ns: this file's main chunk
+-- is at Lua's limit of 200 locals.)
+function ns.RenameZone(from, to, mapID)
+    if not db or type(from) ~= "string" or type(to) ~= "string" or from == to or from == "Unknown" then return end
+    local function Add(t)                                     -- counts or seconds by zone
+        if type(t) ~= "table" or type(t[from]) ~= "number" then return end
+        t[to] = (tonumber(t[to]) or 0) + t[from]
+        t[from] = nil
+    end
+    for _, p in ipairs(db.path) do
+        if type(p) == "table" and p.zone == from then p.zone, p.map = to, p.map or mapID end
+    end
+    local old, new = db.zones[from], db.zones[to]
+    if type(old) == "table" then
+        if type(new) ~= "table" then
+            db.zones[to] = old
+        else
+            new.seconds = (tonumber(new.seconds) or 0) + (tonumber(old.seconds) or 0)
+            if (tonumber(old.first) or math.huge) < (tonumber(new.first) or math.huge) then
+                new.first, new.firstLevel = old.first, old.firstLevel
+            end
+        end
+        db.zones[from] = nil
+    end
+    local prefix, moved = from .. ": ", {}
+    for key, t in pairs(db.subzones) do
+        if type(key) == "string" and key:sub(1, #prefix) == prefix then moved[key] = t end
+    end
+    for key, t in pairs(moved) do
+        local toKey = to .. ": " .. key:sub(#prefix + 1)
+        db.subzones[key] = nil
+        if type(t) == "number" and (db.subzones[toKey] == nil or t < db.subzones[toKey]) then db.subzones[toKey] = t end
+    end
+    Add(db.quests.byZone)
+    for _, d in pairs(db.dings) do
+        if type(d) == "table" and d.zone == from then d.zone = to end
+    end
+    for _, d in ipairs(db.deaths) do
+        if type(d) == "table" and d.zone == from then d.zone = to end
+    end
+    local W = type(db.wrapped) == "table" and db.wrapped or {}
+    Add(W["W-154"])
+    Add(W["W-419"])
+    for _, byZone in pairs(type(W["W-128"]) == "table" and W["W-128"] or {}) do Add(byZone) end
+    if type(W.bindPlace) == "table" and W.bindPlace.zone == from then W.bindPlace.zone = to end
+    if currentZone == from then currentZone = to end
 end
 
 -- #83 auctions sold (and the expiries and cancels W-368 counts, through
@@ -2008,9 +2066,17 @@ frame:SetScript("OnEvent", function(self, event, ...)
             db.char.class, db.char.race = Str(class), Str(race)
             -- #67 stops saved before 0.6.8 kept only the zone's name: their
             -- map ID from the game's own names, so the website places them
-            -- whatever language the client is in.
+            -- whatever language the client is in. A stop with a building's
+            -- name (see Zone) and its zone's map ID (0.6.8 on): what was
+            -- saved under that name moves to the zone.
             for _, p in ipairs(db.path) do
-                if type(p) == "table" and p.map == nil then p.map = ns.ZoneMapByName(p.zone) end
+                if type(p) == "table" and p.map == nil then
+                    p.map = ns.ZoneMapByName(p.zone)
+                elseif type(p) == "table" and p.zone ~= "Unknown" and not ns.ZoneMapByName(p.zone) then
+                    local info = Call("C_Map.GetMapInfo", p.map)
+                    local zone = type(info) == "table" and Num(Safe(info.mapType)) == 3 and Str(Safe(info.name))
+                    if zone then ns.RenameZone(p.zone, zone, p.map) end
+                end
             end
             SeedXP()
             db.money.last = Num(Call("GetMoney"))             -- don't count offline changes
@@ -2203,6 +2269,26 @@ ns.ZonePvP = (function()
             if next(byName) == nil then byName = nil return nil end
         end
         return byName[name]
+    end
+    -- The zone the map says you're in, where the game's zone name (`text`)
+    -- isn't a zone's: a building Forever names as if it were one, or no
+    -- name. Nil where the name is a zone's, in a dungeon (its name is its
+    -- own), or where the map can't say (out on a continent, on the Deeprun
+    -- Tram). What was saved under the building's name moves to the zone,
+    -- once a session (ns.RenameZone).
+    local moved = {}
+    function ns.ZoneFromMap(text)
+        if text and ns.ZoneMapByName(text) then return nil end
+        if Call("IsInInstance") == true then return nil end
+        local id = ns.ZoneMapID()
+        local info = id and Call("C_Map.GetMapInfo", id)
+        local zone = type(info) == "table" and Str(Safe(info.name))
+        if not zone or zone == text then return nil end
+        if text and not moved[text] then
+            moved[text] = true
+            ns.RenameZone(text, zone, id)
+        end
+        return zone
     end
     return function()
         local kind

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.10
+
+- **Inns aren't zones any more:** inside some buildings, like the Lakeshire Inn and the Lion's Pride Inn, Forever gives the building's name as the zone's. Journey Tracker now records the zone you're really in, so time at the inn counts toward Redridge Mountains or Elwynn Forest, and your route no longer stops at the inn. What was already saved under an inn's name moves to its zone the next time you're in that inn, or at login if you've been there since 0.6.8.
+- **No more "Unknown" zone** when the game briefly gives no zone name, often right after logging in: the zone the map shows is used instead.
+
 ## 0.6.9
 
 - **Forever's new zones** now have a zone type, taken from the game's own zone data. Mount Hyjal, Riverglades and Shen'dralas are contested, and Zephras Isle is a sanctuary. Time there, and the PvP stats, count them instead of leaving them out.
