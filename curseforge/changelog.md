@@ -2,7 +2,16 @@
 
 ## 0.6.7
 
-- **Hide the minimap button** if you'd rather not have it: untick "Show the button on the minimap" in Options, or type `/journey minimap`. The window still opens with `/journey` or `/jt`, and `/journey minimap` brings the button back.
+- **Hide the minimap button** if you'd rather not have it: untick "Show the button on the minimap" in Options, or type `/journey minimap`. The window still opens with `/journey` or `/jt`, and `/journey minimap` brings the button back. The setting is saved per character.
+
+### On the website
+
+New at [www.journeytracker.dev](https://www.journeytracker.dev) alongside this version. They work with any version of the addon.
+
+- **One link per character:** paste a newer export as you level and your character's link shows it, instead of making a new one. Links you've already shared keep working and show your latest.
+- **What changed:** your journey's page shows what changed since your last save: levels, /played, kills, deaths, quests, gold, new zones and the moments along the way.
+- **Compare:** click Compare on a journey and paste a friend's link to see your runs side by side: the time each of you took to every ten levels, kills, deaths, quests and where each of you ranks.
+- **Saving limit:** each character can be saved once every 30 minutes. The journeys the addon saves every 10 levels always go through.
 
 ## 0.6.6
 
