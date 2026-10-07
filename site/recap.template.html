@@ -2461,9 +2461,11 @@ kbd {
   // (An export has each zone's time as p[3]; the sample spreads its made-up
   // /played over its route.)
   // A stop's map: by its map ID where the export has one (addon 0.6.8 on, in
-  // any language), else by the zone's English name.
+  // any language), else by the zone's English name. A zone map with no art
+  // (Zephras Isle's second) is drawn as the one with its name that has it.
   var route = S.path.map(function (p) {
     var byID = p[4] ? MAP_BY_ID[p[4]] : null;
+    if (byID && byID.type === 3 && !byID.image && MAP_BY_NAME[byID.name] && MAP_BY_NAME[byID.name].image) byID = MAP_BY_NAME[byID.name];
     return { name: p[0], from: p[1], to: p[2], map: byID && byID.type === 3 ? byID : MAP_BY_NAME[p[0]],
              seconds: p[3] !== undefined ? p[3] : zoneSeconds(p[1], p[2]) };
   }).filter(function (r) { return r.map && r.map.world; });

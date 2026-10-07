@@ -2006,6 +2006,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
             db.char.name = Str(Call("UnitName", "player"))
             db.char.realm = Str(Call("GetRealmName"))
             db.char.class, db.char.race = Str(class), Str(race)
+            -- #67 stops saved before 0.6.8 kept only the zone's name: their
+            -- map ID from the game's own names, so the website places them
+            -- whatever language the client is in.
+            for _, p in ipairs(db.path) do
+                if type(p) == "table" and p.map == nil then p.map = ns.ZoneMapByName(p.zone) end
+            end
             SeedXP()
             db.money.last = Num(Call("GetMoney"))             -- don't count offline changes
             Call("RequestTimePlayed")                         -- #1 baseline /played
@@ -2162,18 +2168,41 @@ end
 -- The zone's PvP type ("friendly", "hostile", "contested", "sanctuary"...):
 -- the game's, or where it has none, the zone's side. Forever's client has
 -- no PvP type for most zones (C_PvP.GetZonePVPInfo returns nothing, even on
--- a PvP realm), so each zone of the old world is given its side by its map
--- ID: Classic's rule, which Forever keeps, of each faction's starting zones,
--- the zones next to them and its capitals, and every other zone contested.
--- Forever's own new zones aren't listed: their type is unknown. (Built in a
+-- a PvP realm), so each zone is given its side by its map ID, as the
+-- client's own zone data (AreaTable) has it: each faction's starting zones,
+-- the zones next to them and its capitals, and every other zone contested,
+-- Forever's new ones too, but for Zephras Isle, a sanctuary. (Built in a
 -- function: this file's main chunk is at Lua's limit of 200 locals.)
 ns.ZonePvP = (function()
     local sides = {}
     for _, id in ipairs({ 1429, 1426, 1432, 1436, 1438, 1439, 1453, 1455, 1457 }) do sides[id] = "Alliance" end
     for _, id in ipairs({ 1411, 1412, 1413, 1420, 1421, 1454, 1456, 1458 }) do sides[id] = "Horde" end
     for _, id in ipairs({ 1416, 1417, 1418, 1419, 1422, 1423, 1424, 1425, 1427, 1428, 1430, 1431, 1433, 1434, 1435,
-        1437, 1440, 1441, 1442, 1443, 1444, 1445, 1446, 1447, 1448, 1449, 1450, 1451, 1452 }) do
+        1437, 1440, 1441, 1442, 1443, 1444, 1445, 1446, 1447, 1448, 1449, 1450, 1451, 1452,
+        2482, 2548, 2652 }) do                                -- (Mount Hyjal, Riverglades, Shen'dralas)
         sides[id] = "contested"
+    end
+    sides[2521], sides[2665] = "sanctuary", "sanctuary"       -- Zephras Isle, the Skyborne's start (two maps)
+    -- A zone's map ID by its name as the game gives it, in the client's
+    -- language: for route stops saved before 0.6.8, which kept only the name
+    -- (#67). Two maps with one name give the first (Zephras Isle's, as the
+    -- website does). Nil until the game has said its zones' names.
+    local byName
+    function ns.ZoneMapByName(name)
+        if type(name) ~= "string" then return nil end
+        if not byName then
+            local ids = {}
+            for id in pairs(sides) do ids[#ids + 1] = id end
+            table.sort(ids)
+            byName = {}
+            for _, id in ipairs(ids) do
+                local info = Call("C_Map.GetMapInfo", id)
+                local n = type(info) == "table" and Str(Safe(info.name))
+                if n and byName[n] == nil then byName[n] = id end
+            end
+            if next(byName) == nil then byName = nil return nil end
+        end
+        return byName[name]
     end
     return function()
         local kind

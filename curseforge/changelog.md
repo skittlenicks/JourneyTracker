@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.9
+
+- **Forever's new zones** now have a zone type, taken from the game's own zone data. Mount Hyjal, Riverglades and Shen'dralas are contested, and Zephras Isle is a sanctuary. Time there, and the PvP stats, count them instead of leaving them out.
+- **Your whole route on the map, in any language:** zones you visited before 0.6.8 get their map too, so the website can place every stop of your route whatever language your game is in.
+
+### On the website
+
+- A zone on your route is placed on the map if any visit to it was saved with its map, not only the first.
+
 ## 0.6.8
 
 Fixes for stats that weren't recording on WoW Forever, found by going through the journeys saved to the website.

@@ -387,9 +387,11 @@ var JourneyModel = (function () {
       p = named(p);
       if (typeof p.zone !== "string" || !p.zone || p.zone === "Unknown") return;
       var at = number(p.level), stop = stopOf[p.zone];
-      // (with the zone's map ID where the addon saved it, 0.6.8 on: the page
-      // places the stop by it, whatever language the name is in)
+      // (with the zone's map ID where the addon saved it, 0.6.8 on, from any
+      // visit: the page places the stop by it, whatever language the name
+      // is in)
       if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, at, at, number(named(own(zones, p.zone)).seconds), number(p.map) || undefined]);
+      else if (!stop[4] && number(p.map)) stop[4] = number(p.map);
       var next = named(path[i + 1]), left = number(next.level) || (i === path.length - 1 ? level : at);
       stop[2] = Math.max(stop[2], at, left);
     });
