@@ -20,6 +20,11 @@ local API = { "GetStatisticsCategoryList", "GetCategoryInfo", "GetCategoryNumAch
 local ACCOUNT_FLAG = 0x20000 -- ACHIEVEMENT_FLAGS_ACCOUNT in Blizzard's achievement UI
 local MAX_ERRORS = 50        -- errors kept in the dump; the rest are only counted
 
+-- Whoever wants each fresh read of the pane (the recipes each profession
+-- knows, W-427), called with the snapshot once it's the latest.
+local readListeners = {}
+function ns.OnStatisticsRead(fn) table.insert(readListeners, fn) end
+
 -- Our own counts, compared with Blizzard's statistic of the same name as a
 -- hint for whether the statistics are per character. First name found wins.
 -- `key` is the count's name in a snapshot's `ours` (W-507); `minus` is a
@@ -443,6 +448,7 @@ local function Store(read, reason)
         S.levels[snap.level] = { t = snap.t, played = snap.played, changed = changed }
     end
     S.latest = snap
+    for _, fn in ipairs(readListeners) do fn(snap) end
     return snap
 end
 

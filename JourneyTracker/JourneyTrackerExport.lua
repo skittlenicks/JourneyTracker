@@ -88,7 +88,7 @@ local function BuildSummary(db, milestone)
     -- Never exported: the character's name and realm (exports are anonymous),
     -- window settings, dev probe dumps, internal bookkeeping, and the hashed
     -- IDs used to count players you grouped with (only the count goes out).
-    for _, key in ipairs({ "char", "ui", "dev", "legacy", "legacySchema" }) do stats[key] = nil end
+    for _, key in ipairs({ "char", "ui", "dev", "legacy", "legacySchema", "replaceOnLoad" }) do stats[key] = nil end
     if stats.money then stats.money.last = nil end
     if stats.quests then stats.quests.open = nil end
     if stats.social then stats.social.seen = nil end
@@ -585,14 +585,17 @@ local function SaveMilestone(level, late)
     if ns.ExportReminderOn() then ns.ShowMilestoneReminder(level) end -- #109
 end
 
--- A level-up's milestone waits for the ding's /played and its Statistics
--- pane read (at most MILESTONE_WAIT seconds), then for combat to end.
+-- A level-up's milestone waits for the ding's /played, its Statistics pane
+-- read and its character sheet (wrapped W-383..W-391, read now if it's
+-- still waiting), at most MILESTONE_WAIT seconds, then for combat to end.
 local pending -- { level, since, late }
 local function TrySave()
     local p, db = pending, ns.GetDB()
     if not p or not db then return end
+    if ns.TakeSheet and not ns.InCombat() then ns.TakeSheet() end
     local ding, S = db.dings[p.level], db.statistics
     local ready = ding and ding.played and (not (S and S.latest) or (S.levels and S.levels[p.level]))
+        and (ding.sheet ~= nil or not ns.TakeSheet)
     if ns.InCombat() or (not ready and GetTime() - p.since < MILESTONE_WAIT) then
         if C_Timer and C_Timer.After then C_Timer.After(2, TrySave) end
         return

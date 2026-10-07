@@ -15,8 +15,10 @@ local On, Protect = ns.WrappedOn, ns.Protect
 
 -- Each dungeon's final boss (by the name the game uses for the encounter
 -- or the kill), for clear times and abandoned runs. Forever's new
--- dungeons aren't listed yet: for them a run counts as cleared at its last
--- boss.
+-- dungeons: the last in the client's own encounter list (DungeonEncounter,
+-- which has the Classic ones' final bosses last too), for the ones its
+-- beta client has; City of Dalaran's last is unclear. A dungeon not listed
+-- counts as cleared at its last boss.
 local FINAL_BOSSES = {
     ["Ragefire Chasm"] = "Taragaman the Hungerer", ["Wailing Caverns"] = "Mutanus the Devourer",
     ["The Deadmines"] = "Edwin VanCleef", ["Shadowfang Keep"] = "Archmage Arugal",
@@ -27,6 +29,7 @@ local FINAL_BOSSES = {
     ["Sunken Temple"] = "Shade of Eranikus", ["Blackrock Depths"] = "Emperor Dagran Thaurissan",
     ["Lower Blackrock Spire"] = "Overlord Wyrmthalak", ["Upper Blackrock Spire"] = "General Drakkisath",
     ["Scholomance"] = "Darkmaster Gandling",
+    ["Hall of Thanes"] = "Durgen Dirgehammer", ["Ruins of Lordaeron"] = "Bjork", ["Excavation Site"] = "Relic Guardian",
 }
 -- Wings, told apart by the bosses killed in them (W-208, W-209); a wing's
 -- last boss also ends it for clear times. Blackrock Spire is one instance
@@ -76,6 +79,14 @@ local LEVELS = { ["Ragefire Chasm"] = { 13, 18 }, ["Wailing Caverns"] = { 17, 24
     ["Upper Blackrock Spire"] = { 55, 60 }, ["Blackrock Spire"] = { 55, 60 }, ["Dire Maul"] = { 55, 60 },
     ["Stratholme"] = { 58, 60 }, ["Scholomance"] = { 58, 60 } }
 for name, range in pairs(NEW_DUNGEONS) do LEVELS[name] = range end
+-- A table's entry for a dungeon, by the name the game gives it: Forever
+-- adds the zone to some ("Excavation Site: Wetlands") and "The" to others
+-- ("The Hall of Thanes").
+local function Known(t, name)
+    if type(name) ~= "string" then return nil end
+    local base = name:match("^(.-):") or name
+    return t[name] or t[base] or t[(base:gsub("^The ", ""))]
+end
 -- W-220 the Zul'Farrak stair event ends with these two coming down.
 local ZF_STAIRS = { ["Nekrum Gutchewer"] = true, ["Shadowpriest Sezz'ziz"] = true }
 -- Roles by talent tree, for W-234 when the game has no role set.
@@ -149,7 +160,7 @@ local function LookAtGroup()
 end
 
 local function WingOf(name, killed)
-    for _, wing in ipairs(WINGS[name] or {}) do
+    for _, wing in ipairs(Known(WINGS, name) or {}) do
         for _, boss in ipairs(wing[2]) do
             if killed[boss] then return wing[1], wing[3] end
         end
@@ -175,7 +186,7 @@ local function FinishRun()
     local duration = time() - r.start
     local wing, wingFinal = WingOf(r.name, r.killed)
     local key = wing and (r.name .. ": " .. wing) or r.name
-    local final = wingFinal or FINAL_BOSSES[r.name]
+    local final = wingFinal or Known(FINAL_BOSSES, r.name)
     local clear
     if final then
         clear = r.killed[final] and r.killed[final] - r.start or nil
@@ -195,7 +206,7 @@ local function FinishRun()
         elseif (final and not r.killed[final]) or (not final and not r.lastBoss) then
             Track.count("W-195", key)                         -- W-195 runs abandoned
         end
-        local new = NEW_DUNGEONS[r.name] and "Forever" or "Classic"
+        local new = Known(NEW_DUNGEONS, r.name) and "Forever" or "Classic"
         local split = Track.get("W-207")
         split = type(split) == "table" and split or {}
         split[new] = split[new] or { runs = 0, seconds = 0 }
@@ -203,7 +214,7 @@ local function FinishRun()
         split[new].seconds = split[new].seconds + math.floor(duration)
         Track.set("W-207", split)
         if r.xp > 0 then Track.list("W-228", { name = key, level = r.level, xp = r.xp }, 100) end -- W-228 XP per run
-        local range = LEVELS[r.name]
+        local range = Known(LEVELS, r.name)
         if range and r.level >= range[2] + 5 then Track.count("W-231", key) end -- W-231 run 5+ levels over
         if r.boosted then Track.count("W-232", key) end       -- W-232 boosted through it
         if r.party and #r.party >= 2 then Track.count("W-233", table.concat(r.party, ", ")) end -- W-233 compositions
@@ -246,7 +257,7 @@ local function BossKilled(name)
     Track.count("W-239", bracket)
     -- W-197 the first kill of a dungeon's final boss
     local wing, wingFinal = WingOf(run.name, run.killed)
-    if name == (wingFinal or FINAL_BOSSES[run.name]) then
+    if name == (wingFinal or Known(FINAL_BOSSES, run.name)) then
         Track.firstOf("W-197", wing and (run.name .. ": " .. wing) or run.name, { boss = name })
     end
     if ZF_STAIRS[name] and run.name == "Zul'Farrak" and not run.stairs then
@@ -281,8 +292,8 @@ end
 -- Kills by name catch bosses the game doesn't send encounter events for.
 local function OnKill(k)
     if not run or not k.name then return end
-    if FINAL_BOSSES[run.name] == k.name or ZF_STAIRS[k.name] or k.name == "Onyxia" then BossKilled(k.name) end
-    for _, wing in ipairs(WINGS[run.name] or {}) do
+    if Known(FINAL_BOSSES, run.name) == k.name or ZF_STAIRS[k.name] or k.name == "Onyxia" then BossKilled(k.name) end
+    for _, wing in ipairs(Known(WINGS, run.name) or {}) do
         for _, boss in ipairs(wing[2]) do
             if boss == k.name then BossKilled(k.name) end
         end
@@ -383,7 +394,7 @@ local function OnQuestTurnedIn(questID)
     local info = Call("C_QuestLog.GetQuestTagInfo", questID)
     local tag = type(info) == "table" and Str(Safe(info.tagName))
     local header = questHeaders[questID] or HeaderOf(questID)
-    if tag == "Dungeon" or (header and LEVELS[header]) then
+    if tag == "Dungeon" or (header and Known(LEVELS, header)) then
         Track.count("W-230", header or "Unknown")
     end
 end

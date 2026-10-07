@@ -107,7 +107,7 @@ Rules for Claude:
 64. `BUILT` Subzones discovered
 65. `BUILT` XP earned from exploration
 66. `BUILT` Time spent in each zone
-67. `BUILT` Zone order: your path through the world
+67. `BUILT` Zone order: your path through the world (each stop keeps the zone's map ID from addon 0.6.8 on, the same in every language, so the website places it on the map whatever language the client is in; none in a dungeon or out on a continent)
 68. `BUILT` Hearthstone uses (UNIT_SPELLCAST_SUCCEEDED)
 69. `BUILT` Flight paths discovered
 70. `BUILT` Flights taken
@@ -143,7 +143,7 @@ Rules for Claude:
 104. `BUILT` Gear worn the longest: the item with the most levels gained while equipped, and the item with the most /played while equipped, each with its slot and the levels it was worn (shirts and tabards left out; also covers wrapped W-396)
 
 ## Professions and skills
-91. `BUILT` Professions learned and the level you learned them
+91. `BUILT` Professions learned and the level you learned them (each keeps its skill line from addon 0.6.8 on, from GetProfessionInfo; the website reads a profession by it, or by its French, German or Spanish name in an older export, so every language's professions rank)
 92. `BUILT` Profession skill progression over time
 93. `BUILT` Items crafted
 94. `BUILT` Fish caught
@@ -158,7 +158,7 @@ Rules for Claude:
 100. `BUILT` Times jumped (hooksecurefunc on JumpOrAscendStart)
 
 ## Sharing
-105. `BUILT` Journey saved at every milestone (levels 10, 20 ... 60): the export as it stood at the level-up, in db.milestones[level] (waits for the ding's /played and Statistics pane read, at most 20s, then for combat to end; a milestone missed that way is saved at the next login while you're still at that level, marked late)
+105. `BUILT` Journey saved at every milestone (levels 10, 20 ... 60): the export as it stood at the level-up, in db.milestones[level] (waits for the ding's /played, its Statistics pane read and its character sheet (wrapped W-383..W-391, read then if it's still waiting), at most 20s, then for combat to end; a milestone missed that way is saved at the next login while you're still at that level, marked late)
 106. `BUILT` Export window: choose the journey of now or one saved at a milestone; /journey export 30 opens at 30
 107. `BUILT` A chat note when a milestone is saved
 109. `BUILT` A reminder as each milestone is saved: a small window with Export now (the export window, open at that milestone), Later, and a link to Options. It's on unless turned off on the window's new Options page (db.ui.exportReminder = false), which also has the screenshot at every ding (wrapped W-494) and a button to show the reminder. The Options button at the bottom of the window (next to Export and Print to Chat; the page isn't in the list on the left) and /journey options open the page
@@ -166,6 +166,9 @@ Rules for Claude:
 
 ## Window
 111. `BUILT` The minimap button can be hidden: "Show the button on the minimap" on the Options page, or /journey minimap to hide it or bring it back (db.ui.hideMinimap, per character). Hidden, the window still opens with /journey or /jt
+
+## Saved data
+112. `BUILT` A new character with a deleted one's name starts its own journey (WoW gives it the old character's saved data): saved data that's another character's is set aside in JourneyTrackerBackup.setAside (the last 3), never deleted, and a new journey starts, with a chat note. Another character's means saved with another GUID (kept in db.char from addon 0.6.8 on), or for older data without one, a character at least two levels below what the data reached. Found only once in the world (the game hadn't said who you are at load), it's flagged (db.replaceOnLoad, never exported) and replaced at the next load, and the note says to /reload
 
 ## Changelog
 - 2026-10-01: Spec created, all items `TODO`.
@@ -198,3 +201,4 @@ Rules for Claude:
 - 2026-10-05: #101, #102 and #83 confirmed in game after the change, back to `VERIFIED`. Addon 0.6.4 reads Forever's modern API where it lacks the Classic functions (talents, zone PvP type, PvP rank, wand time, bags, item use); see the wrapped and class specs.
 - 2026-10-05: Addon 0.6.5. Forever (a Midnight-era client) keeps the combat log from addons: registering COMBAT_LOG_EVENT_UNFILTERED (HasRestrictions in the client's own event documentation) is a blocked action there, which showed as "Journey Tracker has been blocked from an action only available to the Blizzard UI" ("tried UNKNOWN()") at every login since 0.6.0, and the client has no CombatLogGetCurrentEventInfo to read it with. The event is now registered only where that function exists, and listed under "events not on this client" in /journey status otherwise. The wrapped stats that read the combat log (W-245's Deep Breath, the party kills Iconic hears from it) already did nothing on Forever.
 - 2026-10-06: #111 built (addon 0.6.7): an option to hide the minimap button, on the Options page and as /journey minimap. Checked outside the game (fengari, real saved data): 9 new checks (hidden from Options, back and hidden again with /journey minimap, still hidden at the next login, the window still opens) and every existing test.
+- 2026-10-06: Addon 0.6.8, from an audit of every saved export. #112 built: a new character with a deleted one's name starts its own journey, and the old one is set aside, not deleted (one export carried a deleted character's journey). #67 path stops keep the zone's map ID and #91 professions their skill line, so the website reads both in any language (one export was from a French client). #105 a milestone's save waits for the ding's character sheet too. Checked outside the game (fengari, real saved data): 46 new checks across the three specs and every existing test.

@@ -2460,8 +2460,12 @@ kbd {
   // Your route: the zones of the journey in order, with their place in the world.
   // (An export has each zone's time as p[3]; the sample spreads its made-up
   // /played over its route.)
+  // A stop's map: by its map ID where the export has one (addon 0.6.8 on, in
+  // any language), else by the zone's English name.
   var route = S.path.map(function (p) {
-    return { name: p[0], from: p[1], to: p[2], map: MAP_BY_NAME[p[0]], seconds: p[3] !== undefined ? p[3] : zoneSeconds(p[1], p[2]) };
+    var byID = p[4] ? MAP_BY_ID[p[4]] : null;
+    return { name: p[0], from: p[1], to: p[2], map: byID && byID.type === 3 ? byID : MAP_BY_NAME[p[0]],
+             seconds: p[3] !== undefined ? p[3] : zoneSeconds(p[1], p[2]) };
   }).filter(function (r) { return r.map && r.map.world; });
   route.forEach(function (r, i) { r.n = i + 1; r.at = anchorOf(r.map); });
   var homeZone = route.slice().sort(function (a, b) { return b.seconds - a.seconds; })[0];
@@ -3233,7 +3237,9 @@ kbd {
   }
   function focusZone(id) {
     var r = stopOf(id), m = MAP_BY_ID[id], d = detailFor(id);
-    var died = deathSpots.filter(function (s) { return s.map === m; }), found = (S.places && own(S.places, m.name)) || [];
+    // (the places found there, under the zone's name in the export's own language)
+    var died = deathSpots.filter(function (s) { return s.map === m; }),
+        found = (S.places && (own(S.places, m.name) || (r && own(S.places, r.name)))) || [];
     $("zone-total").innerHTML = r ? "<b>" + dur(r.seconds) + "</b> in " + esc(r.name) + ", " + levels(r.from, r.to) +
       (total > 0 ? " (" + Math.round(r.seconds / total * 100) + "% of your /played)." : ".") +
       (S.imported && r.seconds > 0 && !placed[id] ? " Where in the zone isn't known: the addon records that from version 0.5.0." : "") :

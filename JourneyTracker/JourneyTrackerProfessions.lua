@@ -206,12 +206,46 @@ local function CountRecipes(profession, n, info)
     end
 end
 
+-- Forever's profession window (C_TradeSkillUI): which profession it's for.
+-- Cooking by its skill line, so that's the same in every language.
+local COOKING = 185
+local function OpenProfession()
+    local info = Call("C_TradeSkillUI.GetBaseProfessionInfo")
+    if type(info) ~= "table" then return nil end
+    if Num(Safe(info.professionID)) == COOKING then return "Cooking" end
+    return Str(Safe(info.professionName))
+end
+
 local function OnTradeSkill()
+    if C_TradeSkillUI and C_TradeSkillUI.GetBaseProfessionInfo then
+        tradeSkill = OpenProfession()                         -- (its recipes: W-427 reads the Statistics pane)
+        return
+    end
     tradeSkill = Str(Call("GetTradeSkillLine"))
     CountRecipes(tradeSkill, Num(Call("GetNumTradeSkills")) or 0, function(i)
         local name, kind = Call("GetTradeSkillInfo", i)
         return Str(name), Str(kind)
     end)
+end
+
+-- W-427 recipes known per profession, from the game's Statistics pane,
+-- which counts them (on Forever the window can't be counted the Classic
+-- way): the most it has said.
+local PANE_RECIPES = { [1729] = "Alchemy", [1730] = "Blacksmithing", [178] = "Enchanting", [1734] = "Engineering",
+    [1740] = "Leatherworking", [1741] = "Tailoring", [1745] = "Cooking", [1748] = "First Aid", [3216] = "Mining" }
+local function RecipesFromPane()
+    if not ns.StatNumber then return end
+    local map = Track.get("W-427")
+    if type(map) ~= "table" then map = {} end
+    local changed = false
+    for id, profession in pairs(PANE_RECIPES) do
+        local n = ns.StatNumber(id)
+        if n and n > (map[profession] or 0) then
+            map[profession] = n
+            changed = true
+        end
+    end
+    if changed then Track.set("W-427", map) end
 end
 
 local function OnCraft()
@@ -658,6 +692,10 @@ On("UNIT_SPELLCAST_CHANNEL_START", OnChannelStart, "player")
 On("LOOT_OPENED", OnLootOpened)
 On("TRADE_SKILL_SHOW", OnTradeSkill)
 On("TRADE_SKILL_UPDATE", OnTradeSkill)
+On("TRADE_SKILL_LIST_UPDATE", OnTradeSkill)                   -- (Forever's window)
+ns.OnLoad(function()
+    if ns.OnStatisticsRead then ns.OnStatisticsRead(Protect(RecipesFromPane)) end
+end)
 On("TRADE_SKILL_CLOSE", function() tradeSkill = nil end)
 On("CRAFT_SHOW", OnCraft)
 On("CRAFT_UPDATE", OnCraft)

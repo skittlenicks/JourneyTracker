@@ -16,7 +16,9 @@ var JourneyModel = (function () {
   //    no longer counted twice in what's earned; no more days played than
   //    days counted; kinds of mob past the export's 200; no Hyjal before 60;
   //    Statistics pane values and level times past belief left out.
-  var MODEL = 5;
+  // 6: professions read by skill line, or by name from French, German and
+  //    Spanish clients, so theirs rank too.
+  var MODEL = 6;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -120,6 +122,26 @@ var JourneyModel = (function () {
   var RACE_NAMES = { NightElf: "Night Elf", Scourge: "Undead" };
   var PRIMARY = ["Alchemy", "Blacksmithing", "Enchanting", "Engineering", "Herbalism", "Leatherworking", "Mining",
                  "Skinning", "Tailoring"];
+  // A profession by its skill line (addon 0.6.8 on saves it), the same in
+  // every language; for older exports from French, German and Spanish
+  // clients, by its name there. Read as these English names.
+  var SKILL_LINES = { 171: "Alchemy", 164: "Blacksmithing", 333: "Enchanting", 202: "Engineering", 182: "Herbalism",
+                      165: "Leatherworking", 186: "Mining", 393: "Skinning", 197: "Tailoring", 185: "Cooking",
+                      129: "First Aid", 356: "Fishing" };
+  var PROFESSION_NAMES = {
+    Alchimie: "Alchemy", Forge: "Blacksmithing", Enchantement: "Enchanting", "Ingénierie": "Engineering",
+    Herboristerie: "Herbalism", "Travail du cuir": "Leatherworking", Minage: "Mining", "Dépeçage": "Skinning",
+    Couture: "Tailoring", Cuisine: "Cooking", Secourisme: "First Aid", "Pêche": "Fishing",
+    Alchemie: "Alchemy", Schmiedekunst: "Blacksmithing", Verzauberkunst: "Enchanting", Ingenieurskunst: "Engineering",
+    "Kräuterkunde": "Herbalism", Lederverarbeitung: "Leatherworking", Bergbau: "Mining", "Kürschnerei": "Skinning",
+    Schneiderei: "Tailoring", Kochkunst: "Cooking", "Erste Hilfe": "First Aid", Angeln: "Fishing",
+    Alquimia: "Alchemy", "Herrería": "Blacksmithing", Encantamiento: "Enchanting", "Ingeniería": "Engineering",
+    "Herboristería": "Herbalism", "Peletería": "Leatherworking", "Minería": "Mining", Desuello: "Skinning",
+    "Sastrería": "Tailoring", Cocina: "Cooking", "Primeros auxilios": "First Aid", Pesca: "Fishing"
+  };
+  function professionName(name, saved) {
+    return own(SKILL_LINES, number(named(saved).skillLine)) || own(PROFESSION_NAMES, name) || name;
+  }
   var SLOTS = { 1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet",
                 9: "Wrist", 10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back",
                 16: "Main hand", 17: "Off hand", 18: "Ranged", 19: "Tabard" };
@@ -365,7 +387,9 @@ var JourneyModel = (function () {
       p = named(p);
       if (typeof p.zone !== "string" || !p.zone || p.zone === "Unknown") return;
       var at = number(p.level), stop = stopOf[p.zone];
-      if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, at, at, number(named(own(zones, p.zone)).seconds)]);
+      // (with the zone's map ID where the addon saved it, 0.6.8 on: the page
+      // places the stop by it, whatever language the name is in)
+      if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, at, at, number(named(own(zones, p.zone)).seconds), number(p.map) || undefined]);
       var next = named(path[i + 1]), left = number(next.level) || (i === path.length - 1 ? level : at);
       stop[2] = Math.max(stop[2], at, left);
     });
@@ -472,9 +496,12 @@ var JourneyModel = (function () {
       .filter(function (r) { return r[1] > 0; });
 
     // Professions
-    J.professions = Object.keys(professions).map(function (name) { return [name, number(named(professions[name]).rank)]; })
-      .filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
-    J.trades = Object.keys(professions).filter(function (name) { return PRIMARY.indexOf(name) >= 0; });
+    // (By their English names, whatever the client's language.)
+    J.professions = Object.keys(professions).map(function (name) {
+      return [professionName(name, professions[name]), number(named(professions[name]).rank)];
+    }).filter(function (r) { return r[1] > 0; }).sort(function (x, y) { return y[1] - x[1]; });
+    J.trades = Object.keys(professions).map(function (name) { return professionName(name, professions[name]); })
+      .filter(function (name) { return PRIMARY.indexOf(name) >= 0; });
     var gathering = named(st.gathering);
     J.skinned = number(named(gathering.skinning).nodes);
     J.herbs = number(named(gathering.herb).nodes);
@@ -514,7 +541,7 @@ var JourneyModel = (function () {
     J.guildBefore = !!social.guildBeforeTracking;
     J.jumps = number(social.jumps);
     // Everything else the wrapped stats hold, for the page's chapters
-    J.little = littleOf(wr, J.played, deaths);
+    J.little = littleOf(wr, J.played, deaths, pane);
     return J;
   }
 
@@ -643,9 +670,20 @@ var JourneyModel = (function () {
   // and death records: chat messages sent per hour played (W-293), and the
   // average /played between deaths (W-357), from the /played each death
   // has (addon 0.6.0 on).
-  function littleOf(wr, played, deaths) {
+  function littleOf(wr, played, deaths, pane) {
     var stats = Object.create(null);
     Object.keys(named(wr)).forEach(function (k) { stats[k] = wr[k]; });
+    // Counts the Statistics pane keeps too: the bigger of the two (the
+    // addon misses some of Forever's loot rolls).
+    Object.keys(LITTLE_PANE).forEach(function (id) {
+      var keys = LITTLE_PANE[id], v = Object.create(null), had = named(stats[id]);
+      Object.keys(had).forEach(function (k) { v[k] = had[k]; });
+      Object.keys(keys).forEach(function (k) {
+        var n = pane && own(pane, keys[k]);
+        if (typeof n === "number" && n > number(v[k])) v[k] = n;
+      });
+      if (Object.keys(v).length) stats[id] = v;
+    });
     var sent = littleValue(stats, "W-277+W-278+W-279+W-280+W-281+W-283", "n");
     stats["W-293"] = played > 0 ? Math.round(sent / (played / 3600)) : 0;
     var between = 0, gaps = 0, last = null;
@@ -684,6 +722,9 @@ var JourneyModel = (function () {
     });
     return out;
   }
+  // Wrapped counts shown the bigger of theirs and the Statistics pane's, by
+  // statistic ID: Need and Greed rolls.
+  var LITTLE_PANE = { "W-246": { need: 1044, greed: 1043 } };
   // Rankings the Statistics pane answers that the wrapped stats count too:
   // the bigger of the two counts (both start partway through a character).
   var LITTLE_BEST = {

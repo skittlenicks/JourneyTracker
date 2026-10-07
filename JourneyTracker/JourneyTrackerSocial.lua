@@ -41,7 +41,12 @@ end
 ---------------------------------------------------------------------------
 
 local ROLL_TYPES = { [0] = "pass", [1] = "need", [2] = "greed", [3] = "disenchant" }
+-- The loot history's states (C_LootHistory): need (main or off spec), a
+-- transmog roll (greed's kind), greed, no roll yet, pass.
+local HISTORY_ROLLS = { [0] = "need", [1] = "need", [2] = "greed", [3] = "greed", [5] = "pass" }
+local SETTLE_WINDOW = 5   -- seconds within which a roll's result, however it comes, is one result
 local rolls = {}          -- [item name] = { type, value } for items you rolled on
+local settled = {}        -- [item name] = GetTime() its roll was settled
 
 -- Anchored at the end: these end in a name, which would otherwise match empty.
 local NEED_ROLLED = ns.PatternFrom(LOOT_ROLL_ROLLED_NEED, "Need Roll - %d for %s by %s", true)
@@ -61,20 +66,71 @@ local function OnRollChoice(rollID, rollType)
     if name then rolls[name] = { type = ROLL_TYPES[rollType], quality = ns.ItemQuality(link) } end
 end
 
-local function RollResult(name, won)
+-- A roll's result, from whichever way it comes first: the chat lines, the
+-- win event (LOOT_ITEM_ROLL_WON) or the loot history (Forever's client
+-- records every roll there and may not print the lines). `kind`, `value`
+-- and `quality` stand in for what the RollOnLoot hook missed; a choice it
+-- missed is counted here (W-246).
+local function Settle(name, won, someoneWon, kind, value, quality)
+    if not name then return end
+    if settled[name] and GetTime() - settled[name] < SETTLE_WINDOW then return end
+    settled[name] = GetTime()
     local r = rolls[name]
-    if not r then return end
     rolls[name] = nil
+    if not r then
+        if not kind then return end
+        r = { type = kind, quality = quality }
+        Track.count("W-246", kind)                            -- W-246 a choice the hook didn't see
+    end
+    value = value or r.value
+    if value and not r.value then
+        Track.max("W-248", value, { item = name })            -- W-248 highest roll
+        Track.min("W-248.lowest", value, { item = name })     -- and lowest
+    end
     if r.type == "pass" then
-        if not won then Track.count("W-253") end              -- W-253 passed, someone else won
+        if someoneWon and not won then Track.count("W-253") end -- W-253 passed, someone else won
         return
     end
     Track.count("W-247", won and "won" or "lost")             -- W-247 rolls won and lost
-    if r.value then
-        if won and r.value < 10 then Track.count("W-249") end -- W-249 won with under 10
-        if not won and r.value > 95 then Track.count("W-250") end -- W-250 lost with over 95
+    if value then
+        if won and value < 10 then Track.count("W-249") end   -- W-249 won with under 10
+        if not won and value > 95 then Track.count("W-250") end -- W-250 lost with over 95
     end
-    if won and r.type == "need" and r.quality == 3 then Track.count("W-252") end -- W-252 blues won on Need
+    local blue = (r.quality or quality) == 3
+    if won and r.type == "need" and blue then Track.count("W-252") end -- W-252 blues won on Need
+end
+
+local function RollResult(name, won)
+    if rolls[name] then Settle(name, won, true) end
+end
+
+-- You won a roll: the item, your roll and how you rolled.
+local function OnRollWon(link, _, rollType, roll)
+    link = Str(Safe(link))
+    if not link then return end
+    Settle(ItemName(link), true, true, ROLL_TYPES[Num(Safe(rollType)) or -1], Num(Safe(roll)), ns.ItemQuality(link))
+end
+
+-- A drop in the loot history, once it's decided: your roll, its value and
+-- who won it. Each drop once.
+local historyDone = {}
+local function OnLootHistoryDrop(encounterID, key)
+    encounterID, key = Num(Safe(encounterID)), Num(Safe(key))
+    if not encounterID or not key or historyDone[encounterID .. ":" .. key] then return end
+    local info = Call("C_LootHistory.GetSortedInfoForDrop", encounterID, key)
+    if type(info) ~= "table" then return end
+    local winner = type(info.winner) == "table" and info.winner or nil
+    if not winner and info.allPassed ~= true then return end   -- still being rolled for
+    historyDone[encounterID .. ":" .. key] = true
+    local mine
+    for _, r in ipairs(type(info.rollInfos) == "table" and info.rollInfos or {}) do
+        if type(r) == "table" and r.isSelf == true then mine = r end
+    end
+    local kind = mine and HISTORY_ROLLS[Num(Safe(mine.state)) or -1]
+    if not kind then return end                                -- you didn't roll on it
+    local link = Str(Safe(info.itemHyperlink))
+    Settle(ItemName(link), winner and winner.isSelf == true or false, winner ~= nil, kind, Num(Safe(mine.roll)),
+        link and ns.ItemQuality(link))
 end
 
 local function OnLootMessage(msg)
@@ -336,11 +392,19 @@ local inspected = {}
 -- Emotes (W-302..W-312)
 ---------------------------------------------------------------------------
 
+-- An emote you did (/dance, /hug...). Forever's client does them through
+-- C_ChatInfo.PerformEmote, an older one through DoEmote, which may just call
+-- it: the same emote through both in the same moment is one.
+local lastEmote, lastEmoteAt = nil, -1
 local function OnEmote(token)
     token = Str(Safe(token))
     if not token then return end
+    token = token:upper()
+    local now = GetTime()
+    if token == lastEmote and now - lastEmoteAt < 0.1 then return end
+    lastEmote, lastEmoteAt = token, now
     Track.count("W-302")                                      -- W-302 total emotes
-    Track.count("W-303", token:upper())                       -- W-303 by emote (W-304..W-310 read from this)
+    Track.count("W-303", token)                               -- W-303 by emote (W-304..W-310 read from this)
 end
 
 -- Emotes aimed at you: the sender's name is dropped and only the verb kept
@@ -474,6 +538,8 @@ On("PLAYER_ENTERING_WORLD", function(isInitialLogin, isReload)
 end)
 On("GROUP_ROSTER_UPDATE", OnRoster)
 On("CHAT_MSG_LOOT", OnLootMessage)
+On("LOOT_ITEM_ROLL_WON", OnRollWon)
+On("LOOT_HISTORY_UPDATE_DROP", OnLootHistoryDrop)
 On("CHAT_MSG_SYSTEM", function(msg)
     OnSystemForLegacy(msg)
     msg = Str(Safe(msg))
@@ -551,7 +617,9 @@ ns.OnLoad(function()
     ns.Hook("SendChatMessage", Protect(Sent))
     ns.Hook("C_ChatInfo.SendChatMessage", Protect(Sent))
     ns.Hook("RollOnLoot", Protect(OnRollChoice))
-    ns.Hook("DoEmote", Protect(OnEmote))
+    -- (Each where the client has it, so a missing one isn't listed in /journey status.)
+    if C_ChatInfo and type(C_ChatInfo.PerformEmote) == "function" then ns.Hook("C_ChatInfo.PerformEmote", Protect(OnEmote)) end
+    if type(DoEmote) == "function" or not (C_ChatInfo and C_ChatInfo.PerformEmote) then ns.Hook("DoEmote", Protect(OnEmote)) end
     local Friend = Once(function() Track.count("W-294") end)  -- W-294 friends added
     ns.Hook("AddFriend", Protect(Friend))
     ns.Hook("C_FriendList.AddFriend", Protect(Friend))

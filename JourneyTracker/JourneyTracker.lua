@@ -330,6 +330,54 @@ local function Backup()
     print(PREFIX, "Backup saved. It's written to disk when you log out or /reload.")
 end
 
+-- A character deleted and a new one made with its name: the game keeps
+-- saved data by name, so the new one gets the old one's journey. Told by
+-- the character's GUID (kept in db.char since 0.6.8), or for data from
+-- before then, by a level at least two below what the data reached. The
+-- old journey is set aside in JourneyTrackerBackup (the last 3), never
+-- deleted, and a new one starts. (Functions on ns, not locals: this file's
+-- main chunk is at Lua's limit of 200 locals.)
+function ns.HighestLevel(data)
+    local best = 0
+    local function see(level)
+        level = tonumber(level)
+        if level and level > best and level <= MAX_LEVEL then best = level end
+    end
+    for level in pairs(type(data.dings) == "table" and data.dings or {}) do see(level) end
+    for level in pairs(type(data.levels) == "table" and data.levels or {}) do see(level) end
+    for _, p in ipairs(type(data.path) == "table" and data.path or {}) do
+        if type(p) == "table" then see(p.level) end
+    end
+    local S = type(data.sessions) == "table" and data.sessions or {}
+    for _, s in ipairs(type(S.list) == "table" and S.list or {}) do
+        if type(s) == "table" then see((tonumber(s.startLevel) or 0) + (tonumber(s.levels) or 0)) end
+    end
+    return best
+end
+-- Why `data` is another character's, or nil if it's this one's (or the
+-- game hasn't said yet who you are).
+function ns.OtherCharacter(data)
+    if type(data) ~= "table" or next(data) == nil then return nil end
+    local guid = Str(Safe(Call("UnitGUID", "player")))
+    if not guid then return nil end
+    local char = type(data.char) == "table" and data.char or {}
+    if char.guid then
+        return char.guid ~= guid and "it was saved by another character with this name" or nil
+    end
+    local level, highest = Num(Safe(Call("UnitLevel", "player"))), ns.HighestLevel(data)
+    if level and level >= 1 and highest >= level + 2 then
+        return string.format("this character is level %d, and the saved journey reached level %d", level, highest)
+    end
+end
+function ns.SetAsideJourney(data, reason)
+    JourneyTrackerBackup = type(JourneyTrackerBackup) == "table" and JourneyTrackerBackup or {}
+    local list = type(JourneyTrackerBackup.setAside) == "table" and JourneyTrackerBackup.setAside or {}
+    data.replaceOnLoad = nil
+    table.insert(list, { takenAt = time(), reason = reason, addonVersion = VERSION, data = data })
+    while #list > 3 do table.remove(list, 1) end
+    JourneyTrackerBackup.setAside = list
+end
+
 ---------------------------------------------------------------------------
 -- Context helpers
 ---------------------------------------------------------------------------
@@ -862,7 +910,8 @@ local function OnZoneChange()
         currentZone = z
         local last = db.path[#db.path]
         if not last or last.zone ~= z then                    -- #67 path through the world
-            table.insert(db.path, { zone = z, t = time(), level = Level() })
+            -- with the zone's map ID, which reads the same in every language
+            table.insert(db.path, { zone = z, t = time(), level = Level(), map = ns.ZoneMapID and ns.ZoneMapID() })
         end
     end
     CheckDungeon()
@@ -1297,7 +1346,7 @@ end
 local function ScanProfessions()
     local list = { Call("GetProfessions") }
     for _, index in pairs(list) do
-        local name, _, rank, maxRank = Call("GetProfessionInfo", index)
+        local name, _, rank, maxRank, _, _, skillLine = Call("GetProfessionInfo", index)
         name = Str(name)
         if name then
             local P = db.professions[name]
@@ -1306,6 +1355,8 @@ local function ScanProfessions()
                 db.professions[name] = P
             end
             P.rank, P.maxRank = Num(rank) or P.rank, Num(maxRank) or P.maxRank
+            -- its skill line, the same in every language (the website reads it)
+            P.skillLine = Num(Safe(skillLine)) or P.skillLine
         end
     end
 end
@@ -1883,6 +1934,14 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if ... ~= ADDON_NAME then return end
         self:UnregisterEvent("ADDON_LOADED")
         local saved = type(JourneyTrackerDB) == "table" and JourneyTrackerDB or {}
+        -- Another character's journey (see OtherCharacter): set aside, and a
+        -- new one starts, before anything reads the saved data.
+        local other = saved.replaceOnLoad or ns.OtherCharacter(saved)
+        if other then
+            ns.SetAsideJourney(saved, other)
+            saved = {}
+            ctx.startedOver = other                           -- said once you're in the world
+        end
         local upgraded, problem = UpgradeSavedData(saved)
         if not upgraded then
             -- The saved data stays exactly as it was and nothing is tracked
@@ -1923,6 +1982,25 @@ frame:SetScript("OnEvent", function(self, event, ...)
             StartSession()
         end
         if isInitialLogin or isReload then
+            if ctx.startedOver then
+                print(PREFIX, "Started a new journey for this character. The saved one was another character's with the"
+                    .. " same name (" .. ctx.startedOver .. "), so it's been set aside, not deleted.")
+                ctx.startedOver = nil
+            end
+            -- The character's GUID, to tell it from a later one with its name.
+            -- Where the game couldn't say at load, the check runs now, and a
+            -- journey that's another character's is replaced at the next load.
+            local guid = Str(Safe(Call("UnitGUID", "player")))
+            if guid and db.char.guid ~= guid and not db.replaceOnLoad then
+                local other = ns.OtherCharacter(db)
+                if other then
+                    db.replaceOnLoad = other
+                    print(PREFIX, "This character's saved journey is another character's with the same name (" .. other
+                        .. "). Type /reload to start a new one; the old one is set aside, not deleted.")
+                else
+                    db.char.guid = guid
+                end
+            end
             local _, class = Call("UnitClass", "player")
             local _, race = Call("UnitRace", "player")
             db.char.name = Str(Call("UnitName", "player"))
@@ -2067,11 +2145,49 @@ function ns.HookErrors() return hookErrors end
 -- Game functions that moved: Forever (a modern client) only has the C_
 -- ones, older clients only the globals, so each is read from whichever the
 -- client has (asking for the other would only show up in /journey status).
--- The zone's PvP type ("friendly", "hostile", "contested", "sanctuary"...):
-function ns.ZonePvP()
-    if C_PvP and C_PvP.GetZonePVPInfo then return Str(Call("C_PvP.GetZonePVPInfo")) end
-    return Str(Call("GetZonePVPInfo"))
+-- The zone map you're in (by its map ID): your best map, or the zone it's
+-- part of. Nil in a dungeon, or out on a continent.
+function ns.ZoneMapID()
+    local ZONE, DUNGEON = 3, 4 -- Enum.UIMapType
+    local id = Num(Safe(Call("C_Map.GetBestMapForUnit", "player")))
+    for _ = 1, 6 do
+        if not id then return nil end
+        local info = Call("C_Map.GetMapInfo", id)
+        local kind = type(info) == "table" and Num(Safe(info.mapType))
+        if not kind or kind < ZONE or kind == DUNGEON then return nil end
+        if kind == ZONE then return id end
+        id = Num(Safe(info.parentMapID))
+    end
 end
+-- The zone's PvP type ("friendly", "hostile", "contested", "sanctuary"...):
+-- the game's, or where it has none, the zone's side. Forever's client has
+-- no PvP type for most zones (C_PvP.GetZonePVPInfo returns nothing, even on
+-- a PvP realm), so each zone of the old world is given its side by its map
+-- ID: Classic's rule, which Forever keeps, of each faction's starting zones,
+-- the zones next to them and its capitals, and every other zone contested.
+-- Forever's own new zones aren't listed: their type is unknown. (Built in a
+-- function: this file's main chunk is at Lua's limit of 200 locals.)
+ns.ZonePvP = (function()
+    local sides = {}
+    for _, id in ipairs({ 1429, 1426, 1432, 1436, 1438, 1439, 1453, 1455, 1457 }) do sides[id] = "Alliance" end
+    for _, id in ipairs({ 1411, 1412, 1413, 1420, 1421, 1454, 1456, 1458 }) do sides[id] = "Horde" end
+    for _, id in ipairs({ 1416, 1417, 1418, 1419, 1422, 1423, 1424, 1425, 1427, 1428, 1430, 1431, 1433, 1434, 1435,
+        1437, 1440, 1441, 1442, 1443, 1444, 1445, 1446, 1447, 1448, 1449, 1450, 1451, 1452 }) do
+        sides[id] = "contested"
+    end
+    return function()
+        local kind
+        if C_PvP and C_PvP.GetZonePVPInfo then kind = Str(Call("C_PvP.GetZonePVPInfo")) else kind = Str(Call("GetZonePVPInfo")) end
+        if kind then return kind end
+        local side = sides[ns.ZoneMapID() or 0]
+        if side == "Alliance" or side == "Horde" then
+            local mine = Str(Call("UnitFactionGroup", "player"))
+            if mine ~= "Alliance" and mine ~= "Horde" then return nil end -- a Skyborne yet to choose
+            return side == mine and "friendly" or "hostile"
+        end
+        return side
+    end
+end)()
 -- The item in a bag slot: its ID, link and stack size.
 function ns.BagItem(bag, slot)
     if C_Container and C_Container.GetContainerItemInfo then

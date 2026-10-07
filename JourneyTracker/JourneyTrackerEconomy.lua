@@ -691,6 +691,9 @@ local function TakeSheet()
     pendingSheet.sheet = ReadSheet()
     pendingSheet = nil
 end
+-- For the milestone saved at a level-up (JourneyTrackerExport.lua), which
+-- waits for the ding's sheet: read it now if it's still waiting.
+ns.TakeSheet = Protect(TakeSheet)
 
 ---------------------------------------------------------------------------
 -- Window pages

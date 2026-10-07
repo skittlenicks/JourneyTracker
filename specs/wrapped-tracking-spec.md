@@ -42,7 +42,7 @@ _Content that only exists in Forever. Zone names via GetZoneText/GetSubZoneText.
 18. `SKIP` `W-018` Racial abilities used: each of Forever's active racials (duplicates ALL-09; every cast is counted in db.class, so new racials show up once named)
 19. `BUILT` `W-019` Transmog changes made and gold spent on transmog (retail transmog events (TRANSMOGRIFY_*); unverified on Forever)
 20. `VERIFIED` `W-020` Ruleset played (Normal, PvP, Roleplaying, Hardcore when it arrives) (Hardcore from C_GameRules, PvP/RP from the realm name or an auto-flag as W-021 counts them, so a Normal realm's flags from fights don't make it PvP) (confirmed in game, again after the 2026-10-05 change)
-21. `BUILT` `W-021` Times auto-flagged for PvP by entering a contested or enemy zone (PvP ruleset) (PvP flag turned on without /pvp in a contested or hostile zone within 10 seconds of arriving, out of a fight and with no fight starting in the next 2 seconds; the zone's type from C_PvP.GetZonePVPInfo, or the older global)
+21. `BUILT` `W-021` Times auto-flagged for PvP by entering a contested or enemy zone (PvP ruleset) (PvP flag turned on without /pvp in a contested or hostile zone within 10 seconds of arriving, out of a fight and with no fight starting in the next 2 seconds; the zone's type from C_PvP.GetZonePVPInfo, or the older global, or where the game gives none (most zones on Forever; addon 0.6.8 on) Classic's own type for the zone by its map ID: each faction's starting zones, the zones next to them and its capitals friendly to it and hostile to the other, the rest of the old world contested, Forever's new zones unknown (ns.ZonePvP))
 
 ## Creature kills: meme families
 _[probe] Kill attribution by mob name/type. Match on name keywords plus UnitCreatureType/UnitCreatureFamily cached at target time._
@@ -166,7 +166,7 @@ _[probe] for name-based kills. Zone/subzone detection via ZONE_CHANGED_NEW_AREA 
 126. `BUILT` `W-126` Yetis slain in Winterspring (yetis, in Winterspring)
 127. `BUILT` `W-127` Desolace centaur faction kills (Magram vs Gelkis) (Magram and Gelkis kills in Desolace, by clan)
 128. `BUILT` `W-128` Zone you spent the most time in at each 10-level bracket (time per zone in each 10-level bracket from the 5-second ticks; the website picks the top zone)
-129. `BUILT` `W-129` Time spent in contested zones vs friendly zones (time by the zone's PvP type (friendly, contested, hostile, sanctuary), from C_PvP.GetZonePVPInfo on Forever)
+129. `BUILT` `W-129` Time spent in contested zones vs friendly zones (time by the zone's PvP type (friendly, contested, hostile, sanctuary), read as W-021 reads it; "unknown" for a zone with no type (Forever's new zones), "unrestricted" before addon 0.6.8, when Forever's client gave most zones none)
 
 ## Rares and named mobs
 _[probe] Use UnitClassification and nameplate/target info._
@@ -203,7 +203,7 @@ _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel,
 155. `BUILT` `W-155` Zone with the most world PvP deaths (deaths by zone, outside battlegrounds)
 156. `BUILT` `W-156` Time spent PvP flagged (UnitIsPVP) (5-second ticks with UnitIsPVP)
 157. `BUILT` `W-157` Times you flagged yourself for PvP (flag turned on within 3 seconds of TogglePVP or SetPVP)
-158. `BUILT` `W-158` Times you accidentally flagged (attacked a flagged player or entered a hostile town) (flag turned on without that, outside contested and enemy zones (those are W-021))
+158. `BUILT` `W-158` Times you accidentally flagged (attacked a flagged player or entered a hostile town) (flag turned on without that, outside contested and enemy zones (those are W-021), the zone's type read as W-021 reads it)
 159. `BUILT` `W-159` Dishonorable kills (civilian NPCs killed) (dishonorable kill messages)
 160. `BUILT` `W-160` Enemy guards killed (kills of the other faction's guards: a guard's name and the mob's faction seen as the other side's; at 60, where no kill gives experience, from the kills without it (W-022))
 161. `BUILT` `W-161` Times killed by enemy guards (deaths to the other faction's guards, name and faction as W-160)
@@ -245,12 +245,12 @@ _Forever battlegrounds: Warsong Gulch (10v10, brackets from 10-19), Arathi Basin
 _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo and ENCOUNTER_START/END. Read boss names from the encounter events instead of hardcoding, since the new dungeons' full boss rosters aren't published yet and Forever may rename Classic bosses._
 
 191. `SKIP` `W-191` Runs per dungeon: Classic (RFC, WC, Deadmines, SFK, BFD, Stockade, Gnomeregan, RFK, SM wings, RFD, Uldaman, ZF, Maraudon, Temple of Atal'Hakkar, BRD, LBRS, UBRS, Dire Maul wings, Stratholme, Scholomance) and new (see below) (covered by #73: dungeons entered, by name, every run)
-192. `BUILT` `W-192` Clear time per dungeon run (enter to final boss) (time from entering to the final boss's kill, each run kept (newest 100) with your level; final bosses listed in JourneyTrackerDungeons.lua, wings by their bosses (Blackrock Spire's Upper and Lower halves too, as the game calls both Blackrock Spire), Forever's new dungeons to their last boss; the run in progress is kept in db.wrapped.dungeonRun with real times, so a /reload or relog inside carries on with it)
+192. `BUILT` `W-192` Clear time per dungeon run (enter to final boss) (time from entering to the final boss's kill, each run kept (newest 100) with your level; final bosses listed in JourneyTrackerDungeons.lua, wings by their bosses (Blackrock Spire's Upper and Lower halves too, as the game calls both Blackrock Spire), Forever's new dungeons to their last boss (from addon 0.6.8 on, the Hall of Thanes', Ruins of Lordaeron's and Excavation Site's listed, the last in the client's DungeonEncounter table), each dungeon known by its name however Forever's client gives it ("Excavation Site: Wetlands", "The Hall of Thanes"; addon 0.6.8 on); the run in progress is kept in db.wrapped.dungeonRun with real times, so a /reload or relog inside carries on with it)
 193. `BUILT` `W-193` Fastest clear per dungeon (fastest clear per dungeon or wing)
 194. `BUILT` `W-194` Wipes per dungeon (failed encounters per dungeon)
 195. `BUILT` `W-195` Dungeon runs abandoned (left before final boss) (runs that ended without the final boss (or with no boss at all for an unlisted dungeon))
 196. `SKIP` `W-196` Every boss killed, keyed by the encounter name the game reports (covered by #41: every boss kill by its encounter name)
-197. `BUILT` `W-197` First kill of each dungeon's final boss: level and /played (first kill of each dungeon's (or wing's) final boss, with level and /played)
+197. `BUILT` `W-197` First kill of each dungeon's final boss: level and /played (first kill of each dungeon's (or wing's) final boss, with level and /played; final bosses and dungeon names as W-192 reads them)
 198. `SKIP` `W-198` Hall of Thanes runs (13-18, beneath Ironforge) (covered by #73: runs by dungeon name)
 199. `SKIP` `W-199` Ruins of Lordaeron runs (15-20, Tirisfal Glades) (covered by #73: runs by dungeon name)
 200. `SKIP` `W-200` Excavation Site runs (24-29, Wetlands) (covered by #73: runs by dungeon name)
@@ -260,7 +260,7 @@ _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo an
 204. `SKIP` `W-204` Alcaz Island Prison runs (48-53, Dustwallow Marsh) (covered by #73: runs by dungeon name)
 205. `SKIP` `W-205` Blackmaw Hold runs (55-60, Azshara) (covered by #73: runs by dungeon name)
 206. `SKIP` `W-206` Shaper's Terrace runs (58-60, Un'Goro Crater) (covered by #73: runs by dungeon name)
-207. `BUILT` `W-207` New Forever dungeons vs Classic dungeons: runs and time split (runs and seconds, Forever's new dungeons vs Classic's)
+207. `BUILT` `W-207` New Forever dungeons vs Classic dungeons: runs and time split (runs and seconds, Forever's new dungeons vs Classic's, a dungeon known by its name as W-192 reads it)
 208. `BUILT` `W-208` Scarlet Monastery runs per wing: Graveyard, Library, Armory, Cathedral (Scarlet Monastery runs by wing, told apart by the bosses killed)
 209. `BUILT` `W-209` Dire Maul runs per wing and Stratholme runs per side (Dire Maul and Stratholme runs by wing, the same way)
 210. `SKIP` `W-210` Herod killed (covered by #28 and #41: kills by name and boss kills)
@@ -283,8 +283,8 @@ _Forever keeps every Classic dungeon and adds 9 new ones. Use GetInstanceInfo an
 227. `BUILT` `W-227` Dungeon deaths by boss (your deaths during an encounter, by its name)
 228. `BUILT` `W-228` Dungeon XP earned per run (Forever shifts XP toward quests, so this is interesting to compare) (XP gained during each run (newest 100))
 229. `BUILT` `W-229` Rare-quality boss drops looted per dungeon (blue or better items looted within a minute of a boss dying, by dungeon)
-230. `BUILT` `W-230` Dungeon quests completed per dungeon (Dungeon-tagged quests (or quests under a dungeon's quest log header), by that header)
-231. `BUILT` `W-231` Times you ran a dungeon 5+ levels over (boosting or farming) (runs at 5+ levels over the dungeon's range)
+230. `BUILT` `W-230` Dungeon quests completed per dungeon (Dungeon-tagged quests (or quests under a dungeon's quest log header, its name read as W-192 reads it), by that header)
+231. `BUILT` `W-231` Times you ran a dungeon 5+ levels over (boosting or farming) (runs at 5+ levels over the dungeon's range, the dungeon known by its name as W-192 reads it)
 232. `BUILT` `W-232` Times you were boosted through a dungeon by a much higher player [probe] (runs with a group member 10+ levels above you)
 233. `BUILT` `W-233` Party compositions run with (class counts only) (class lists, sorted, per run)
 234. `BUILT` `W-234` Tank, healer, or DPS role per run (by spec or self-assigned) (UnitGroupRolesAssigned, or your class and biggest talent tree, read as W-408 reads them)
@@ -307,14 +307,14 @@ _Raids open December 9, 2026: Onyxia's Lair (40-player), The Barrow Deeps (10-pl
 ## Loot rolls and group life
 _START_LOOT_ROLL, CHAT_MSG_LOOT, CHAT_MSG_SYSTEM for /roll results, GROUP_ROSTER_UPDATE._
 
-246. `BUILT` `W-246` Need rolls, Greed rolls, and Passes (RollOnLoot hook, by choice (JourneyTrackerSocial.lua))
-247. `BUILT` `W-247` Rolls won and lost ('You won' and '<someone> won' loot messages for items you rolled on)
-248. `BUILT` `W-248` Highest roll ever and lowest roll ever (your Need and Greed roll messages; the highest, and the lowest as W-248.lowest)
-249. `BUILT` `W-249` Times you won a roll with under 10 (won with a roll under 10)
-250. `BUILT` `W-250` Times you lost a roll with over 95 (lost with a roll over 95)
+246. `BUILT` `W-246` Need rolls, Greed rolls, and Passes (RollOnLoot hook, by choice (JourneyTrackerSocial.lua); from addon 0.6.8 on, a choice the hook missed is counted when the roll's result comes (W-247). The website shows the Statistics pane's Need and Greed rolls (1044, 1043) where they're more)
+247. `BUILT` `W-247` Rolls won and lost ('You won' and '<someone> won' loot messages for items you rolled on, or from addon 0.6.8 on, whichever comes first of those, LOOT_ITEM_ROLL_WON and the drop's loot history (C_LootHistory.GetSortedInfoForDrop on LOOT_HISTORY_UPDATE_DROP: your roll, its value and who won), which Forever's client keeps and may not print the messages for; each item's result once in 5 seconds)
+248. `BUILT` `W-248` Highest roll ever and lowest roll ever (your Need and Greed roll messages, or from addon 0.6.8 on your roll in the result as W-247 reads it; the highest, and the lowest as W-248.lowest)
+249. `BUILT` `W-249` Times you won a roll with under 10 (won with a roll under 10, the result as W-247 reads it)
+250. `BUILT` `W-250` Times you lost a roll with over 95 (lost with a roll over 95, the result as W-247 reads it)
 251. `BUILT` `W-251` /roll uses and average /roll result (your /roll results: how many and their total (the average is total over rolls))
-252. `BUILT` `W-252` Blue items won on Need (blue items you won on Need)
-253. `BUILT` `W-253` Items you passed on that someone else won (items you passed on that someone else won)
+252. `BUILT` `W-252` Blue items won on Need (blue items you won on Need, the result as W-247 reads it)
+253. `BUILT` `W-253` Items you passed on that someone else won (items you passed on that someone else won, the result as W-247 reads it)
 254. `BUILT` `W-254` Groups joined (going from no group to a group of your own, not a battleground's)
 255. `BUILT` `W-255` Groups left and times removed from a group (leaving a group, and 'You have been removed from the group'; being removed isn't also counted as leaving)
 256. `BUILT` `W-256` Groups you formed as leader (joined as the group's leader)
@@ -375,8 +375,8 @@ _Counts only. Never store message contents or other players' names. Chat may be 
 ## Emotes
 _CHAT_MSG_TEXT_EMOTE from the player, and emotes targeted at you (count only)._
 
-302. `BUILT` `W-302` Total emotes used (DoEmote hook and /e messages)
-303. `BUILT` `W-303` Your most used emote (DoEmote tokens, counted)
+302. `BUILT` `W-302` Total emotes used (C_ChatInfo.PerformEmote hook (Forever's client does emotes through it; addon 0.6.8 on) and DoEmote's, the same emote through both at once counted once, and /e messages)
+303. `BUILT` `W-303` Your most used emote (the emote tokens W-302's hooks see, counted)
 304. `BUILT` `W-304` /dance count (DANCE in W-303)
 305. `BUILT` `W-305` /lol and /laugh count (LOL and LAUGH in W-303)
 306. `BUILT` `W-306` /spit count (SPIT in W-303)
@@ -420,7 +420,7 @@ _Build on PLAYER_DEAD plus context cached before death. [probe] where cause need
 336. `SKIP` `W-336` Deaths by falling [probe] (covered by #102 (fatal falls are counted in db.falls.fatal and show as Falling in the #47 death log))
 337. `BUILT` `W-337` Deaths by drowning (breath timer ran out before death) (the BREATH timer had run out with you still under (within 30 seconds of the death); a death counts as drowned or fatigue, not both: whichever timer ran out first)
 338. `BUILT` `W-338` Deaths by fatigue (the EXHAUSTION timer had run out, the same way; not also counted as drowned when fatigue ran out first)
-339. `BUILT` `W-339` Deaths to guards (killer named like a town guard (Guard, Grunt, Deathguard, Bluffwatcher, Kor'kron, Mountaineer, Sentinel, Watchman, Brave, Bruiser) and of the other faction, or a goblin town's Bruiser; with no faction seen, in hostile territory (C_PvP.GetZonePVPInfo, which Forever's own UI uses, then GetZonePVPInfo))
+339. `BUILT` `W-339` Deaths to guards (killer named like a town guard (Guard, Grunt, Deathguard, Bluffwatcher, Kor'kron, Mountaineer, Sentinel, Watchman, Brave, Bruiser) and of the other faction, or a goblin town's Bruiser; with no faction seen, in hostile territory (the zone's type read as W-021 reads it))
 340. `SKIP` `W-340` Deaths to elites (covered by W-136 (deaths to an elite, rare elite or boss))
 341. `BUILT` `W-341` Deaths to murlocs [probe] ([probe] killer in the murloc family (FAMILIES, as W-022))
 342. `BUILT` `W-342` Deaths to critters (yes, it happens) [probe] ([probe] killer's creature type is Critter)
@@ -430,7 +430,7 @@ _Build on PLAYER_DEAD plus context cached before death. [probe] where cause need
 346. `BUILT` `W-346` Deaths during escort quests (death within 20 minutes of taking a quest whose objectives say escort or protect (English), until it's turned in or dropped)
 347. `BUILT` `W-347` Deaths with Resurrection Sickness still active (death before Resurrection Sickness ends: read from the debuff out of combat, or a minute per level over 10 (up to 10) after a spirit healer)
 348. `BUILT` `W-348` Deaths right after a spirit healer rez (within 2 minutes) (death within 2 minutes of a spirit healer resurrection (#49))
-349. `BUILT` `W-349` Deaths in a sanctuary or friendly town (the zone's PvP type (C_PvP.GetZonePVPInfo, then GetZonePVPInfo) says sanctuary, or resting in a zone that isn't hostile)
+349. `BUILT` `W-349` Deaths in a sanctuary or friendly town (the zone's PvP type (read as W-021 reads it) says sanctuary, or resting in a zone that isn't hostile)
 350. `BLOCKED` `W-350` Deaths with a full health bar 5 seconds earlier (one-shots) [probe] (your health is secret on Forever)
 351. `BUILT` `W-351` Deaths while a healthstone or potion was in your bags and off cooldown (a Healthstone or Healing Potion in your bags with no cooldown)
 352. `BUILT` `W-352` Deaths with Hearthstone off cooldown (the Hearthstone in your bags with no cooldown)
@@ -472,7 +472,7 @@ _PLAYER_MONEY deltas with context (merchant open, mail open, AH open, trade, que
 ## Gear and character stats
 _Snapshot out of combat at each ding: UnitStat, UnitArmor, UnitAttackPower, GetCritChance, UnitResistance, durability, item links._
 
-383. `BUILT` `W-383` Strength, Agility, Stamina, Intellect, Spirit at each ding (UnitStat, read out of combat 3 seconds after each ding into that ding's snapshot (levels.snapshots[level].sheet))
+383. `BUILT` `W-383` Strength, Agility, Stamina, Intellect, Spirit at each ding (UnitStat, read out of combat 3 seconds after each ding into that ding's snapshot (levels.snapshots[level].sheet); from addon 0.6.8 on, the journey saved at a milestone (#105) waits for it)
 384. `BUILT` `W-384` Armor at each ding (UnitArmor, in the ding's sheet)
 385. `BUILT` `W-385` Max health and max mana at each ding (UnitHealthMax and UnitPowerMax (mana), in the ding's sheet)
 386. `BUILT` `W-386` Attack power and spell power at each ding (UnitAttackPower (and ranged), never below 0, as the character sheet shows it, the best school's GetSpellBonusDamage and GetSpellBonusHealing, in the ding's sheet)
@@ -519,8 +519,8 @@ _Item diffs, CHAT_MSG_LOOT, CHAT_MSG_SKILL, TRADE_SKILL events, UNIT_SPELLCAST_S
 423. `BUILT` `W-423` Junk vs fish from fishing (fishing loot that's gray (junk) or not (fish))
 424. `BUILT` `W-424` Fishing pools fished (fishing loot from an object that isn't the bobber (unverified on Forever))
 425. `BUILT` `W-425` Longest fishing session (the longest run of Fishing casts no more than 2 minutes apart)
-426. `BUILT` `W-426` Items cooked and most cooked recipe (items made with the Cooking window open, by item; the top one is the most cooked)
-427. `BUILT` `W-427` Recipes learned per profession (recipes each profession's window lists (the most seen))
+426. `BUILT` `W-426` Items cooked and most cooked recipe (items made with the Cooking window open, by item; the top one is the most cooked. On Forever the window is known by C_TradeSkillUI.GetBaseProfessionInfo, Cooking by its profession ID (185), from addon 0.6.8 on)
+427. `BUILT` `W-427` Recipes learned per profession (recipes each profession's window lists (the most seen), or from addon 0.6.8 on the Statistics pane's recipes known for each profession (Forever's window can't be counted the Classic way), whichever is more)
 428. `BUILT` `W-428` Rare recipes learned from drops (recipe items you looted and then learned, by name)
 429. `SKIP` `W-429` Profession skill at each ding (covered by #92 (skill progression; the export has the highest rank at each level))
 430. `BUILT` `W-430` Items disenchanted and materials gained (Disenchant casts, and what you looted right after as W-430.mats)
@@ -646,3 +646,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-05: Fixes from a bug review (addon 0.6.2; each item's note says what changed). Privacy: W-292 leaves out whispers and any word that's a name (yours, your realm's, players seen this session, kept in memory only); W-013..W-015 never keep a message with a player in it; W-276 keeps the game's own error wording. Places: flights no longer make boat rides or visits; hearths, portals, Astral Recall and summons can't be rides; visits remember where you stood across a /reload (visitsSeen); elevator rides aren't flights, hearths or jumps. Kills: the no-XP watcher skips corpses and mobs someone else tagged; enemy guards need the enemy faction and count at 60 (ns.OnNoXPKill); enemy player kills dedupe by GUID or name without realm; families raised to what the kill log shows (name-based ones). PvP and dungeons survive a /reload (bgMatch, dungeonRun); wipe order uses this fight's deaths; W-146 needs a known killer outside battlegrounds; Blackrock Spire's halves told apart by bosses. Reputation (W-443..W-450) kept as a standing and points, never negative (saved raw values converted); attack power never below 0; Forever's auction house (AUCTION_HOUSE_AUCTION_CREATED) and bank tabs (C_Bank.PurchaseBankTab) counted; W-399 reads the durability figure's own 11 parts; breath and fatigue read back after a /reload; one death is drowning or fatigue, not both. Not changed: W-020 (VERIFIED) can read "PvP" on a Normal realm after an auto-flag; W-406/W-408/W-476 (talents) and W-426/W-427 (recipes) use Classic functions Forever's modern talent and professions UI doesn't, to confirm with /journey status in game. Checked outside the game: 80 + 37 new checks, every existing test passing.
 - 2026-10-05: W-020 changed on request (it was `VERIFIED`; now `BUILT` until checked in game again; addon 0.6.3). An auto-flag (W-021) is now a PvP flag that comes on without /pvp in a contested or enemy zone within 10 seconds of arriving there, out of a fight and with no fight starting in the next 2 seconds, so on a Normal realm a flag from attacking an enemy or a guard, or from healing someone flagged, no longer makes the ruleset PvP; the zone's type comes from C_PvP.GetZonePVPInfo first. W-368 now counts sold, expired and cancelled auctions through the main tracker (#83), once each whether they came as a chat line or as Forever's notifications. A ruleset already saved as PvP from an earlier false auto-flag stays so (nothing tells it apart).
 - 2026-10-05: Forever's API, from /journey status in game (addon 0.6.4). The client has none of GetNumTalentTabs and the other Classic talent functions, GetZonePVPInfo, UnitPVPRank, IsAutoRepeatSpell, GetContainerItemInfo, UseContainerItem or UseItemByName, so the talent stats (W-406, W-408, W-476, and W-234's role) read Forever's trait tree as its own talent window does (C_ClassTalents.GetActiveConfigID, C_Traits groups for the three trees, node ranks, TRAIT_CONFIG_UPDATED); the zone's PvP type (W-021, W-129, W-158, W-339, W-349) comes from C_PvP; W-183 reads the PvP rank from Forever's rank points faction (C_MajorFactions, 2800) with its title; bag items come from C_Container, and item use is heard through C_Container.UseContainerItem and C_Item.UseItemByName, one hook each, the C_ one where the client has it. Checked outside the game on a Forever-like setup (those functions removed, the modern ones standing in): 12 new checks, and every existing test. W-020 (and #101, #102, #83 in the journey spec) confirmed in game again after the earlier change.
+- 2026-10-06: Fixes from an audit of every saved export (addon 0.6.8; each item's note says what changed). Forever's client gives most zones no PvP type, so where it gives none the zone's type is Classic's own, by the zone's map ID (W-021, W-129, W-158, W-339, W-349; W-020 is `VERIFIED` and not changed, but it counts W-021's auto-flags toward a PvP realm, and those can now happen on Forever). Emotes are counted through C_ChatInfo.PerformEmote, which Forever's client uses (W-302..W-310). Cooking is known on Forever's profession window, and the recipes each profession knows come from the Statistics pane too (W-426, W-427). Loot roll results also come from LOOT_ITEM_ROLL_WON and the loot history (W-246..W-250, W-252, W-253). Forever's dungeons are known by the names its client gives them, and three more have their final boss listed (W-192, W-193, W-195, W-197, W-207, W-230, W-231). The journey saved at a milestone waits for the ding's character sheet (W-383..W-391). All stay `BUILT` until checked in game. Checked outside the game (fengari, real saved data): 46 new checks and every existing test.

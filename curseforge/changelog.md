@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.8
+
+Fixes for stats that weren't recording on WoW Forever, found by going through the journeys saved to the website.
+
+- **Zone types:** Forever doesn't tell addons whether a zone is friendly, contested or hostile, so Journey Tracker now knows the old world's zones itself. Time in contested zones, PvP flags, deaths to guards and deaths in friendly towns now record. Forever's new zones aren't known yet.
+- **Emotes:** /dance, /hug, /train and the rest are now counted by name, so your most used emote shows up.
+- **Cooking and recipes:** what you cook counts in Forever's profession window. The recipes each profession knows also come from the game's Statistics, so ones learned before this version count.
+- **Loot rolls:** Need, Greed and Pass, rolls won and lost, your highest and lowest roll, and blues won on Need now record, from Forever's loot history.
+- **Forever's new dungeons** are recognized by the names Forever gives them, like "Excavation Site: Wetlands", so their runs, clear times and first final-boss kills record.
+- **Saved every 10 levels:** the journey saved at each milestone now includes your character sheet from that level-up: stats, armor and gear.
+- **A new character with an old name:** if you delete a character and make a new one with the same name, WoW hands the new one the old character's saved data. Journey Tracker now notices and starts a fresh journey, with a note in chat (sometimes asking you to /reload). The old journey is kept in the addon's backup, not deleted.
+- **Food and drink:** cloth, maces and other things that aren't food, counted by versions before 0.6.4, are cleared out.
+
+### On the website
+
+- **Any language:** journeys saved with 0.6.8 read the same whatever language your game is in. Professions count toward rankings, and every zone has its place on the map. Older journeys from French, German and Spanish games get their professions counted too.
+- **Loot rolls:** your Need and Greed counts come from the game's Statistics when those are higher, so rolls from before 0.6.8 count.
+
 ## 0.6.7
 
 - **Hide the minimap button** if you'd rather not have it: untick "Show the button on the minimap" in Options, or type `/journey minimap`. The window still opens with `/journey` or `/jt`, and `/journey minimap` brings the button back. The setting is saved per character.

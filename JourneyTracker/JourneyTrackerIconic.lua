@@ -615,8 +615,9 @@ local function Tick(dt)
     W128[bracket] = W128[bracket] or {}
     W128[bracket][zone] = (W128[bracket][zone] or 0) + s
     Track.set("W-128", W128)
-    -- W-129 contested vs friendly (and hostile, sanctuary) zones
-    local kind = ns.ZonePvP() or "unrestricted"
+    -- W-129 contested vs friendly (and hostile, sanctuary) zones; "unknown"
+    -- for one with no type (Forever's own zones), "unrestricted" before 0.6.8
+    local kind = ns.ZonePvP() or "unknown"
     Track.count("W-129", kind, s)
 end
 

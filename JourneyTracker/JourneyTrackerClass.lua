@@ -1383,6 +1383,25 @@ local function StartClassDrivers()
     if not ns.InCombat() then FindCastStates() end
 end
 
+-- ALL-05 before 0.6.4 also counted cloth, two-handed maces and cooking
+-- recipes (their item subclass has food's number in other item classes).
+-- What the game knows has that subclass outside consumables goes; food
+-- eaten that isn't a consumable (raw fish is a trade good) stays, and a
+-- name it doesn't know yet waits for the next look.
+local CLOTH = { ["Linen Cloth"] = true, ["Wool Cloth"] = true, ["Silk Cloth"] = true, ["Mageweave Cloth"] = true,
+    ["Runecloth"] = true, ["Felcloth"] = true }
+local function CleanFood()
+    if type(all) ~= "table" or type(all.food) ~= "table" then return end
+    for name in pairs(all.food) do
+        local _, _, _, _, _, classID, subClassID = Call("C_Item.GetItemInfoInstant", name)
+        if classID == nil then _, _, _, _, _, classID, subClassID = Call("GetItemInfoInstant", name) end
+        classID, subClassID = Num(Safe(classID)), Num(Safe(subClassID))
+        if CLOTH[name] or (classID and classID ~= CONSUMABLE and subClassID == FOOD_AND_DRINK) then
+            all.food[name] = nil
+        end
+    end
+end
+
 local activated = false
 local function Activate()
     if activated or not db then return end
@@ -1394,6 +1413,8 @@ local function Activate()
     all = db.class.ALL or {}
     db.class.ALL = all
     ns.Fill(all, ALL_DEFAULTS)
+    CleanFood()                                               -- ALL-05 old non-food entries
+    if C_Timer and C_Timer.After then C_Timer.After(20, function() pcall(CleanFood) end) end -- (more names known by then)
     -- ALL-12: trainers saved by full GUID are kept by NPC ID from now on.
     local trainers = {}
     for key in pairs(all.trainerNPCs) do trainers[NpcID(key) or key] = true end
