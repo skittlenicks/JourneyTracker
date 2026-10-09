@@ -32,6 +32,7 @@
 const { parseExport } = require('./decode');
 const { analyze } = require('./ranks');
 const { uploadsOf, characterFrom, isMilestone } = require('./character');
+const JourneyModel = require('./model');
 
 const MAX_BODY = 1024 * 1024; // characters; real exports are well under 200,000
 const PER_DAY = Number(process.env.UPLOADS_PER_DAY) || 500;
@@ -80,6 +81,30 @@ async function uploadsToday() {
   const response = await supabase('uploads?select=id&limit=1&created_at=gte.' + encodeURIComponent(since),
     { headers: { Prefer: 'count=exact' } });
   return Number((response.headers.get('content-range') || '').split('/')[1]) || 0;
+}
+
+// What a save says: the level it's ranked at (as you were there, for one
+// exported past it), and the milestones up to it that the addon saw you
+// reach but no journey here is ranked on everything at: its saved "At 20"
+// (or one exported at 20 there and then). Each one pasted ranks you there.
+function savedMessage(row, rows) {
+  const m = JourneyModel.milestoneOf(row.level);
+  if (m < 10) return 'Saved. Rankings start at level 10: the addon saves your journey as you reach it, ready to paste.';
+  const whole = (r) => isMilestone(r) || (typeof r.since === 'number' && r.since <= JourneyModel.LATE_AFTER);
+  const dings = (row.payload.levels && row.payload.levels.snapshots) || {};
+  const missing = [];
+  for (let l = 10; l <= m; l += 10) {
+    if (!rows.some((r) => r.level === l && whole(r)) && (dings[l] || dings[String(l)])) missing.push(l);
+  }
+  let text = row.level === m && whole(rows[rows.length - 1]) ? `Saved. It's ranked among level ${m} journeys.` :
+    `Saved. It's ranked as you were at level ${m}, among level ${m} journeys.`;
+  if (missing.length) {
+    const names = missing.map((l) => `“At ${l}”`);
+    const list = names.length === 1 ? names[0] : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+    text += ` Paste ${list} from the addon's Export window too, to be ranked on everything at ` +
+      (missing.length === 1 ? `level ${missing[0]}.` : 'those levels.');
+  }
+  return text;
 }
 
 // "12 minutes", rounded down (for how long ago) or up (for how long to wait).
@@ -161,9 +186,10 @@ module.exports = async function upload(req, res) {
       return answer('duplicate', 'This export was already saved.', rows.find(sameExport));
     }
     const mine = { id: saved[0] && saved[0].id, level: row.level, exported_at: row.exported_at,
-      created_at: (saved[0] && saved[0].created_at) || new Date().toISOString(), milestone: row.payload.milestone };
+      created_at: (saved[0] && saved[0].created_at) || new Date().toISOString(), milestone: row.payload.milestone,
+      since: row.payload.ranked && row.payload.ranked.since };
     rows.push(mine);
-    return answer('saved', 'Saved. It counts toward the rankings.', mine);
+    return answer('saved', savedMessage(row, rows), mine);
   } catch (err) {
     console.error('upload failed:', err.message);
     return reply(res, 502, 'error', "Couldn't reach the database. Try again in a minute.");

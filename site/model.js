@@ -18,7 +18,10 @@ var JourneyModel = (function () {
   //    Statistics pane values and level times past belief left out.
   // 6: professions read by skill line, or by name from French, German and
   //    Spanish clients, so theirs rank too.
-  var MODEL = 6;
+  // 7: ranked as at the milestone: a journey exported past it (48 for 40),
+  //    or at it long after, only on what's known as of then (asOfValues);
+  //    none below 10.
+  var MODEL = 7;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -116,6 +119,27 @@ var JourneyModel = (function () {
       n = Number(s.replace(/,/g, ""));
     }
     return n >= 0 && n <= PANE_MAX ? n : null;
+  }
+  // The Statistics pane as it stood when you reached `level`, by statistic
+  // ID: its first read (the baseline) and what changed at each level-up
+  // since, up to that one. Null if the pane wasn't read by then, or not at
+  // that level-up (it would be from earlier).
+  function paneAt(statistics, level) {
+    var S = named(statistics), base = named(S.baseline), levels = numbered(S.levels);
+    var from = number(base.level);
+    if (!(from > 0 && from <= level) || (from < level && own(levels, String(level)) === undefined)) return null;
+    var state = Object.create(null);
+    function apply(values) {
+      Object.keys(named(values)).forEach(function (id) {
+        var n = paneNumber(values[id]);
+        if (n !== null) state[id] = n;
+      });
+    }
+    apply(base.values);
+    Object.keys(levels).map(Number).filter(function (l) { return l > 0 && l <= level; })
+      .sort(function (a, b) { return a - b; })
+      .forEach(function (l) { apply(named(levels[l]).changed); });
+    return state;
   }
   var CLASS_NAMES = { WARRIOR: "Warrior", PALADIN: "Paladin", HUNTER: "Hunter", ROGUE: "Rogue", PRIEST: "Priest",
                       SHAMAN: "Shaman", MAGE: "Mage", WARLOCK: "Warlock", DRUID: "Druid" };
@@ -233,6 +257,18 @@ var JourneyModel = (function () {
     // export's own less the time since (when the addon says how long).
     var standIn = sawIt && J.played > (J.since || 0) ? J.played - (J.since || 0) : 0;
     J.playedTo = J.milestone ? number(reach.played) || standIn || undefined : undefined;
+    // Rankings compare level 40 with level 40 (none below 10). A journey
+    // exported at its milestone's level, there and then, is ranked on all it
+    // has (rankedWhole). One exported past it (48 for 40), or at it long
+    // after (late), is ranked as it was when it got there: on what's known
+    // as of then (asOf, profileOf's asOfValues), the level-up's own totals
+    // and the Statistics pane as it stood.
+    J.rankedWhole = J.atMilestone && !J.late;
+    if (J.milestone >= 10 && !J.rankedWhole) {
+      var isCount = function (v) { return typeof v === "number" && isFinite(v) && v >= 0; };
+      J.asOf = { pane: paneAt(data.statistics, J.milestone) };
+      ["kills", "deaths", "quests"].forEach(function (k) { if (isCount(reach[k])) J.asOf[k] = reach[k]; });
+    }
     // Then and now: each milestone the tracker saw you reach, with how far
     // you'd come by then (the running totals saved at the level-up).
     J.milestoneRows = [];
@@ -996,17 +1032,46 @@ var JourneyModel = (function () {
       if (id && J.pane[id[1]] !== undefined) p.values[r.key] = J.pane[id[1]];
     });
     Object.keys(little.best).forEach(function (k) { p.values[k] = Math.max(number(p.values[k]), little.best[k]); });
-    // A late journey (J.late) is ranked only on what was settled when it
-    // reached its milestone: the time it took and the levels it did things
-    // at (the rankings marked `fixed`). Its other totals kept growing after.
-    if (J.late) {
-      var fixed = Object.create(null);
-      rankings.forEach(function (r) { if (r.fixed) fixed[r.key] = true; });
-      Object.keys(p.values).forEach(function (k) { if (!fixed[k]) delete p.values[k]; });
-    }
+    // A journey exported past its milestone, or at it long after, is ranked
+    // as it was when it got there (J.asOf): its other totals kept growing.
+    if (J.asOf) p.values = asOfValues(J, p.values, rankings);
     p.since = J.since;
     p.late = !!J.late;
     return p;
+  }
+
+  // A journey's values as they were at its milestone (m), from `all` (its
+  // values now): what was settled by then (the rankings marked `fixed`: the
+  // time to m, and the level you did something at, if that was by m), the
+  // level-up's own kills, deaths and quests (and per hour of the /played to
+  // m), and the Statistics pane as it stood. Nothing else is known as of m.
+  function asOfValues(J, all, rankings) {
+    var m = J.milestone, at = J.asOf, v = {};
+    rankings.forEach(function (r) {
+      var x = all[r.key];
+      if (r.fixed && typeof x === "number" && !(r.atLevel && x > m)) v[r.key] = x;
+    });
+    if (typeof v.mountPlayed === "number" && !(all.mount <= m)) delete v.mountPlayed;   // mounted after m
+    // The slowest level before m (a level past it hadn't happened).
+    v.slowestLevel = J.perLevel.slice(0, m - 1).reduce(function (most, sec) { return sec > 0 && sec > most ? sec : most; }, 0) ||
+      undefined;
+    var hours = J.playedTo > 0 ? J.playedTo / 3600 : 0;
+    if (at.kills !== undefined) {
+      v.kills = at.kills;
+      if (hours) v.killRate = at.kills / hours;
+    }
+    if (at.deaths !== undefined) v.deaths = at.deaths;
+    if (at.quests !== undefined) {
+      v.quests = at.quests;
+      if (hours) v.questRate = at.quests / hours;
+    }
+    if (at.pane) {
+      rankings.forEach(function (r) {
+        var id = /^P-(\d+)$/.exec(r.source);
+        if (id && at.pane[id[1]] !== undefined) v[r.key] = at.pane[id[1]];
+      });
+    }
+    return v;
   }
 
   // A profile as saved with its upload, for ranking others against: who it

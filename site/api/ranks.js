@@ -86,7 +86,8 @@ async function makeProfiles(rows) {
   }
 }
 
-// The levels that count toward a milestone: 30 is 30 to 39, 60 is 60 alone.
+// The levels that count toward a milestone: 30 is 30 to 39 (each ranked as
+// it was at 30, site/model.js's asOfValues), 60 is 60 alone.
 function levelsOf(milestone) {
   return milestone >= 60 ? [60, 60] : [milestone, milestone + 9];
 }
@@ -150,6 +151,8 @@ async function population(milestone) {
 // milestone }.
 async function placesOf(characterId, profile) {
   const milestone = profile.milestone || 0;
+  // Below 10 there's no milestone to compare at: no places.
+  if (milestone < 10) return { places: {}, players: 0, milestone };
   const others = (await population(milestone)).filter((r) => r.character_id !== characterId).map((r) => r.ranked);
   return { places: JourneyModel.placesFor(profile, others, RANKINGS), players: others.length + 1, milestone };
 }

@@ -8,6 +8,7 @@
 ### On the website
 
 - **Dungeons and raids on the map:** your route now shows the dungeons and raids you ran, with square pins at their entrances, in the order you went. Classic dungeons and raids show on journeys saved before this version too. Forever's own dungeons show from 0.6.11 on, at the spot where you went in.
+- **Fairer rankings:** players are compared at the same level. A journey shared at level 48 shows everything up to 48, but it's ranked as you were at 40, on what's known from then: the time it took, your kills, deaths and quests at 40, the game's Statistics as they stood, and the levels you did things at. For every ranking, paste the journey the addon saved when you reached 40 ("At 40" in the Export window). After you save, the website names any of those you haven't pasted yet. Rankings start at level 10.
 
 ## 0.6.10
 

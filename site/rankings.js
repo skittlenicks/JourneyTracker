@@ -12,8 +12,8 @@
 //   detail     the player's number: {n} count, {t} time, {g} money (from copper),
 //              {p} whole number, {d} one decimal; {mob} {zone} {quest} {item}
 //              {kept} {fav} are the player's own names; {m} the milestone the
-//              journey is ranked at (30 for one at level 30-39, 60 at 60;
-//              below 10, "at {m}" reads "before 10")
+//              journey is ranked at (30 for one at level 30-39, as it was
+//              at 30; 60 at 60; none below 10)
 //   direction  "+" when more is the notable way, "-" when less is. A "+"
 //              ranking skips players at 0: nobody is top 1% of Onyxia
 //              slayers without killing her.
@@ -31,15 +31,17 @@
 //              value past them), `at60` for rankings that only mean
 //              something at level 60, `fixed` for values settled by the time
 //              a journey reaches its milestone (the time to it, the level you
-//              did something at): all a journey exported long after reaching
-//              it is ranked on (site/model.js's late). "at level {n}" details
-//              are fixed and kept to levels 1-60 by themselves, "{p}%" ones
-//              to 100.
+//              did something at): what a journey exported past its milestone,
+//              or there long after reaching it, is ranked on, with what else
+//              is known as of the milestone (site/model.js's asOfValues).
+//              "at level {n}" details are fixed, kept to levels 1-60 and
+//              marked `atLevel` (counted at a milestone only if done by it)
+//              by themselves, "{p}%" ones to 100.
 var RANKINGS = (function () {
   function R(key, source, group, who, detail, direction, median, spread, line, extra) {
     var r = { id: key, key: key, source: source, group: group, name: who, detail: detail,
               high: direction === "+", pop: [median, spread], line: line };
-    if (/at level \{n\}/.test(detail)) { r.min = 1; r.max = 60; r.fixed = true; }   // not "item level {n}"
+    if (/at level \{n\}/.test(detail)) { r.min = 1; r.max = 60; r.fixed = true; r.atLevel = true; }   // not "item level {n}"
     if (/\{p\}%/.test(detail)) r.max = 100;
     for (var k in extra || {}) r[k] = extra[k];
     return r;

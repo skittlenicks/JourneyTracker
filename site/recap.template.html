@@ -3469,13 +3469,15 @@ kbd {
     var savedCount = ranks && !ranks.error ? number(ranks.players) : 0;
     var NO_RANKS = !S.imported ? "Nothing to rank yet." :
       !S.shareId ? "This journey wasn't saved, so it isn't ranked. Paste the export again to save it and see where you place." :
+      !milestone ? "Rankings start at level 10, where everyone is compared at the same point. The addon saves your journey " +
+        "as you reach it: paste that one (“At 10” in its Export window) to see where you place." :
       !ranks || ranks.error ? "The rankings couldn't be worked out just now. Reload the page in a minute." :
       "No ranking has " + M.MIN_PLAYERS + " saved " + atLevel + " journeys on it yet (" + num(savedCount) +
         (savedCount === 1 ? " is" : " are") + " saved so far). Your places show up here as more players paste their exports.";
     function showRankings(p) {
       var all = rankingsFor(p), picks = M.picksFor(all, 9);
       $("ranks-for").textContent = p.example ? "Where this " + p.label + " stands out (made-up example)" :
-        !p.places ? "Where you stand out" : S.shareId ? "Where you place among saved " + atLevel + " journeys" : "Not ranked";
+        !p.places ? "Where you stand out" : S.shareId && milestone ? "Where you place among saved " + atLevel + " journeys" : "Not ranked";
       $("ranks").innerHTML = picks.length ? picks.map(rankCard).join("") : '<p class="footnote">' + esc(NO_RANKS) + "</p>";
       $("all-ranks-summary").textContent = "See all " + all.length + (p.example ? " of this player's" : " of your") + " rankings, best first";
       $("all-ranks-list").innerHTML = all.map(function (x) {
@@ -3493,18 +3495,24 @@ kbd {
     PROFILES.forEach(function (p, i) { $("profile-" + i).addEventListener("click", function () { showRankings(p); }); });
     hide("profiles", PROFILES.length < 2);
     $("rank-count").textContent = RANKINGS.length;
-    // Exported at its milestone's level long after reaching it (site/model.js's
-    // late): ranked only on what was settled then. The addon kept the journey
-    // as it was at the level-up, ready to paste instead. (A journey that
-    // wasn't saved isn't ranked at all.)
-    var late = S.late && S.shareId;
-    if (late) {
-      $("ranks-late").textContent = "You shared this journey after " + dur(S.since) + " of play at level " + milestone +
-        ", so it's ranked only on what was settled when you got there: the time it took and the levels you did things at. " +
+    // Exported past its milestone (48 for 40), or at it long after reaching
+    // it (site/model.js's asOf): ranked as it was when it got there, on
+    // what's known as of then. The addon kept the journey as it was at the
+    // level-up, ready to paste for every ranking. (A journey that wasn't
+    // saved isn't ranked at all.)
+    var asOf = S.asOf && S.shareId;
+    if (asOf) {
+      var known = "the time it took, your kills, deaths and quests then, the game's Statistics as they stood, " +
+        "and the levels you did things at";
+      $("ranks-late").textContent = (S.level > milestone ?
+        "Players are compared at the same level, so this level " + S.level + " journey is ranked as you were at level " +
+          milestone + ", on what's known from then: " + known + ". " :
+        "You shared this journey after " + dur(S.since) + " of play at level " + milestone +
+          ", so it's ranked as you were when you got there, on what's known from then: " + known + ". ") +
         "The addon saved your journey as it was when you reached " + milestone + ". Pick “At " + milestone +
         "” in its Export window (or type /journey export " + milestone + ") and paste that for every ranking.";
     }
-    hide("ranks-late", !late);
+    hide("ranks-late", !asOf);
     if (S.imported) {
       $("ranks-madeup").textContent = savedCount ? num(savedCount) + " " + atLevel + (savedCount === 1 ? " journey is" : " journeys are") +
         " saved so far, and places change as more come in." : "";
@@ -3516,6 +3524,7 @@ kbd {
     function among(x) { return x.cohort === "All players" ? "" : " among " + x.cohort.replace(/^Level /, "level "); }
     $("ranks-title").textContent = best ?
       "You're " + (best.players < M.SHARE_FROM ? best.big : "in the top " + best.top + "%") + " " + best.who + among(best) + "." :
+      S.imported && !milestone ? "Rankings start at level 10." :
       S.shareId ? "Your places fill in as more players share their journeys." : "Saved journeys get ranked against everyone else's.";
     showRankings(YOU);
   });
