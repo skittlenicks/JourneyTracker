@@ -21,7 +21,9 @@ var JourneyModel = (function () {
   // 7: ranked as at the milestone: a journey exported past it (48 for 40),
   //    or at it long after, only on what's known as of then (asOfValues);
   //    none below 10.
-  var MODEL = 7;
+  // 8: the character sheet at the milestone's level-up ranked: item level,
+  //    health, mana, attack power, spell power and crit.
+  var MODEL = 8;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -271,6 +273,9 @@ var JourneyModel = (function () {
     }
     // Then and now: each milestone the tracker saw you reach, with how far
     // you'd come by then (the running totals saved at the level-up).
+    // The character sheet a few seconds after the milestone's level-up
+    // (W-383..W-391): ranked the same for a journey exported there or later.
+    J.sheetAt = J.milestone >= 10 ? named(named(dings[J.milestone]).sheet) : {};
     J.milestoneRows = [];
     for (var m = 10; m <= J.milestone; m += 10) {
       var at = named(dings[m]);
@@ -1014,6 +1019,9 @@ var JourneyModel = (function () {
         corpseTime: J.corpseTime, graveyards: J.graveyards, zonesVisited: J.zonesVisited, subzones: J.subzones,
         zoneChanges: J.zoneChanges, dungeonQuests: J.quests.dungeon, groupXP: when(enoughXP, J.groupXP),
         auctionsSold: J.auctionsSold,
+        sheetIlvl: sheetValue(J.sheetAt.ilvl), sheetHealth: sheetValue(J.sheetAt.health), sheetMana: sheetValue(J.sheetAt.mana),
+        sheetAP: sheetValue(Math.max(number(J.sheetAt.ap), number(J.sheetAt.rap))), sheetSP: sheetValue(J.sheetAt.sp),
+        sheetCrit: sheetValue(Math.max(number(J.sheetAt.crit), number(J.sheetAt.spellCrit), number(J.sheetAt.rangedCrit))),
         mountPlayed: J.firstMountPlayed || undefined, firstEpic: J.firstEpic && J.firstEpic.level,
         bestItem: J.bestLoot && J.bestLoot.ilvl, herbs: J.herbs, ore: J.ore, campShops: J.campShops,
         campCrafts: J.campCrafts, valthalak: J.valthalak, autoFlagged: J.autoFlagged, zephras: J.zephras || undefined,
@@ -1039,6 +1047,9 @@ var JourneyModel = (function () {
     p.late = !!J.late;
     return p;
   }
+
+  // A number from the character sheet, if it read one (0 is none).
+  function sheetValue(v) { return typeof v === "number" && isFinite(v) && v > 0 ? v : undefined; }
 
   // A journey's values as they were at its milestone (m), from `all` (its
   // values now): what was settled by then (the rankings marked `fixed`: the

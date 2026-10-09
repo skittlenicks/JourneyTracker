@@ -186,6 +186,19 @@ var RANKINGS = (function () {
     R("firstEpic", "J90", "loot", "early epics", "first epic at level {n}", "-", 55, 0.1, "Purple pixels, early."),
     R("worn", "J104", "loot", "gear loyalists", "{item} worn for {t}", "+", 108000, 0.6, "Why upgrade what already works?"),
     R("wornLevels", "J104", "loot", "faithful wearers", "{kept} stayed on for {d} levels", "+", 12, 0.5, "That item saw everything you saw."),
+    // The character sheet as it was a few seconds after the milestone's
+    // level-up (W-383..W-391), so the same for a journey exported there or
+    // later (`fixed`). Health, power and crit against your own class.
+    R("sheetIlvl", "W-390", "sheet", "best-geared", "average item level {d} at {m}", "+", 55, 0.12, "Dressed for the level after next.", { fixed: true, min: 1, max: 200 }),
+    R("sheetIlvl", "W-390", "sheet", "best-geared", "average item level {d} at {m}", "+", 55, 0.12, "The sharpest-dressed of your class.", more({ id: "sheetIlvlClass", fixed: true, min: 1, max: 200 }, CLASS)),
+    R("sheetHealth", "W-385", "sheet", "toughest", "{n} health at {m}", "+", 4200, 0.2, "Built to take a hit, and then another.", more({ fixed: true, max: 30000 }, CLASS)),
+    R("sheetMana", "W-385", "sheet", "deepest wells", "{n} mana at {m}", "+", 4500, 0.25, "You ran out of mobs before you ran out of mana.",
+      more({ fixed: true, max: 30000, only: { classToken: ["MAGE", "WARLOCK", "PRIEST", "DRUID", "SHAMAN", "PALADIN", "HUNTER"] } }, CLASS)),
+    R("sheetAP", "W-386", "sheet", "hardest hitters", "{n} attack power at {m}", "+", 1000, 0.3, "Every swing a statement.",
+      more({ fixed: true, max: 5000, only: { classToken: ["WARRIOR", "ROGUE", "HUNTER", "PALADIN", "SHAMAN", "DRUID"] } }, CLASS)),
+    R("sheetSP", "W-386", "sheet", "strongest casters", "{n} spell power at {m}", "+", 250, 0.5, "Your spells land before the cast bar finishes.",
+      more({ fixed: true, max: 2000, only: { classToken: ["MAGE", "WARLOCK", "PRIEST", "DRUID", "SHAMAN", "PALADIN"] } }, CLASS)),
+    R("sheetCrit", "W-387", "sheet", "critical strikers", "{d}% crit chance at {m}", "+", 12, 0.35, "Big numbers, and often.", more({ fixed: true, max: 100 }, CLASS)),
 
     // ---- Professions and skills (#91-96, 103) ----
     R("crafted", "J93", "crafts", "crafters", "{n} items crafted", "+", 240, 0.7, "Your hands are never idle."),
