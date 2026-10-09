@@ -85,12 +85,13 @@ async function uploadsToday() {
 
 // What a save says: the level it's ranked at (as you were there, for one
 // exported past it), and the milestones up to it that the addon saw you
-// reach but no journey here is ranked on everything at: its saved "At 20"
-// (or one exported at 20 there and then). Each one pasted ranks you there.
+// reach but no journey here is ranked on everything at: its saved "At 20",
+// or one exported at 20 that isn't late (site/model.js's rankedWhole).
+// Each one pasted ranks you there.
 function savedMessage(row, rows) {
   const m = JourneyModel.milestoneOf(row.level);
   if (m < 10) return 'Saved. Rankings start at level 10: the addon saves your journey as you reach it, ready to paste.';
-  const whole = (r) => isMilestone(r) || (typeof r.since === 'number' && r.since <= JourneyModel.LATE_AFTER);
+  const whole = (r) => r.level % 10 === 0 && (isMilestone(r) || !r.late);
   const dings = (row.payload.levels && row.payload.levels.snapshots) || {};
   const missing = [];
   for (let l = 10; l <= m; l += 10) {
@@ -187,7 +188,7 @@ module.exports = async function upload(req, res) {
     }
     const mine = { id: saved[0] && saved[0].id, level: row.level, exported_at: row.exported_at,
       created_at: (saved[0] && saved[0].created_at) || new Date().toISOString(), milestone: row.payload.milestone,
-      since: row.payload.ranked && row.payload.ranked.since };
+      since: row.payload.ranked && row.payload.ranked.since, late: row.payload.ranked && row.payload.ranked.late };
     rows.push(mine);
     return answer('saved', savedMessage(row, rows), mine);
   } catch (err) {

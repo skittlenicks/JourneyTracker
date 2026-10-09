@@ -35,11 +35,11 @@ function isMilestone(r) {
 }
 
 // A character's uploads, first saved first: [{ id, level, exported_at,
-// created_at, milestone, since, model, summary (if asked for) }]. An older
+// created_at, milestone, since, late, model, summary (if asked for) }]. An older
 // profile's `since` is unknown until ranks.js works it out again.
 async function uploadsOf(characterId, withSummaries) {
   const rows = await (await supabase('uploads?select=id,level,exported_at,created_at,milestone:payload->milestone' +
-    ',since:payload->ranked->since,model:payload->ranked->model' + (withSummaries ? ',summary:payload->summary' : '') +
+    ',since:payload->ranked->since,late:payload->ranked->late,model:payload->ranked->model' + (withSummaries ? ',summary:payload->summary' : '') +
     '&order=created_at.asc&limit=500&character_id=eq.' + encodeURIComponent(characterId))).json();
   rows.forEach((r) => { if (!current(r.model)) r.since = undefined; });
   return rows.sort((a, b) => compare(a.created_at, b.created_at) || compare(a.id, b.id));
