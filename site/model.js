@@ -389,9 +389,15 @@ var JourneyModel = (function () {
       var at = number(p.level), stop = stopOf[p.zone];
       // (with the zone's map ID where the addon saved it, 0.6.8 on, from any
       // visit: the page places the stop by it, whatever language the name
-      // is in)
-      if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, at, at, number(named(own(zones, p.zone)).seconds), number(p.map) || undefined]);
-      else if (!stop[4] && number(p.map)) stop[4] = number(p.map);
+      // is in; in a dungeon, 0.6.11 on, its map's ID and [map ID, x %, y %]
+      // where you went in, for the page to pin it at its entrance)
+      var entry = named(p.from), isNum = function (v) { return typeof v === "number" && isFinite(v); };
+      var spot = isNum(entry.map) && entry.map > 0 && isNum(entry.x) && isNum(entry.y) ? [entry.map, entry.x, entry.y] : undefined;
+      if (!stop) stops.push(stop = stopOf[p.zone] = [p.zone, at, at, number(named(own(zones, p.zone)).seconds), number(p.map) || undefined,
+                                                     number(p.instance) || undefined, spot]);
+      if (!stop[4] && number(p.map)) stop[4] = number(p.map);
+      if (!stop[5] && number(p.instance)) stop[5] = number(p.instance);
+      if (!stop[6] && spot) stop[6] = spot;
       var next = named(path[i + 1]), left = number(next.level) || (i === path.length - 1 ? level : at);
       stop[2] = Math.max(stop[2], at, left);
     });

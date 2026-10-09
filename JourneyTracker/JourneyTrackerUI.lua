@@ -1707,3 +1707,110 @@ function ns.ToggleMinimapButton()
     print(PREFIX, ns.MinimapButtonOn() and "The minimap button is back."
         or "The minimap button is hidden. Type /journey to open the window, or /journey minimap to bring the button back.")
 end
+
+---------------------------------------------------------------------------
+-- #113 A newer version: copies of the addon tell each other theirs in hidden
+-- addon messages (your guild's when you log in, your group's when you join
+-- one), and one newer than yours is said in chat, once a session, and again
+-- at each login until you update. Only the newest version is kept, never
+-- who sent it. Not sent in a fight or an instance.
+---------------------------------------------------------------------------
+
+local VERSION_PREFIX = "JourneyTracker"
+local VERSION_TAG = "V1:"     -- a message is this and the version: "V1:0.6.11"
+local SEND_GAP = 30           -- seconds between two of ours on one channel
+local versionTold, lastSent, replyDue, grouped = false, {}, {}, nil
+
+-- A version's numbers ("0.6.11" as 0, 6, 11); nil for any other kind, like
+-- a copy someone changed ("0.6.3-era.1").
+local function VersionParts(v)
+    local a, b, c = tostring(v or ""):match("^(%d+)%.(%d+)%.(%d+)$")
+    if a then return { tonumber(a), tonumber(b), tonumber(c) } end
+end
+
+-- -1, 0 or 1 as version a is older than, the same as or newer than b; nil
+-- if either isn't a version.
+local function CompareVersions(a, b)
+    a, b = VersionParts(a), VersionParts(b)
+    if not a or not b then return nil end
+    for i = 1, 3 do
+        if a[i] ~= b[i] then return a[i] < b[i] and -1 or 1 end
+    end
+    return 0
+end
+ns.CompareVersions = CompareVersions
+
+local function TellNewer()
+    local db = ns.GetDB()
+    local newer = db and db.ui and db.ui.newerVersion
+    if versionTold or CompareVersions(newer, ns.VERSION) ~= 1 then return end
+    versionTold = true
+    print(PREFIX, string.format("Journey Tracker %s is out (you have %s). Update it on CurseForge, or download it"
+        .. " from journeytracker.dev.", newer, ns.VERSION))
+end
+
+local function SendVersion(channel)
+    if not VersionParts(ns.VERSION) or ns.InCombat() or ns.Call("IsInInstance") == true then return end
+    if lastSent[channel] and GetTime() - lastSent[channel] < SEND_GAP then return end
+    lastSent[channel] = GetTime()
+    ns.Call("C_ChatInfo.SendAddonMessage", VERSION_PREFIX, VERSION_TAG .. ns.VERSION, channel)
+end
+
+local function GroupChannel()
+    if ns.Call("IsInGroup", LE_PARTY_CATEGORY_HOME) ~= true then return nil end
+    return ns.Call("IsInRaid", LE_PARTY_CATEGORY_HOME) == true and "RAID" or "PARTY"
+end
+
+local function OnAddonMessage(prefix, text, channel)
+    prefix, text, channel = ns.Str(ns.Safe(prefix)), ns.Str(ns.Safe(text)), ns.Str(ns.Safe(channel))
+    if prefix ~= VERSION_PREFIX or not text or text:sub(1, #VERSION_TAG) ~= VERSION_TAG or not ns.GetDB() then return end
+    local theirs = text:sub(#VERSION_TAG + 1)
+    local order = CompareVersions(theirs, ns.VERSION)
+    if not order then return end
+    if order >= 0 and channel then replyDue[channel] = nil end -- someone there has ours or newer
+    if order == 1 then
+        local ui = UIState()
+        if CompareVersions(theirs, ui.newerVersion) ~= -1 then ui.newerVersion = theirs end
+        TellNewer()
+    elseif order == -1 and (channel == "GUILD" or channel == "PARTY" or channel == "RAID") and not replyDue[channel] then
+        -- An older copy: tell it ours a few seconds on, unless another copy
+        -- with ours or newer does first.
+        replyDue[channel] = true
+        local function Reply()
+            if replyDue[channel] then
+                replyDue[channel] = nil
+                SendVersion(channel)
+            end
+        end
+        if C_Timer and C_Timer.After then C_Timer.After(math.random(2, 8), ns.Protect(Reply)) else Reply() end
+    end
+end
+
+local function OnLoginForVersion(isInitialLogin)
+    if not isInitialLogin then return end
+    local function Announce()
+        if ns.Call("IsInGuild") == true then SendVersion("GUILD") end
+        local channel = GroupChannel()
+        if channel then SendVersion(channel) end
+        TellNewer()
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(15, ns.Protect(Announce)) else Announce() end
+end
+
+local function OnRosterForVersion()
+    local channel = GroupChannel()
+    if channel and not grouped then
+        if C_Timer and C_Timer.After then
+            C_Timer.After(3, ns.Protect(function() SendVersion(GroupChannel() or channel) end))
+        end
+    end
+    grouped = channel ~= nil
+end
+
+ns.OnLoad(function()
+    ns.Call("C_ChatInfo.RegisterAddonMessagePrefix", VERSION_PREFIX)
+    grouped = GroupChannel() ~= nil
+end)
+ns.Listen("CHAT_MSG_ADDON", ns.Protect(OnAddonMessage))
+ns.Listen("PLAYER_ENTERING_WORLD", ns.Protect(OnLoginForVersion))
+ns.Listen("GROUP_ROSTER_UPDATE", ns.Protect(OnRosterForVersion))

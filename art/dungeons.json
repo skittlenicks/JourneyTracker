@@ -1,0 +1,339 @@
+[
+ {
+  "id": 33,
+  "names": [
+   "Shadowfang Keep" ],
+  "entrance": {
+   "mapID": 0,
+   "X": -231,
+   "Y": 1571.6
+  },
+  "zone": 1421
+ },
+ {
+  "id": 34,
+  "names": [
+   "Stormwind Stockade",
+   "The Stockade" ],
+  "entrance": {
+   "mapID": 0,
+   "X": -8762.4,
+   "Y": 848
+  },
+  "zone": 1453
+ },
+ {
+  "id": 36,
+  "names": [
+   "Deadmines",
+   "The Deadmines" ],
+  "entrance": {
+   "mapID": 0,
+   "X": -11207.8,
+   "Y": 1681.2
+  },
+  "zone": 1436
+ },
+ {
+  "id": 43,
+  "names": [
+   "Wailing Caverns" ],
+  "entrance": {
+   "mapID": 1,
+   "X": -751.1,
+   "Y": -2209.2
+  },
+  "zone": 1413
+ },
+ {
+  "id": 47,
+  "names": [
+   "Razorfen Kraul" ],
+  "entrance": {
+   "mapID": 1,
+   "X": -4459.4,
+   "Y": -1660.2
+  },
+  "zone": 1413
+ },
+ {
+  "id": 48,
+  "names": [
+   "Blackfathom Deeps" ],
+  "entrance": {
+   "mapID": 1,
+   "X": 4249.1,
+   "Y": 748.4
+  },
+  "zone": 1440
+ },
+ {
+  "id": 70,
+  "names": [
+   "Uldaman" ],
+  "entrance": {
+   "mapID": 0,
+   "X": -6060.2,
+   "Y": -2955
+  },
+  "zone": 1418
+ },
+ {
+  "id": 90,
+  "names": [
+   "Gnomeregan" ],
+  "entrance": {
+   "mapID": 0,
+   "X": -5162.7,
+   "Y": 931.6
+  },
+  "zone": 1426
+ },
+ {
+  "id": 109,
+  "names": [
+   "Sunken Temple" ],
+  "entrance": {
+   "mapID": 0,
+   "X": -10170.1,
+   "Y": -3996
+  },
+  "zone": 1435
+ },
+ {
+  "id": 129,
+  "names": [
+   "Razorfen Downs" ],
+  "entrance": {
+   "mapID": 1,
+   "X": -4662.9,
+   "Y": -2535.9
+  },
+  "zone": 1413
+ },
+ {
+  "id": 189,
+  "names": [
+   "Scarlet Monastery" ],
+  "entrance": {
+   "mapID": 0,
+   "X": 2892.2,
+   "Y": -811.3
+  },
+  "zone": 1420
+ },
+ {
+  "id": 209,
+  "names": [
+   "Zul'Farrak" ],
+  "entrance": {
+   "mapID": 1,
+   "X": -6790.6,
+   "Y": -2891.3
+  },
+  "zone": 1446
+ },
+ {
+  "id": 229,
+  "names": [
+   "Blackrock Spire" ],
+  "entrance": {
+   "mapID": 0,
+   "X": -7522.5,
+   "Y": -1233
+  },
+  "zone": 1428
+ },
+ {
+  "id": 230,
+  "names": [
+   "Blackrock Depths" ],
+  "entrance": {
+   "mapID": 0,
+   "X": -7178.1,
+   "Y": -928.6
+  },
+  "zone": 1427
+ },
+ {
+  "id": 249,
+  "names": [
+   "Onyxia's Lair" ],
+  "raid": true,
+  "entrance": {
+   "mapID": 1,
+   "X": -4753.3,
+   "Y": -3752.4
+  },
+  "zone": 1445
+ },
+ {
+  "id": 289,
+  "names": [
+   "Scholomance" ],
+  "entrance": {
+   "mapID": 0,
+   "X": 1274.8,
+   "Y": -2552.6
+  },
+  "zone": 1422
+ },
+ {
+  "id": 309,
+  "names": [
+   "Zul'Gurub" ],
+  "raid": true,
+  "entrance": {
+   "mapID": 0,
+   "X": -11916.1,
+   "Y": -1224.6
+  },
+  "zone": 1434
+ },
+ {
+  "id": 329,
+  "names": [
+   "Stratholme" ],
+  "entrance": {
+   "mapID": 0,
+   "X": 3392.3,
+   "Y": -3378.5
+  },
+  "zone": 1423
+ },
+ {
+  "id": 349,
+  "names": [
+   "Maraudon" ],
+  "entrance": {
+   "mapID": 1,
+   "X": -1432.7,
+   "Y": 2925
+  },
+  "zone": 1443
+ },
+ {
+  "id": 389,
+  "names": [
+   "Ragefire Chasm" ],
+  "entrance": {
+   "mapID": 1,
+   "X": 1816.8,
+   "Y": -4423.4
+  },
+  "zone": 1454
+ },
+ {
+  "id": 409,
+  "names": [
+   "Molten Core" ],
+  "raid": true,
+  "entrance": {
+   "mapID": 0,
+   "X": -7510.6,
+   "Y": -1036.7
+  },
+  "zone": 1428
+ },
+ {
+  "id": 429,
+  "names": [
+   "Dire Maul" ],
+  "entrance": {
+   "mapID": 1,
+   "X": -3908,
+   "Y": 1130
+  },
+  "zone": 1444
+ },
+ {
+  "id": 469,
+  "names": [
+   "Blackwing Lair" ],
+  "raid": true,
+  "entrance": {
+   "mapID": 0,
+   "X": -7663.4,
+   "Y": -1218.7
+  },
+  "zone": 1428
+ },
+ {
+  "id": 509,
+  "names": [
+   "Ruins of Ahn'Qiraj" ],
+  "raid": true,
+  "entrance": {
+   "mapID": 1,
+   "X": -8114.5,
+   "Y": 1526.4
+  },
+  "zone": 1451
+ },
+ {
+  "id": 531,
+  "names": [
+   "Ahn'Qiraj Temple",
+   "Ahn'Qiraj",
+   "Temple of Ahn'Qiraj" ],
+  "raid": true,
+  "entrance": {
+   "mapID": 1,
+   "X": -8111.7,
+   "Y": 1526.8
+  },
+  "zone": 1451
+ },
+ {
+  "id": 2959,
+  "names": [
+   "City of Dalaran",
+   "Dalaran" ],
+  "zones": [ 1416, 1424 ]
+ },
+ {
+  "id": 2998,
+  "names": [
+   "Excavation Site: Wetlands",
+   "Excavation Site" ],
+  "zones": [ 1437 ]
+ },
+ {
+  "id": 2999,
+  "names": [
+   "Ruins of Lordaeron" ],
+  "zones": [ 1420, 1458 ]
+ },
+ {
+  "id": 3065,
+  "names": [
+   "The Hall of Thanes",
+   "Hall of Thanes" ],
+  "zones": [ 1455, 1426 ]
+ },
+ {
+  "names": [
+   "The Drowned City" ],
+  "zones": [ 1434 ]
+ },
+ {
+  "names": [
+   "Krol'dok Stronghold" ],
+  "zones": [ 2548 ]
+ },
+ {
+  "names": [
+   "Alcaz Island Prison" ],
+  "zones": [ 1445 ]
+ },
+ {
+  "names": [
+   "Blackmaw Hold" ],
+  "zones": [ 1447 ]
+ },
+ {
+  "names": [
+   "Shaper's Terrace" ],
+  "zones": [ 1449 ]
+ }
+]

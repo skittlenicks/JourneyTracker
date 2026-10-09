@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.11
+
+- **Told when there's an update:** Journey Tracker now says in chat when a newer version is out. Copies of the addon in your guild and group tell each other their version in hidden addon messages, never during a fight or in a dungeon, so you'll hear about an update once someone near you has it. It reminds you at each login until you update.
+- **Dungeons on your route:** each dungeon and raid you go into is saved on your route, with where you went in, so the website can put it on the map.
+
+### On the website
+
+- **Dungeons and raids on the map:** your route now shows the dungeons and raids you ran, with square pins at their entrances, in the order you went. Classic dungeons and raids show on journeys saved before this version too. Forever's own dungeons show from 0.6.11 on, at the spot where you went in.
+
 ## 0.6.10
 
 - **Inns aren't zones any more:** inside some buildings, like the Lakeshire Inn and the Lion's Pride Inn, Forever gives the building's name as the zone's. Journey Tracker now records the zone you're really in, so time at the inn counts toward Redridge Mountains or Elwynn Forest, and your route no longer stops at the inn. What was already saved under an inn's name moves to its zone the next time you're in that inn, or at login if you've been there since 0.6.8.

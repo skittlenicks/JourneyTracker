@@ -14,8 +14,9 @@ param(
 #   worldmap\highlights\<UiMapID>.jpg (each zone's glow) and
 #   zones\<UiMapID>.jpg (each zone's map)
 # It fills recap.template.html with the logo, the map art, art\maps.json,
-# art\worldmap.json, the rankings catalog and the journey model. The art is
-# the game's: run art\worldmap.js and art\build-maps.ps1 first. It's
+# art\worldmap.json, art\dungeons.json, the rankings catalog and the journey
+# model. The art is the game's: run art\build-maps.ps1, art\worldmap.js and
+# art\dungeons.js first. It's
 # Blizzard's, so the build goes to the git-ignored dist\ folder, not the
 # repo. The website build needs Node.js, for og.png.
 #
@@ -104,6 +105,8 @@ if ($Site) {
 # Every map's place in the world, and where each zone's glow is centered.
 $html = $html.Replace("__MAPS_JSON__", (Get-Content (Join-Path $root "art\maps.json") -Raw -Encoding UTF8).Trim())
 $html = $html.Replace("__WORLDMAP_JSON__", (Get-Content (Join-Path $root "art\worldmap.json") -Raw -Encoding UTF8).Trim())
+# Each dungeon's entrance, for the route's stops in them (art\dungeons.js).
+$html = $html.Replace("__DUNGEONS_JSON__", (Get-Content (Join-Path $root "art\dungeons.json") -Raw -Encoding UTF8).Trim())
 # The rankings catalog and the journey model, shared with the site's functions.
 $rankings = Get-Content (Join-Path $PSScriptRoot "rankings.js") -Raw -Encoding UTF8
 $html = $html.Replace("/*__RANKINGS__*/", $rankings.Trim())

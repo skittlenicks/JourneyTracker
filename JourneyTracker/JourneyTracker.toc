@@ -2,7 +2,7 @@
 ## Title: Journey Tracker
 ## Notes: Records your character's 1-60 journey: time, XP, kills, deaths, quests, travel, gold, loot and more.
 ## Author: skittlenicks
-## Version: 0.6.10
+## Version: 0.6.11
 ## X-Website: https://www.journeytracker.dev
 ## SavedVariablesPerCharacter: JourneyTrackerDB, JourneyTrackerBackup
 

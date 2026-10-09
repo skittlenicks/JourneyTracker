@@ -916,8 +916,18 @@ local function OnZoneChange()
         currentZone = z
         local last = db.path[#db.path]
         if not last or last.zone ~= z then                    -- #67 path through the world
-            -- with the zone's map ID, which reads the same in every language
-            table.insert(db.path, { zone = z, t = time(), level = Level(), map = ns.ZoneMapID and ns.ZoneMapID() })
+            -- with the zone's map ID, which reads the same in every language.
+            -- In a dungeon or raid, its own map's ID, and the spot you went
+            -- in from (seen in the last minute): the website pins the stop
+            -- at its entrance.
+            local stop = { zone = z, t = time(), level = Level(), map = ns.ZoneMapID and ns.ZoneMapID() }
+            local inside, kind = Call("IsInInstance")
+            if inside == true and (kind == "party" or kind == "raid") then
+                stop.instance = Num(Safe((select(8, Call("GetInstanceInfo")))))
+                local o = ns.outdoors
+                if o and GetTime() - o.t < 60 then stop.from = { map = o.map, x = o.x, y = o.y } end
+            end
+            table.insert(db.path, stop)
         end
     end
     CheckDungeon()
@@ -1527,6 +1537,11 @@ local function Tick()
         if not InCombat() then
             local mapID, x, y = MapPos()
             spot = x and y and { map = mapID, square = SpotOf(x, y) } or nil
+            if x and y and Call("IsInInstance") ~= true then  -- (#67 where you go into a dungeon from)
+                local o = ns.outdoors or {}
+                o.map, o.x, o.y, o.t = mapID, x, y, GetTime()
+                ns.outdoors = o
+            end
         end
         if spot then
             local squares = db.where[spot.map]

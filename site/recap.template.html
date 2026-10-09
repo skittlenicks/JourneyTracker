@@ -565,6 +565,8 @@ kbd {
 .atlas-over.away .atlas-pin { pointer-events: none; }
 .atlas-pin:hover, .atlas-pin.here { color: var(--ground); background: var(--gold-pale); }
 .atlas-world .atlas-pin { width: clamp(13px, 1.8cqw, 18px); height: clamp(13px, 1.8cqw, 18px); font-size: clamp(8px, 1cqw, 10px); }
+/* A dungeon's or raid's stop, at its entrance: square, here and in the list. */
+.atlas-pin.dungeon, .spots .n.dungeon { border-radius: 3px; }
 /* The name of the zone you point at (or the one you opened), at the top of
    the map like the game's. */
 .atlas-name {
@@ -2415,6 +2417,14 @@ kbd {
     MAP_BY_ID[m.uiMapID] = m;
     if (m.type === 3 && !MAP_BY_NAME[m.name]) MAP_BY_NAME[m.name] = m;
   });
+  // Each dungeon's and raid's entrance (art\dungeons.json), by its map's ID
+  // (a stop from addon 0.6.11 on has it) and by the names you see inside.
+  var DUNGEONS = __DUNGEONS_JSON__;
+  var DUNGEON_BY_ID = Object.create(null), DUNGEON_BY_NAME = Object.create(null);
+  DUNGEONS.forEach(function (d) {
+    if (d.id) DUNGEON_BY_ID[d.id] = d;
+    d.names.forEach(function (name) { if (!DUNGEON_BY_NAME[name]) DUNGEON_BY_NAME[name] = d; });
+  });
   // The art by name ("worldmap/1414.jpg", "zones/1446.jpg"): the website
   // serves it from ART_ROOT; the one-file draft carries what it shows in ART.
   var ART = __ART__;
@@ -2463,19 +2473,37 @@ kbd {
   // A stop's map: by its map ID where the export has one (addon 0.6.8 on, in
   // any language), else by the zone's English name. A zone map with no art
   // (Zephras Isle's second) is drawn as the one with its name that has it.
+  // A dungeon or raid on the route (p[5], its map's ID, from addon 0.6.11;
+  // before then known by its name) is pinned at its entrance, where the game
+  // sends a ghost back to. Forever's own dungeons have none in the game's
+  // files: they're pinned where you went in (p[6], [map ID, x %, y %]), when
+  // that's in a zone they're in (not, say, somewhere you were sent from).
+  function dungeonAt(p) {
+    var d = (p[5] && DUNGEON_BY_ID[p[5]]) || own(DUNGEON_BY_NAME, p[0]);
+    if (d && d.entrance) return { map: MAP_BY_ID[d.zone], at: d.entrance };
+    if (!d && !p[5]) return null;
+    var spot = p[6], m = spot && MAP_BY_ID[spot[0]];
+    var zone = m && (m.type === 3 ? m : MAP_BY_ID[m.parent]);
+    if (!m || !m.world || !zone || zone.type !== 3 || (d && d.zones && d.zones.indexOf(zone.uiMapID) < 0)) return null;
+    return { map: zone, at: toWorld(m, spot[1] / 100, spot[2] / 100) };
+  }
   var route = S.path.map(function (p) {
     var byID = p[4] ? MAP_BY_ID[p[4]] : null;
     if (byID && byID.type === 3 && !byID.image && MAP_BY_NAME[byID.name] && MAP_BY_NAME[byID.name].image) byID = MAP_BY_NAME[byID.name];
-    return { name: p[0], from: p[1], to: p[2], map: byID && byID.type === 3 ? byID : MAP_BY_NAME[p[0]],
-             seconds: p[3] !== undefined ? p[3] : zoneSeconds(p[1], p[2]) };
-  }).filter(function (r) { return r.map && r.map.world; });
-  route.forEach(function (r, i) { r.n = i + 1; r.at = anchorOf(r.map); });
-  var homeZone = route.slice().sort(function (a, b) { return b.seconds - a.seconds; })[0];
+    var zone = byID && byID.type === 3 ? byID : MAP_BY_NAME[p[0]], seconds = p[3] !== undefined ? p[3] : zoneSeconds(p[1], p[2]);
+    if (zone) return { name: p[0], from: p[1], to: p[2], map: zone, seconds: seconds };
+    var d = dungeonAt(p);
+    return d && { name: p[0], from: p[1], to: p[2], map: d.map, at: d.at, dungeon: true, seconds: seconds };
+  }).filter(function (r) { return r && r.map && r.map.world; });
+  route.forEach(function (r, i) { r.n = i + 1; r.at = r.at || anchorOf(r.map); });
+  // The zones alone: what's counted as zones, and where you spent the most time.
+  var zoneStops = route.filter(function (r) { return !r.dungeon; }), dungeonCount = route.length - zoneStops.length;
+  var homeZone = zoneStops.slice().sort(function (a, b) { return b.seconds - a.seconds; })[0];
   function detailFor(uiMapID) {
     for (var i = 0; i < S.heat.length; i++) if (S.heat[i].map === uiMapID) return i;
     return -1;
   }
-  function stopOf(uiMapID) { return route.filter(function (r) { return r.map.uiMapID === uiMapID; })[0]; }
+  function stopOf(uiMapID) { return zoneStops.filter(function (r) { return r.map.uiMapID === uiMapID; })[0]; }
   // Where you died: an export knows the spot on the zone's map.
   var deathSpots = (S.deathSpots || []).map(function (d) {
     var m = MAP_BY_ID[d.map];
@@ -2488,7 +2516,7 @@ kbd {
   var placed = Object.create(null);
   squares.forEach(function (w) { placed[w[0]] = true; });
   // Zones of the route it has time for but no squares (time from before 0.5.0).
-  var unplaced = S.imported && route.some(function (r) { return r.seconds > 0 && !placed[r.map.uiMapID]; });
+  var unplaced = S.imported && zoneStops.some(function (r) { return r.seconds > 0 && !placed[r.map.uiMapID]; });
 
   // The opening line: how far you went, and the place you lingered longest.
   var favorite = null;
@@ -2509,12 +2537,13 @@ kbd {
     // The continents are the parts of Azeroth's map, Kalimdor and the
     // Eastern Kingdoms (Zephras Isle is off them).
     var continents = {};
-    route.forEach(function (r) { if (PARTS[r.map.mapID]) continents[r.map.mapID] = true; });
-    var across = Object.keys(continents).length, firstStop = route[0], lastStop = route[route.length - 1];
-    var lede = !route.length ? "your route shows up here once the tracker has seen you travel." :
-      route.length === 1 ? "one zone so far: " + place(firstStop.name) + "." +
+    zoneStops.forEach(function (r) { if (PARTS[r.map.mapID]) continents[r.map.mapID] = true; });
+    var across = Object.keys(continents).length, firstStop = zoneStops[0], lastStop = zoneStops[zoneStops.length - 1];
+    var lede = !zoneStops.length ? "your route shows up here once the tracker has seen you travel." :
+      zoneStops.length === 1 ? "one zone so far: " + place(firstStop.name) + "." +
         (firstStop.seconds > 0 ? " You spent " + dur(firstStop.seconds) + " there." : "") :
-      count(route.length, "zone") + (across ? " across " + count(across, "continent") : "") +
+      count(zoneStops.length, "zone") + (dungeonCount ? " and " + count(dungeonCount, "dungeon") : "") +
+      (across ? " across " + count(across, "continent") : "") +
       (S.imported ? ", from " : ", from your first steps in ") + place(firstStop.name) + " to " +
       (lastStop.to === 60 ? "level 60 in " : "") + place(lastStop.name) + ". " +
       (favorite ? "You lingered longest in " + favorite.spot[0] + ", " + place(favorite.zone) + "." :
@@ -2580,7 +2609,7 @@ kbd {
     var m = MAP_BY_ID[w[0]];
     HEAT.push({ at: toWorld(m, w[1] / 100, w[2] / 100), m: w[3] / 60, s: (m.world.maxY - m.world.minY) * 0.03, far: 1600 / 9 });
   });
-  route.forEach(function (r) {
+  zoneStops.forEach(function (r) {
     var m = r.map, zoneYards = m.world.maxY - m.world.minY, d = detailFor(m.uiMapID);
     function add(x, y, minutes, spreadYards) { HEAT.push({ at: toWorld(m, x / 100, y / 100), m: minutes, s: spreadYards }); }
     if (d >= 0) {
@@ -2811,11 +2840,11 @@ kbd {
       if (!at || at[0] < -0.01 || at[0] > 1.01 || at[1] < -0.01 || at[1] > 1.01) return;
       var pin = document.createElement("button");
       pin.type = "button";
-      pin.className = "atlas-pin" + (r.map.uiMapID === view.id ? " here" : "");
+      pin.className = "atlas-pin" + (r.dungeon ? " dungeon" : "") + (r.map.uiMapID === view.id ? " here" : "");
       pin.textContent = r.n;
       pin.style.left = (at[0] * 100).toFixed(2) + "%";
       pin.style.top = (at[1] * 100).toFixed(2) + "%";
-      pin.title = r.n + ". " + r.name + ": " + levels(r.from, r.to) + ", " + dur(r.seconds);
+      pin.title = r.n + ". " + r.name + (r.dungeon ? " (in " + r.map.name + ")" : "") + ": " + levels(r.from, r.to) + ", " + dur(r.seconds);
       pin.setAttribute("aria-label", pin.title);
       pin.addEventListener("click", function (event) { event.stopPropagation(); openZone(r.map.uiMapID); });
       over.appendChild(pin);
@@ -3176,7 +3205,7 @@ kbd {
       var rect = rectOnView(shown.view, MAP_BY_ID[t]), src = artURL("worldmap/highlights/" + t + ".jpg");
       if (rect && src && WORLDMAP.outlines.indexOf(t) >= 0) hover.glow = glowOver(rect, src);
       nameTag.innerHTML = "<b>" + esc(MAP_BY_ID[t].name) + "</b><span>" +
-        count(route.filter(function (r) { return r.map.mapID === MAP_BY_ID[t].mapID; }).length, "zone") + " of your route</span>";
+        count(zoneStops.filter(function (r) { return r.map.mapID === MAP_BY_ID[t].mapID; }).length, "zone") + " of your route</span>";
     }
   }
   function targetAt(event) {
@@ -3229,12 +3258,13 @@ kbd {
   function routeList() {
     $("spots-label").textContent = "Your route";
     $("spots").innerHTML = route.map(function (r) {
-      return listItem('<span class="n">' + r.n + "</span>", r.name, dur(r.seconds), levels(r.from, r.to), r.n);
+      return listItem('<span class="n' + (r.dungeon ? " dungeon" : "") + '">' + r.n + "</span>", r.name, dur(r.seconds),
+        levels(r.from, r.to) + (r.dungeon ? " · in " + esc(r.map.name) : ""), r.n);
     }).join("");
   }
   function showRoute() {
     $("zone-total").innerHTML = "<b>" + dur(sum(route.map(function (r) { return r.seconds; }))) + "</b> across " +
-      route.length + (route.length === 1 ? " zone" : " zones") + ", in the order you reached them.";
+      count(zoneStops.length, "zone") + (dungeonCount ? " and " + count(dungeonCount, "dungeon") : "") + ", in the order you reached them.";
     routeList();
   }
   function focusZone(id) {
@@ -3517,7 +3547,7 @@ kbd {
       ["Deaths", num(S.deaths)],
       ["Quests", num(S.quests.completed)],
       [earned >= 10000 ? "Gold earned" : "Earned", earned >= 10000 ? gold(earned) : coins(earned)],
-      ["Zones", route.length],
+      ["Zones", zoneStops.length],
       ["Dungeon bosses", num(S.bosses)],
       ["Miles traveled", miles(S.travel.groundYards + S.travel.airYards)],
       ["Jumps", num(S.jumps)]

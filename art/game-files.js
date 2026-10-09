@@ -9,6 +9,7 @@
 //   readTable(buffer, definition)    a database table (DB2, WDC5) as rows
 //   decodeBLP(buffer)                a texture as { width, height, data: RGBA }
 //   encodePNG(image)                 RGBA pixels as a PNG file
+//   decodePNG(buffer)                a PNG file (8-bit RGBA) as RGBA pixels
 //
 // How CASC finds a file: .build.info names the build; its build config names
 // the encoding and root files; the root maps FileDataIDs (and name hashes) to
@@ -22,24 +23,28 @@ const zlib = require('zlib');
 
 function hex(buf, start, end) { return buf.toString('hex', start, end); }
 
-function blte(buf) {
+// `zeroEncrypted`: an encrypted chunk (mode E, needing a key the install
+// doesn't have) reads as zeros instead of stopping; for tables, whose
+// encrypted rows then read as empty.
+function blte(buf, zeroEncrypted) {
   if (buf.toString('latin1', 0, 4) !== 'BLTE') throw new Error('not BLTE data');
   const headerSize = buf.readUInt32BE(4), chunks = [];
   if (headerSize === 0) {
-    chunks.push([8, buf.length - 8]);
+    chunks.push([8, buf.length - 8, 0]);
   } else {
     let at = headerSize;
     for (let i = 0, n = buf.readUIntBE(9, 3); i < n; i++) {
-      const size = buf.readUInt32BE(12 + i * 24);
-      chunks.push([at, size]);
+      const size = buf.readUInt32BE(12 + i * 24), decoded = buf.readUInt32BE(16 + i * 24);
+      chunks.push([at, size, decoded]);
       at += size;
     }
   }
-  return Buffer.concat(chunks.map(([start, size]) => {
+  return Buffer.concat(chunks.map(([start, size, decoded]) => {
     const mode = String.fromCharCode(buf[start]), body = buf.subarray(start + 1, start + size);
     if (mode === 'N') return body;
     if (mode === 'Z') return zlib.inflateSync(body);
-    if (mode === 'F') return blte(body);
+    if (mode === 'F') return blte(body, zeroEncrypted);
+    if (mode === 'E' && zeroEncrypted && decoded) return Buffer.alloc(decoded);
     throw new Error(`BLTE chunk "${mode}" isn't supported (an encrypted file?)`);
   }));
 }
@@ -84,14 +89,14 @@ class GameFiles {
     }
   }
 
-  readEncoded(ekey) {
+  readEncoded(ekey, options = {}) {
     const entry = this.index.get(ekey.slice(0, 18));
     if (!entry) throw new Error(`Not in the local game files: ${ekey}`);
     const fd = fs.openSync(path.join(this.install, 'Data', 'data', 'data.' + String(entry.archive).padStart(3, '0')), 'r');
     try {
       const buf = Buffer.alloc(entry.size - 30);   // after the 30-byte entry header
       fs.readSync(fd, buf, 0, buf.length, entry.offset + 30);
-      return blte(buf);
+      return blte(buf, options.zeroEncrypted);
     } finally {
       fs.closeSync(fd);
     }
@@ -143,12 +148,13 @@ class GameFiles {
     }
   }
 
-  read(fileDataID) {
+  // `options.zeroEncrypted`: see blte().
+  read(fileDataID, options = {}) {
     const ckey = this.files.get(fileDataID);
     if (!ckey) throw new Error(`No file ${fileDataID} in this build.`);
     const ekey = this.encoding.get(ckey);
     if (!ekey) throw new Error(`File ${fileDataID} isn't in the encoding table.`);
-    return this.readEncoded(ekey);
+    return this.readEncoded(ekey, options);
   }
 
   idOf(name) { return this.names.get(jenkins96(name)); }
@@ -192,16 +198,19 @@ function jenkins96(name) {
 //   $noninline,id$ID<32>
 //   RowIndex<u8>
 //   $noninline,relation$UiMapArtID<32>
+// and "float" or "string" after a field of floats or text, like
+//   MapName_lang string
 // plus its LAYOUT hash, checked against the file so a changed table fails
 // loudly instead of reading garbage.
 function readTable(buf, layout, definition) {
   if (buf.toString('latin1', 0, 4) !== 'WDC5') throw new Error('Not a WDC5 table.');
   const fields = definition.trim().split(/\s*\n\s*/).map((line) => {
-    const m = line.match(/^(?:\$([\w,]+)\$)?(\w+)(?:<(u?)(\d+)>)?(?:\[(\d+)\])?(\s+float)?$/);
+    const m = line.match(/^(?:\$([\w,]+)\$)?(\w+)(?:<(u?)(\d+)>)?(?:\[(\d+)\])?(?:\s+(float|string))?$/);
     if (!m) throw new Error('Bad field: ' + line);
     const tags = (m[1] || '').split(',');
     return { name: m[2], noninline: tags.includes('noninline'), id: tags.includes('id'), relation: tags.includes('relation'),
-             signed: m[3] !== 'u', bits: m[4] ? Number(m[4]) : 32, count: m[5] ? Number(m[5]) : 1, float: !!m[6] };
+             signed: m[3] !== 'u', bits: m[4] ? Number(m[4]) : 32, count: m[5] ? Number(m[5]) : 1,
+             float: m[6] === 'float', string: m[6] === 'string' };
   });
   let p = 4 + 4 + 128;
   const u32 = () => { p += 4; return buf.readUInt32LE(p - 4); };
@@ -244,6 +253,18 @@ function readTable(buf, layout, definition) {
   const asFloat = (v) => { const b = Buffer.alloc(4); b.writeUInt32LE(v >>> 0); return b.readFloatLE(0); };
   const idField = fields.find((f) => f.id), relationField = fields.find((f) => f.relation && f.noninline);
   const rows = [];
+  // Text: every section's strings, back to back. A text field holds its
+  // offset from the field itself, as if every section's records came first.
+  const strings = Buffer.concat(sections.map((sec) => buf.subarray(sec.offset + sec.records * recordSize,
+    sec.offset + sec.records * recordSize + sec.strings)));
+  const text = (record, fieldAt, offset) => {
+    if (!offset) return '';
+    const from = record * recordSize + fieldAt + offset - recordCount * recordSize;
+    let end = from;
+    while (end < strings.length && strings[end] !== 0) end++;
+    return strings.toString('utf8', from, end);
+  };
+  let before = 0;   // records in the sections before this one
   for (const sec of sections) {
     let q = sec.offset + sec.records * recordSize + sec.strings;
     const ids = [];
@@ -266,6 +287,7 @@ function readTable(buf, layout, definition) {
           const one = (o) => f.float ? buf.readFloatLE(o) : n === 1 ? (f.signed ? buf.readInt8(o) : buf.readUInt8(o)) :
             n === 2 ? (f.signed ? buf.readInt16LE(o) : buf.readUInt16LE(o)) : (f.signed ? buf.readInt32LE(o) : buf.readUInt32LE(o));
           row[f.name] = f.count > 1 ? Array.from({ length: f.count }, (_, k) => one(at + k * n)) : one(at);
+          if (f.string) row[f.name] = text(before + r, s.offsetBits >> 3, row[f.name]);
         } else if (s.type === 1 || s.type === 5) {
           const v = bits(rec, s.offsetBits, s.sizeBits);
           row[f.name] = Number(s.type === 5 ? BigInt.asIntN(s.sizeBits, v) : v);
@@ -288,6 +310,7 @@ function readTable(buf, layout, definition) {
       sectionRows.push(row);
     }
     for (const row of sectionRows) rows.push(row);
+    before += sec.records;
     for (const [newId, oldId] of copies) {
       const from = sectionRows.find((x) => x.ID === oldId);
       if (from) rows.push(Object.assign({}, from, { ID: newId }));
@@ -375,5 +398,38 @@ function encodePNG({ width, height, data }) {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr),
     chunk('IDAT', zlib.deflateSync(rows, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
+// A PNG file as RGBA pixels: 8-bit RGBA, not interlaced, like encodePNG's.
+function decodePNG(buf) {
+  let p = 8, width = 0, height = 0;
+  const idat = [];
+  while (p < buf.length) {
+    const len = buf.readUInt32BE(p), type = buf.toString('latin1', p + 4, p + 8);
+    if (type === 'IHDR') {
+      width = buf.readUInt32BE(p + 8);
+      height = buf.readUInt32BE(p + 12);
+      if (buf[p + 16] !== 8 || buf[p + 17] !== 6 || buf[p + 20] !== 0) throw new Error('Only 8-bit RGBA PNGs, not interlaced.');
+    }
+    if (type === 'IDAT') idat.push(buf.subarray(p + 8, p + 8 + len));
+    p += 12 + len;
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idat)), stride = width * 4, data = Buffer.alloc(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)];
+    for (let x = 0; x < stride; x++) {
+      const a = x >= 4 ? data[y * stride + x - 4] : 0, b = y ? data[(y - 1) * stride + x] : 0;
+      const c = x >= 4 && y ? data[(y - 1) * stride + x - 4] : 0;
+      let v = raw[y * (stride + 1) + 1 + x];
+      if (filter === 1) v += a;
+      else if (filter === 2) v += b;
+      else if (filter === 3) v += (a + b) >> 1;
+      else if (filter === 4) {
+        const pp = a + b - c, pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      data[y * stride + x] = v & 255;
+    }
+  }
+  return { width, height, data };
+}
 
-module.exports = { GameFiles, readTable, decodeBLP, encodePNG, jenkins96 };
+module.exports = { GameFiles, readTable, decodeBLP, encodePNG, decodePNG, jenkins96 };
