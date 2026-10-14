@@ -23,7 +23,9 @@ var JourneyModel = (function () {
   //    none below 10.
   // 8: the character sheet at the milestone's level-up ranked: item level,
   //    health, mana, attack power, spell power and crit.
-  var MODEL = 8;
+  // 9: emotes without the world map's own READ (counted before addon
+  //    0.6.12); zone changes without "Unknown" moments and their returns.
+  var MODEL = 9;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -487,7 +489,14 @@ var JourneyModel = (function () {
       if (!J.places[zone]) J.places[zone] = [];
       J.places[zone].push({ name: key.slice(at + 2), date: t > 0 ? dayOf(t) : null, level: t > 0 ? levelAt(t) : null });
     });
-    J.zoneChanges = path.length;
+    // Zone changes: each stop, but not "Unknown" (a moment just after a
+    // loading screen, recorded before addon 0.6.12) or a return to the zone
+    // you were in before it.
+    J.zoneChanges = path.reduce(function (seen, p) {
+      var z = named(p).zone;
+      if (typeof z === "string" && z && z !== "Unknown" && z !== seen.last) { seen.last = z; seen.n++; }
+      return seen;
+    }, { n: 0, last: null }).n;
     var travel = named(st.travel), falls = named(st.falls);
     J.travel = { groundYards: number(travel.ground), airYards: number(travel.taxi), flights: best(travel.flights, 349),
                  flightPaths: listOf(travel.flightPaths).length, hearths: best(travel.hearths, 353),
@@ -722,6 +731,18 @@ var JourneyModel = (function () {
   function littleOf(wr, played, deaths, pane) {
     var stats = Object.create(null);
     Object.keys(named(wr)).forEach(function (k) { stats[k] = wr[k]; });
+    // Before addon 0.6.12 the world map's own READ (it plays one each time
+    // it opens) was counted as an emote. An export from before then (without
+    // the addon's mapReadsRemoved) leaves READ out.
+    if (!named(wr).mapReadsRemoved) {
+      var byEmote = named(stats["W-303"]), read = number(own(byEmote, "READ"));
+      if (read > 0) {
+        var rest = Object.create(null);
+        Object.keys(byEmote).forEach(function (k) { if (k !== "READ") rest[k] = byEmote[k]; });
+        stats["W-303"] = rest;
+        stats["W-302"] = Math.max(0, number(stats["W-302"]) - read);
+      }
+    }
     // Counts the Statistics pane keeps too: the bigger of the two (the
     // addon misses some of Forever's loot rolls).
     Object.keys(LITTLE_PANE).forEach(function (id) {

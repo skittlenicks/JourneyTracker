@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.12
+
+- **Your emotes are your own:** opening the world map plays the /read emote, and Journey Tracker was counting every one, so for most players "read" was their favorite emote by far. Map reads aren't counted any more, and the ones counted so far are taken out.
+- **No more "Unknown" on your route:** right after a loading screen the game briefly gives no zone name, and that moment was saved as a stop. It isn't any more.
+
+### On the website
+
+- Journeys saved before this version leave the map's reads out of their emotes too, and loading screens no longer count toward the zone-hopping ranking.
+
 ## 0.6.11
 
 - **Told when there's an update:** Journey Tracker now says in chat when a newer version is out. Copies of the addon in your guild and group tell each other their version in hidden addon messages, never during a fight or in a dungeon, so you'll hear about an update once someone near you has it. It reminds you at each login until you update.

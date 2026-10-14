@@ -909,6 +909,16 @@ end
 local currentZone
 local function OnZoneChange()
     local z = Zone()
+    -- A moment with no zone name and no map to say (just after a loading
+    -- screen) isn't a place: you're still where you were. Look again a few
+    -- seconds on (at most five times, ns.zoneLooks).
+    if z == "Unknown" then
+        ns.zoneLooks = (ns.zoneLooks or 0) + 1
+        if ns.zoneLooks <= 5 and C_Timer and C_Timer.After then C_Timer.After(3, OnZoneChange) end
+        CheckDungeon()
+        return
+    end
+    ns.zoneLooks = 0
     if not db.zones[z] then                                   -- #63 first visit
         db.zones[z] = { first = time(), seconds = 0, firstLevel = Level() }
     end

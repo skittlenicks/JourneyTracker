@@ -394,9 +394,12 @@ local inspected = {}
 
 -- An emote you did (/dance, /hug...). Forever's client does them through
 -- C_ChatInfo.PerformEmote, an older one through DoEmote, which may just call
--- it: the same emote through both in the same moment is one.
+-- it: the same emote through both in the same moment is one. Not the ones
+-- the game's own interface plays, which say so with a third argument: the
+-- world map reads one each time it opens (PerformEmote("READ", nil, true)).
 local lastEmote, lastEmoteAt = nil, -1
-local function OnEmote(token)
+local function OnEmote(token, _, byInterface)
+    if byInterface == true then return end
     token = Str(Safe(token))
     if not token then return end
     token = token:upper()
@@ -613,6 +616,18 @@ local function Once(fn)
     end
 end
 ns.OnLoad(function()
+    -- Before 0.6.12 the map's READ (see OnEmote) was counted each time it
+    -- opened, nearly all the READ there is: it goes, once. The website reads
+    -- the flag to leave READ out of older exports.
+    if not Track.get("mapReadsRemoved") then
+        local by = Track.get("W-303")
+        local read = type(by) == "table" and tonumber(by.READ) or 0
+        if read > 0 then
+            by.READ = nil
+            Track.set("W-302", math.max(0, (tonumber(Track.get("W-302")) or 0) - read))
+        end
+        Track.set("mapReadsRemoved", true)
+    end
     local Sent = Once(function(msg, chatType, language, target) OnSent(msg, chatType, language, target) end)
     ns.Hook("SendChatMessage", Protect(Sent))
     ns.Hook("C_ChatInfo.SendChatMessage", Protect(Sent))
