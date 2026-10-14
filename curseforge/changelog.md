@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.13
+
+- **Compare with your guild:** a new Guild page (under Social) puts you next to your guildmates who run Journey Tracker, at each 10 levels: how long it took, in /played and in days, your fastest and slowest level, and your gold, item level, health, power, crit and professions when you got there. Guildmates show while they're online. Their names are only kept while you're logged in, never saved.
+- **Your choice:** it's on unless you turn off "Compare with your guild" in Options. Off, you don't share yours, but you still see guildmates who share theirs.
+
+### On the website
+
+- **Your guild chapter:** a shared journey now shows guildmates who saved theirs at the same level, side by side with yours, and where you placed on time to that level. Guildmates show by race, class and level, never by name. Your export carries a code for your guild, made so that it doesn't say which guild, and only from this version on.
+
 ## 0.6.12
 
 - **Your emotes are your own:** opening the world map plays the /read emote, and Journey Tracker was counting every one, so for most players "read" was their favorite emote by far. Map reads aren't counted any more, and the ones counted so far are taken out.

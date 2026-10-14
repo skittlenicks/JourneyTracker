@@ -42,11 +42,12 @@ async function supabase(path, options) {
   return response;
 }
 
-// A decoded export's profile (ranked) and summary, to save with it.
+// A decoded export's profile (ranked), summary and how it did at its
+// milestone for its guild's table (guildRow, share.js), to save with it.
 function analyze(payload) {
   const journey = JourneyModel.journeyFromExport(payload);
   return { ranked: JourneyModel.saved(JourneyModel.profileOf(journey, RANKINGS), RANKINGS),
-    summary: JourneyModel.summaryOf(journey) };
+    summary: JourneyModel.summaryOf(journey), guildRow: journey.guildRow };
 }
 function profileOf(payload) {
   return analyze(payload).ranked;
@@ -174,5 +175,28 @@ async function journeyOf(payload, characterId) {
   return { journey, ranks, picks: JourneyModel.picksFor(all, 9) };
 }
 
-module.exports = { supabase, analyze, profileOf, current, makeProfiles, placesOf, population, journeyOf, closest,
+// A journey's guildmates at its milestone (the guild code addon 0.6.13
+// exports, never a name): each other character's upload there closest to
+// it, as the rankings pick them, with how it did (payload.guildRow), its
+// class and race. Null outside a guild, below 10, or with nobody else there.
+async function guildOf(code, characterId, level) {
+  const milestone = JourneyModel.milestoneOf(level);
+  if (typeof code !== 'string' || !/^[0-9a-f]{16}$/.test(code) || milestone < 10) return null;
+  const [lo, hi] = levelsOf(milestone);
+  const rows = await (await supabase('uploads?select=id,character_id,level,exported_at,class,race,' +
+    'since:payload->ranked->since,model:payload->ranked->model,row:payload->guildRow' +
+    `&payload->>guild=eq.${code}&addon_version=not.in.(${TEST_VERSIONS.join(',')})` +
+    `&level=gte.${lo}&level=lte.${hi}&limit=500`)).json();
+  const by = new Map();
+  for (const r of rows) {
+    if (r.character_id === characterId || !r.row) continue;
+    if (!current(r.model)) r.since = undefined;
+    const best = by.get(r.character_id);
+    if (!best || closest(r, best) < 0) by.set(r.character_id, r);
+  }
+  const mates = [...by.values()].map((r) => ({ classToken: r.class, race: r.race, level: r.level, row: r.row }));
+  return mates.length ? { milestone, mates } : null;
+}
+
+module.exports = { supabase, analyze, profileOf, current, makeProfiles, placesOf, population, journeyOf, closest, guildOf,
   RANKINGS };

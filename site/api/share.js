@@ -20,7 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { uuidOfShareId, shareIdOf } = require('./decode');
-const { supabase, journeyOf } = require('./ranks');
+const { supabase, journeyOf, guildOf } = require('./ranks');
 const { levelOf, characterOf, savesOf, fillSummaries } = require('./character');
 const JourneyModel = require('./model');
 
@@ -83,6 +83,10 @@ async function characterPage(res, uuid, level) {
   const payload = got[0].payload || {};
   delete payload.ranked;    // the page works out its own numbers
   delete payload.summary;
+  delete payload.guildRow;
+  // The guild code finds guildmates here, and goes no further.
+  const guildCode = payload.guild;
+  delete payload.guild;
   // Shown to anyone, so not the character's own ID: the upload's, which the
   // page only checks is a UUID. And of the typed words only the top one,
   // all the page shows.
@@ -93,8 +97,9 @@ async function characterPage(res, uuid, level) {
     wrapped['W-292'] = top ? { [top[0]]: top[1] } : {};
   }
   const saves = savesOf(character, shown);
-  const [{ journey: J, ranks, picks }] = await Promise.all([journeyOf(payload, character.characterId),
-    fillSummaries(saves.filter((r) => r !== shown)).catch((err) => console.error('summaries failed:', err.message))]);
+  const [{ journey: J, ranks, picks }, , guild] = await Promise.all([journeyOf(payload, character.characterId),
+    fillSummaries(saves.filter((r) => r !== shown)).catch((err) => console.error('summaries failed:', err.message)),
+    guildOf(guildCode, character.characterId, shown.level).catch((err) => { console.error('guild failed:', err.message); return null; })]);
   // The saves to link between (none when this is the only one), each with
   // its summary when it has one.
   const journeys = saves.length < 2 ? [] : saves.map((r) => ({
@@ -125,7 +130,7 @@ async function characterPage(res, uuid, level) {
   };
   const cache = ranks.error ? RETRY : latest ? MOVING : SETTLED;
   return send(res, 200, cache, page({ id: shareIdOf(shown.id), link: character.link, path: where, latest,
-    payload, ranks, journeys }, meta));
+    payload, ranks, journeys, guild: guild || undefined }, meta));
 }
 
 // Two characters' latest journeys, side by side: each one's summary and

@@ -1162,6 +1162,12 @@ local function PageSocial(B, db)
     Block(B, "social")
 end
 
+-- #114 Your guild: you and the guildmates who share theirs, at each
+-- milestone (drawn by ns.DrawGuild, with the guild messages at the end).
+local function PageGuild(B, db)
+    if ns.DrawGuild then ns.DrawGuild(B, db) end
+end
+
 -- #109 Options: the milestone reminder, a screenshot at every ding, and
 -- (#111) the minimap button.
 local function PageOptions(B, db)
@@ -1170,9 +1176,9 @@ local function PageOptions(B, db)
     B:Check("Remind me to export at every 10 levels", ns.ExportReminderOn and ns.ExportReminderOn(),
         function(on) if ns.SetExportReminder then ns.SetExportReminder(on) end end)
     B:Note("When you reach level 10, 20, 30, 40, 50 or 60, a small window offers to export your journey right "
-        .. "away. On the website, a journey shared as you reach a milestone is ranked against other fresh ones, "
-        .. "and one shared long after only on the time it took. Your journey is saved at each of those levels "
-        .. "either way, so you can share it later from the Export window.")
+        .. "away. On the website, players are compared at the same level: a journey shared there and then is "
+        .. "ranked on everything, and one shared later only on what's known from when you got there. Your "
+        .. "journey is saved at each of those levels either way, so you can share it later from the Export window.")
     B:Gap(4)
     B:Button("Show the reminder", function() if ns.ShowMilestoneReminder then ns.ShowMilestoneReminder() end end)
     B:Heading("Screenshots")
@@ -1183,6 +1189,12 @@ local function PageOptions(B, db)
     B:Check("Show the button on the minimap", ns.MinimapButtonOn and ns.MinimapButtonOn(),
         function(on) if ns.SetMinimapButton then ns.SetMinimapButton(on) end end)
     B:Note("Without it, /journey or /jt opens this window, and /journey minimap brings the button back.")
+    B:Heading("Guild")                                                       -- #114, #115
+    B:Check("Compare with your guild", ns.GuildShareOn and ns.GuildShareOn(),
+        function(on) if ns.SetGuildShare then ns.SetGuildShare(on) end end)
+    B:Note("Shares how you did at each 10 levels (time, gold, gear and professions) with guildmates who run "
+        .. "Journey Tracker, on the Guild page, and puts a guild code in your exports so the website can compare "
+        .. "you with them. The code doesn't say which guild. Guildmates' names are never saved.")
 end
 
 local SECTIONS = {
@@ -1203,7 +1215,7 @@ local SECTIONS = {
     { name = "Skills & Professions", pages = {
         { "Skills", PageSkills }, { "Professions & Spells", PageProfs },
         { "Gathering", PageGathering } } },
-    { name = "Social", pages = { { "Social", PageSocial } } },
+    { name = "Social", pages = { { "Social", PageSocial }, { "Guild", PageGuild } } },
 }
 -- Pages opened by a button of their own rather than from the list: Options
 -- (the Options button at the bottom, /journey options, the reminder's link).
@@ -1761,9 +1773,12 @@ local function GroupChannel()
     return ns.Call("IsInRaid", LE_PARTY_CATEGORY_HOME) == true and "RAID" or "PARTY"
 end
 
-local function OnAddonMessage(prefix, text, channel)
+local OnGuildMessage   -- the guild comparison's (#114), below
+local function OnAddonMessage(prefix, text, channel, sender)
     prefix, text, channel = ns.Str(ns.Safe(prefix)), ns.Str(ns.Safe(text)), ns.Str(ns.Safe(channel))
-    if prefix ~= VERSION_PREFIX or not text or text:sub(1, #VERSION_TAG) ~= VERSION_TAG or not ns.GetDB() then return end
+    if prefix ~= VERSION_PREFIX or not text or not ns.GetDB() then return end
+    if text:sub(1, 3) == "G1:" and OnGuildMessage then return OnGuildMessage(text:sub(4), channel, sender) end
+    if text:sub(1, #VERSION_TAG) ~= VERSION_TAG then return end
     local theirs = text:sub(#VERSION_TAG + 1)
     local order = CompareVersions(theirs, ns.VERSION)
     if not order then return end
@@ -1814,3 +1829,284 @@ end)
 ns.Listen("CHAT_MSG_ADDON", ns.Protect(OnAddonMessage))
 ns.Listen("PLAYER_ENTERING_WORLD", ns.Protect(OnLoginForVersion))
 ns.Listen("GROUP_ROSTER_UPDATE", ns.Protect(OnRosterForVersion))
+
+---------------------------------------------------------------------------
+-- #114 Your guild: guildmates who run Journey Tracker share how they did at
+-- each milestone (10, 20 ... 60) in hidden addon messages to the guild: the
+-- /played and days it took, their fastest and slowest level before it, and
+-- gold on hand, character sheet and profession skill as they reached it.
+-- Asked for when the Guild page opens (everyone online answers, so each copy
+-- hears the others), and told as each milestone is reached. Names are kept
+-- only while you're online: nothing about a guildmate is saved. Not sent in
+-- a fight or an instance. Off in Options (db.ui.guildShare = false): yours
+-- isn't shared, and exports carry no guild code (#115).
+--
+-- Messages (prefix JourneyTracker): "G1:?" asks; "G1:H:<class>:<race>:<level>"
+-- says who; "G1:R:<milestone>:<played>:<days>:<fastest>:<slowest>:<gold>:
+-- <item level>:<health>:<power>:<a|s>:<crit>:<skill line>=<skill>,..." one
+-- milestone, an empty field for what isn't known.
+---------------------------------------------------------------------------
+
+local GUILD_TAG = "G1:"
+local ASK_GAP = 120       -- seconds between two asks of yours
+local ANSWER_GAP = 60     -- seconds between two answers of yours
+local SEND_EVERY = 0.3    -- seconds between your messages, one after another
+local MAX_GUILDMATES = 200
+local guildmates, guildmateCount = {}, 0   -- [name] = { class, race, level, at = { [milestone] = row } }
+local askedAt, answeredAt, outbox, sending = -1000, -1000, {}, false
+-- Professions by skill line, the same in every language (#91), shortened
+-- for the Guild page.
+local SKILL_LINES = { [171] = "Alch", [164] = "Smith", [333] = "Ench", [202] = "Eng", [182] = "Herb",
+    [165] = "Leather", [186] = "Mining", [393] = "Skin", [197] = "Tailor", [185] = "Cook", [129] = "Aid",
+    [356] = "Fish" }
+
+function ns.GuildShareOn()
+    local db = ns.GetDB()
+    return not (db and db.ui and db.ui.guildShare == false)
+end
+function ns.SetGuildShare(on)
+    if not ns.GetDB() then return end
+    if on then UIState().guildShare = nil else UIState().guildShare = false end
+end
+
+local function InGuild() return ns.Call("IsInGuild") == true end
+
+-- #115 the guild code in exports: from your guild's name and realm, so the
+-- website can line up guildmates without either being in the export. Two
+-- 32-bit polynomial hashes, as 16 hex digits (in halves: Lua 5.1's %x
+-- stops at 32-bit signed). Nil outside a guild, or with sharing off.
+local function Hex(n) return string.format("%04x%04x", math.floor(n / 65536), math.floor(n % 65536)) end
+function ns.GuildCode()
+    if not ns.GuildShareOn() then return nil end
+    local guild = ns.Str(ns.Safe((ns.Call("GetGuildInfo", "player"))))
+    local realm = ns.Str(ns.Call("GetRealmName"))
+    if not guild or not realm then return nil end
+    local text, a, b = "JourneyTracker guild|" .. realm .. "|" .. guild, 0, 7
+    for i = 1, #text do
+        local c = text:byte(i)
+        a = (a * 31 + c) % 4294967296
+        b = (b * 131 + c) % 4294967291
+    end
+    return Hex(a) .. Hex(b)
+end
+
+-- Yours at milestone `m`, from the saved data: nil before you reached it.
+local function MyRowAt(db, m)
+    local ding = db.dings and db.dings[m]
+    if type(ding) ~= "table" then return nil end
+    local row = { played = ns.Num(ding.played), gold = ns.Num(ding.gold), profs = {} }
+    -- Days from your first day with the tracker, when it saw you from level 1-2.
+    local start = db.path and db.path[1] and tonumber(db.path[1].level)
+    if start and start <= 2 and ns.Num(ding.t) and (db.firstSeen or 0) > 0 then
+        row.days = math.max(1, math.ceil((ding.t - db.firstSeen) / 86400))
+    end
+    -- The fastest and slowest level before it, by /played.
+    for L = 1, m - 1 do
+        local took = db.levels and type(db.levels[L]) == "table" and ns.Num(db.levels[L].played)
+        if took and took > 0 and took <= 30 * 86400 then
+            if not row.fast or took < row.fast then row.fast = took end
+            if not row.slow or took > row.slow then row.slow = took end
+        end
+    end
+    -- The character sheet a few seconds after the ding (W-383..W-391).
+    local sheet = type(ding.sheet) == "table" and ding.sheet or {}
+    row.ilvl, row.health = ns.Num(sheet.ilvl), ns.Num(sheet.health)
+    local attack, spell = math.max(ns.Num(sheet.ap) or 0, ns.Num(sheet.rap) or 0), ns.Num(sheet.sp) or 0
+    if spell > attack then row.power, row.powerKind = spell, "s" elseif attack > 0 then row.power, row.powerKind = attack, "a" end
+    local crit = math.max(ns.Num(sheet.crit) or 0, ns.Num(sheet.spellCrit) or 0, ns.Num(sheet.rangedCrit) or 0)
+    if crit > 0 then row.crit = crit end
+    -- Each profession's skill as you got there: the most it had risen to.
+    for name, P in pairs(db.professions or {}) do
+        local line = type(P) == "table" and ns.Num(P.skillLine)
+        local S = line and SKILL_LINES[line] and db.skills and db.skills[name]
+        local best
+        for _, h in ipairs(S and S.history or {}) do
+            if ns.Num(h.rank) and (ns.Num(h.t) or 0) <= (ns.Num(ding.t) or 0) and (not best or h.rank > best) then best = h.rank end
+        end
+        if best then row.profs[line] = best end
+    end
+    return row
+end
+
+local function Field(v) return v ~= nil and tostring(v) or "" end
+local function EncodeRow(m, r)
+    local profs = {}
+    for line, rank in pairs(r.profs or {}) do profs[#profs + 1] = line .. "=" .. rank end
+    table.sort(profs)
+    return table.concat({ "R", m, Field(r.played), Field(r.days), Field(r.fast), Field(r.slow), Field(r.gold),
+        Field(r.ilvl), Field(r.health), Field(r.power), r.powerKind or "", Field(r.crit), table.concat(profs, ",") }, ":")
+end
+
+-- A message's fields, empty ones kept.
+local function Fields(body)
+    local out = {}
+    for f in (body .. ":"):gmatch("([^:]*):") do out[#out + 1] = f end
+    return out
+end
+-- A number from a guildmate, if it's one a game could give (0 to `max`).
+local function Count(text, max)
+    local n = tonumber(text)
+    if n and n >= 0 and n <= max then return n end
+end
+local function DecodeRow(f)
+    local m = Count(f[2], ns.MAX_LEVEL)
+    if not m or m < 10 or m % 10 ~= 0 then return nil end
+    local row = { played = Count(f[3], 365 * 86400), days = Count(f[4], 3650), fast = Count(f[5], 30 * 86400),
+        slow = Count(f[6], 30 * 86400), gold = Count(f[7], 1e10), ilvl = Count(f[8], 1000), health = Count(f[9], 1e6),
+        power = Count(f[10], 1e5), powerKind = (f[11] == "s" or f[11] == "a") and f[11] or nil, crit = Count(f[12], 100),
+        profs = {} }
+    for lineText, rankText in (f[13] or ""):gmatch("(%d+)=(%d+)") do
+        local line, rank = tonumber(lineText), Count(rankText, 1000)
+        if SKILL_LINES[line] and rank then row.profs[line] = rank end
+    end
+    -- (a row with nothing readable in it is no row)
+    if not (row.played or row.days or row.gold or row.ilvl or row.health or row.power or row.crit or next(row.profs)) then
+        return nil
+    end
+    return m, row
+end
+
+-- Your messages, one at a time; a fight or an instance drops the rest
+-- (asking again later sends them again).
+local function SendNext()
+    local text = table.remove(outbox, 1)
+    if not text then sending = false return end
+    if ns.InCombat() or ns.Call("IsInInstance") == true or not InGuild() then
+        outbox, sending = {}, false
+        return
+    end
+    ns.Call("C_ChatInfo.SendAddonMessage", VERSION_PREFIX, GUILD_TAG .. text, "GUILD")
+    if C_Timer and C_Timer.After then C_Timer.After(SEND_EVERY, ns.Protect(SendNext)) else SendNext() end
+end
+local function Queue(text)
+    table.insert(outbox, text)
+    if not sending then
+        sending = true
+        SendNext()
+    end
+end
+
+-- Yours: who you are and each milestone you've reached (or just `only`).
+local function ShareMine(only)
+    local db = ns.GetDB()
+    if not db or not ns.GuildShareOn() or not InGuild() then return end
+    local _, class = ns.Call("UnitClass", "player")
+    local _, race = ns.Call("UnitRace", "player")
+    Queue(table.concat({ "H", ns.Str(class) or "", ns.Str(race) or "", ns.Level() }, ":"))
+    for m = 10, ns.MAX_LEVEL, 10 do
+        local row = (not only or only == m) and MyRowAt(db, m)
+        if row then Queue(EncodeRow(m, row)) end
+    end
+end
+
+-- Ask the guild (and share yours with it), at most every ASK_GAP seconds.
+local function AskGuild(force)
+    if not InGuild() or (not force and GetTime() - askedAt < ASK_GAP) then return end
+    askedAt = GetTime()
+    Queue("?")
+    ShareMine()
+end
+
+local function RefreshGuildPage()
+    if frame and frame:IsShown() and UIState().page == "Guild" then RenderPage() end
+end
+
+local function IsMe(name)
+    local me = ns.Str(ns.Call("UnitName", "player"))
+    return me ~= nil and (name == me or name:match("^(.-)%-") == me)
+end
+
+OnGuildMessage = function(body, channel, sender)
+    sender = ns.Str(ns.Safe(sender))
+    if channel ~= "GUILD" or not sender or IsMe(sender) then return end
+    if body == "?" then
+        -- Asked: answer a few seconds on, once a minute at most.
+        if ns.GuildShareOn() and GetTime() - answeredAt > ANSWER_GAP then
+            answeredAt = GetTime()
+            if C_Timer and C_Timer.After then C_Timer.After(math.random(1, 5), ns.Protect(function() ShareMine() end)) end
+        end
+        return
+    end
+    local f = Fields(body)
+    local mate = guildmates[sender]
+    if not mate then
+        if guildmateCount >= MAX_GUILDMATES then return end
+        mate = { at = {} }
+        guildmates[sender], guildmateCount = mate, guildmateCount + 1
+    end
+    if f[1] == "H" then
+        mate.class, mate.race, mate.level = f[2] ~= "" and f[2] or nil, f[3] ~= "" and f[3] or nil, Count(f[4], ns.MAX_LEVEL)
+    elseif f[1] == "R" then
+        local m, row = DecodeRow(f)
+        if m then mate.at[m] = row end
+    end
+    RefreshGuildPage()
+end
+
+-- At a milestone (after its /played and sheet are in): tell the guild.
+ns.Listen("PLAYER_LEVEL_UP", ns.Protect(function(level)
+    level = ns.Num(ns.Safe(level))
+    if level and level >= 10 and level % 10 == 0 and C_Timer and C_Timer.After then
+        C_Timer.After(30, ns.Protect(function() ShareMine(level) end))
+    end
+end))
+
+-- The Guild page: a table at each milestone, fastest first.
+local GUILD_COLS = { 92, 62, 36, 54, 54, 70, 36, 50, 60, 40, 116 }
+local function Professions(profs)
+    local list = {}
+    for line, rank in pairs(profs or {}) do list[#list + 1] = { SKILL_LINES[line], rank } end
+    table.sort(list, function(a, b) return a[2] > b[2] end)
+    for i, p in ipairs(list) do list[i] = p[1] .. " " .. p[2] end
+    return #list > 0 and table.concat(list, ", ") or "-"
+end
+local function Power(r)
+    if not r.power then return "-" end
+    return string.format("%d %s", math.floor(r.power + 0.5), r.powerKind == "s" and "SP" or "AP")
+end
+function ns.DrawGuild(B, db)
+    B:Title("Your Guild")
+    if not InGuild() then
+        B:Note("You're not in a guild. Join one and this page compares your journey with guildmates who run Journey Tracker.")
+        return
+    end
+    AskGuild()
+    if not ns.GuildShareOn() then
+        B:Note("You're not sharing yours (it's off in Options), but guildmates who share theirs show here.")
+    end
+    local shown = false
+    for m = 10, ns.MAX_LEVEL, 10 do
+        local rows = {}
+        for name, mate in pairs(guildmates) do
+            if mate.at[m] then rows[#rows + 1] = { name = name:match("^(.-)%-") or name, row = mate.at[m] } end
+        end
+        if #rows > 0 then
+            local mine = MyRowAt(db, m)
+            if mine then rows[#rows + 1] = { name = "You", you = true, row = mine } end
+            table.sort(rows, function(a, b)
+                local x, y = a.row.played or math.huge, b.row.played or math.huge
+                if x ~= y then return x < y end
+                return a.name < b.name
+            end)
+            B:Heading("Level " .. m)
+            B:Cols({ "", "Took", "Days", "Fastest", "Slowest", "Gold", "iLvl", "Health", "Power", "Crit", "Professions" },
+                GUILD_COLS, INK_DARK)
+            for _, x in ipairs(rows) do
+                local r = x.row
+                B:Cols({ x.name, Dur(r.played), r.days and tostring(r.days) or "-", Dur(r.fast), Dur(r.slow),
+                    r.gold and Money(r.gold) or "-", r.ilvl and string.format("%.1f", r.ilvl) or "-",
+                    r.health and tostring(r.health) or "-", Power(r), r.crit and string.format("%.1f%%", r.crit) or "-",
+                    Professions(r.profs) }, GUILD_COLS, x.you and BAR_BLUE or nil)
+            end
+            shown = true
+        end
+    end
+    if not shown then
+        B:Note("No guildmates have answered yet. They show here when they're online and run Journey Tracker "
+            .. "0.6.13 or later, at each 10 levels you or they have reached.")
+    end
+    B:Gap(6)
+    B:Footnote("Each milestone as it was when they got there: the /played and days it took, the fastest and slowest "
+        .. "level before it, and gold, gear and professions at the level-up. Names are only kept while you're online.")
+    B:Button("Ask the guild again", function() AskGuild(true) end)
+end

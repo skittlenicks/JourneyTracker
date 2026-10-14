@@ -300,6 +300,14 @@ kbd {
   color: var(--ink-soft);
 }
 .tens tr.now td { color: var(--gold-pale); }
+/* Your guild: you and your guildmates at the milestone, fastest first */
+.tens.guild th:nth-child(2), .tens.guild td:nth-child(2) { text-align: right; }
+.tens.guild td:first-child { font-family: var(--font-body); font-size: inherit; color: var(--ink); }
+/* (its tables scroll inside their parts, not the page) */
+.guild-part { min-width: 0; }
+.tens.guild .skills { text-align: left; white-space: normal; min-width: 9rem; }
+.tens.guild tr.you td { color: var(--gold-pale); }
+.tens.guild tr.you td:first-child { font-family: var(--font-display); font-size: var(--step-1); color: var(--gold); }
 
 .stats {
   margin: 0;
@@ -953,6 +961,43 @@ kbd {
         </table>
       </div>
       <p class="footnote" id="tens-note"></p>
+    </div>
+  </section>
+
+  <section class="chapter" id="chapter-guild" aria-labelledby="guild-title" hidden>
+    <div class="chapter-head">
+      <p class="eyebrow">Your guild</p>
+      <h2 id="guild-title"></h2>
+      <p id="guild-lede"></p>
+    </div>
+    <div class="chapter-body">
+      <div class="guild-part">
+        <p class="label">Leveling pace</p>
+        <div class="tens-wrap">
+          <table class="tens guild">
+            <thead>
+              <tr><th scope="col">Who</th><th scope="col">Took</th><th scope="col">Days</th><th scope="col">Fastest level</th>
+                <th scope="col">Slowest level</th></tr>
+            </thead>
+            <tbody id="guild-pace"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="guild-part">
+        <p class="label">Gold, gear and professions</p>
+        <div class="tens-wrap">
+          <table class="tens guild">
+            <thead>
+              <tr><th scope="col">Who</th><th scope="col">Gold</th><th scope="col">iLvl</th><th scope="col">Health</th>
+                <th scope="col">Power</th><th scope="col">Crit</th><th scope="col" class="skills">Professions</th></tr>
+            </thead>
+            <tbody id="guild-gear"></tbody>
+          </table>
+        </div>
+      </div>
+      <p class="footnote">No names here. The addon sends your guild as a code, so guildmates show by race and class; its
+        Guild page in the game has their names. A guildmate shows up here once they save a journey from addon 0.6.13 or
+        later.</p>
     </div>
   </section>
 
@@ -2073,6 +2118,62 @@ kbd {
       ", when the tracker started.";
     hide("tens-note", fromStart);
     hide("chapter-tens", tens.length < 2);
+  });
+
+  // Your guild (a shared page's guild, from site/api/share.js): you and each
+  // guildmate who saved a journey at your milestone, each as they were when
+  // they reached it, fastest first. Guildmates come by race, class and level,
+  // never by name.
+  draw("chapter-guild", function () {
+    var guild = shared && shared.guild, you = S.guildRow;
+    if (!guild || !you || number(guild.milestone) !== milestone || !Array.isArray(guild.mates) || !guild.mates.length) return;
+    function some(v) { return typeof v === "number" && isFinite(v) && v > 0 ? v : null; }
+    function tenths(v) { return String(Math.round(v * 10) / 10); }
+    function rowOf(r, label, level, mine) {
+      r = named(r);
+      var power = some(r.power), kind = r.powerKind === "spell" ? "spell" : r.powerKind === "attack" ? "attack" : "";
+      var skills = topRows(named(r.professions), 4).filter(function (p) { return some(p[1]); });
+      return { mine: mine, label: label, level: some(level), played: some(r.played), days: some(r.days),
+        fast: some(r.fast), slow: some(r.slow), gold: typeof r.gold === "number" && isFinite(r.gold) && r.gold >= 0 ? r.gold : null,
+        ilvl: some(r.ilvl), health: some(r.health), power: power, kind: power && kind, crit: some(r.crit),
+        skills: skills.map(function (p) { return p[0] + " " + Math.round(p[1]); }).join(", ") };
+    }
+    var rows = [rowOf(you, "You", S.level, true)].concat(guild.mates.map(function (g) {
+      g = named(g);
+      var token = String(g.classToken || ""), race = String(g.race || "");
+      var who = (own(M.RACE_NAMES, race) || race.replace(/([a-z])([A-Z])/g, "$1 $2")) + " " +
+        (own(M.CLASS_NAMES, token) || capFirst(token.toLowerCase()));
+      return rowOf(g.row, who.trim() || "A guildmate", g.level, false);
+    }));
+    rows.sort(function (a, b) {
+      if (!a.played !== !b.played) return a.played ? -1 : 1;
+      return (a.played || 0) - (b.played || 0) || Number(b.mine) - Number(a.mine);
+    });
+    // Your place on time to the milestone, among those it's known for.
+    var timed = rows.filter(function (r) { return r.played; }), mine = rows.filter(function (r) { return r.mine; })[0];
+    var place = mine.played ? 1 + timed.filter(function (r) { return r.played < mine.played; }).length : 0;
+    var mates = rows.length - 1;
+    $("guild-title").textContent = place && timed.length >= 2 ?
+      (place === 1 ? "Fastest" : M.ordinal(place) + " fastest") + " to " + milestone + " of " + timed.length + " in your guild." :
+      "You and " + mates + " guildmate" + (mates === 1 ? "" : "s") + " at level " + milestone + ".";
+    $("guild-lede").textContent = "Guildmates who saved a journey at level " + (milestone >= 60 ? "60" : milestone + " to " +
+      (milestone + 9)) + ", each as they were when they reached " + milestone + ".";
+    function cell(v, show, kind) {
+      return "<td" + (kind ? ' class="' + kind + '"' : "") + ">" + (v === null || v === undefined || v === "" ? "–" : show(v)) + "</td>";
+    }
+    function table(id, cells) {
+      $(id).innerHTML = rows.map(function (r) {
+        return "<tr" + (r.mine ? ' class="you"' : "") + "><td>" + esc(r.label) +
+          (r.level ? "<small>level " + Math.round(r.level) + "</small>" : "") + "</td>" + cells(r) + "</tr>";
+      }).join("");
+    }
+    table("guild-pace", function (r) { return cell(r.played, dur) + cell(r.days, Math.round) + cell(r.fast, dur) + cell(r.slow, dur); });
+    table("guild-gear", function (r) {
+      return cell(r.gold, coins) + cell(r.ilvl, tenths) + cell(r.health, num) +
+        cell(r.power, function (v) { return num(v) + (r.kind ? "<small>" + r.kind + "</small>" : ""); }) +
+        cell(r.crit, function (v) { return tenths(v) + "%"; }) + cell(r.skills, esc, "skills");
+    });
+    hide("chapter-guild", false);
   });
 
   function drawRoad() {

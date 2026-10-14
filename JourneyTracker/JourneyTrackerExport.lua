@@ -19,7 +19,8 @@
 -- The summary is the saved stats, not a raw event log, and leaves out
 -- anything that could identify a person: the character's name and realm,
 -- other players' names (never stored), chat text (never stored) and the
--- hashed IDs used to count group members.
+-- hashed IDs used to count group members. Your guild goes out only as a
+-- code (#115), never its name.
 
 local ADDON_NAME, ns = ...
 local Serialize = ns.Serialize
@@ -148,6 +149,8 @@ local function BuildSummary(db, milestone)
         schemaVersion = db.schemaVersion,
         exportedAt = time(),
         milestone = milestone,
+        -- #115 your guild as a code (not its name), for comparing on the website
+        guild = ns.GuildCode and ns.GuildCode() or nil,
         sinceMilestone = SinceMilestone(db, ns.Level(), played > 0 and played or nil),
         character = {
             class = ns.Str(classToken) or (db.char and db.char.class),

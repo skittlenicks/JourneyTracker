@@ -25,7 +25,9 @@ var JourneyModel = (function () {
   //    health, mana, attack power, spell power and crit.
   // 9: emotes without the world map's own READ (counted before addon
   //    0.6.12); zone changes without "Unknown" moments and their returns.
-  var MODEL = 9;
+  // 10: how the journey did at its milestone, for its guild's table
+  //    (guildRow, addon 0.6.13's guild code).
+  var MODEL = 10;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -600,6 +602,12 @@ var JourneyModel = (function () {
     J.jumps = number(social.jumps);
     // Everything else the wrapped stats hold, for the page's chapters
     J.little = littleOf(wr, J.played, deaths, pane);
+    // Its guild, as the code addon 0.6.13 exports (never the guild's name),
+    // and how it did at its milestone, for comparing with guildmates there:
+    // the /played and days it took, its fastest and slowest level before
+    // it, and gold, character sheet and profession skill at the level-up.
+    J.guild = typeof data.guild === "string" && /^[0-9a-f]{16}$/.test(data.guild) ? data.guild : undefined;
+    J.guildRow = J.milestone >= 10 ? guildRowOf(J, reach, named(st.professions), named(st.skills)) : undefined;
     return J;
   }
 
@@ -1071,6 +1079,32 @@ var JourneyModel = (function () {
 
   // A number from the character sheet, if it read one (0 is none).
   function sheetValue(v) { return typeof v === "number" && isFinite(v) && v > 0 ? v : undefined; }
+
+  // A journey at its milestone (m), for its guild's table (journeyFromExport's
+  // J.guildRow): what the addon's Guild page shows of it, the same way.
+  // `reach` is the milestone's level-up record; a profession's skill there
+  // is the most it had risen to before (the export's rankByLevel).
+  function guildRowOf(J, reach, professions, skills) {
+    var m = J.milestone, row = { milestone: m, played: J.playedTo, days: J.complete ? J.daysTo : undefined };
+    J.perLevel.slice(0, m - 1).forEach(function (sec) {
+      if (!(sec > 0)) return;
+      if (!row.fast || sec < row.fast) row.fast = sec;
+      if (!row.slow || sec > row.slow) row.slow = sec;
+    });
+    row.gold = typeof reach.gold === "number" && reach.gold >= 0 ? reach.gold : undefined;
+    var s = J.sheetAt || {}, attack = Math.max(number(s.ap), number(s.rap)), spell = number(s.sp);
+    row.ilvl = sheetValue(s.ilvl);
+    row.health = sheetValue(s.health);
+    if (spell > attack) { row.power = spell; row.powerKind = "spell"; } else if (attack > 0) { row.power = attack; row.powerKind = "attack"; }
+    row.crit = sheetValue(Math.max(number(s.crit), number(s.spellCrit), number(s.rangedCrit)));
+    row.professions = {};
+    Object.keys(professions).forEach(function (name) {
+      var byLevel = numbered(named(own(skills, name)).rankByLevel), best = 0;
+      Object.keys(byLevel).forEach(function (l) { if (Number(l) < m && number(byLevel[l]) > best) best = number(byLevel[l]); });
+      if (best > 0) row.professions[professionName(name, professions[name])] = best;
+    });
+    return row;
+  }
 
   // A journey's values as they were at its milestone (m), from `all` (its
   // values now): what was settled by then (the rankings marked `fixed`: the

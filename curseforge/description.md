@@ -95,6 +95,7 @@ Journey Tracker records your character's road from level 1 to 60 in WoW Forever:
 
 - Time grouped vs solo, groups joined, and how many different players you've grouped with (a count, never names)
 - The level you joined a guild, and the "gz" your dings got
+- Your guild: the Guild page puts you next to guildmates who run Journey Tracker at every 10 levels: the time and days it took, your fastest and slowest level, and your gold, gear and professions when you got there
 - Chat messages sent by channel and your most-typed words (counts only), emotes used and received, trades and friends added
 - Loot rolls: Need, Greed and Pass, rolls won and lost, and your highest and lowest roll
 - Reputation with every faction, and the level you reached each standing
@@ -118,6 +119,7 @@ Paste an export at [www.journeytracker.dev](https://www.journeytracker.dev) and 
 - **A Wrapped-style recap:** your route across Azeroth on the game's own world map, a heat map of where you spent your time, every death on the map, your time at every level, and chapters for quests, gold, gear, PvP, dungeons and more
 - **Rankings:** where you place among everyone's saved journeys at your milestone, among all players or just your class, race, faction or realm type
 - **One link per character:** paste a newer export as you level and the same link shows it, with what changed since your last save
+- **Your guild:** guildmates who saved their journey at the same level, side by side with yours, by race and class (never by name)
 - **Compare:** your journey side by side with a friend's: the time each of you took to every ten levels, kills, deaths, quests and where each of you ranks
 - **A share card:** posting your link on Discord or elsewhere shows a card with your level, /played and best rankings
 
@@ -126,6 +128,7 @@ Every 10 levels, the addon also saves your journey as it was when you got there,
 ## Privacy
 
 - Exports never include your character's name or realm, other players' names, or chat.
+- To compare you with your guild, your export carries a code for your guild that doesn't say which guild, and the addon shares how you did at each 10 levels with guildmates who run it, in the game's hidden addon messages. Guildmates' names are only kept while you're logged in. Turn off "Compare with your guild" in Options to stop both.
 - Other players' names are never saved, and chat is never stored: the addon counts the messages you send and the words you type most (not in whispers, and never a name), nothing else.
 - Nothing leaves the game by itself. Addons can't reach the internet or the rest of your computer, so your data stays in your saved variables until you choose to share an export.
 - Pasting an export on the website saves it so it counts toward the rankings. Anyone you give your link to can see your recap, but never your name or realm.
