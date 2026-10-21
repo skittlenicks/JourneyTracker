@@ -2,12 +2,14 @@
 
 ## 0.6.13
 
-- **Compare with your guild:** a new Guild page (under Social) puts you next to your guildmates who run Journey Tracker, at each 10 levels: how long it took, in /played and in days, your fastest and slowest level, and your gold, item level, health, power, crit and professions when you got there. Guildmates show while they're online. Their names are only kept while you're logged in, never saved.
-- **Your choice:** it's on unless you turn off "Compare with your guild" in Options. Off, you don't share yours, but you still see guildmates who share theirs.
+- **Compare with your guild:** the new Guild page, under Social, puts you side by side with guildmates who run Journey Tracker 0.6.13 or later, at every 10 levels you or they have reached. For each one it shows how long it took to get there in /played and in days, the fastest and slowest level on the way, and gold, item level, health, attack or spell power, crit and professions at the level-up. Guildmates show up while they're online. Press **Ask the guild again** to check for more.
+- **Names stay in the game:** the page shows guildmates by name, but names are only kept until you log out. They're never saved or exported.
+- **Your choice:** sharing is on by default. Turn off **Compare with your guild** in Options and you stop sharing yours, but you still see guildmates who share theirs.
 
 ### On the website
 
-- **Your guild chapter:** a shared journey now shows guildmates who saved theirs at the same level, side by side with yours, and where you placed on time to that level. Guildmates show by race, class and level, never by name. Your export carries a code for your guild, made so that it doesn't say which guild, and only from this version on.
+- **Your guild chapter:** a shared journey now shows guildmates who saved theirs at the same milestone, side by side with yours, and where you placed on time to get there. Like the rankings, a level 34 journey is compared at level 30. Guildmates show by race, class and level, never by name, once they've saved a journey from 0.6.13 on.
+- To find your guildmates, exports from this version carry a code for your guild instead of its name. Turning off **Compare with your guild** leaves the code out.
 
 ## 0.6.12
 
