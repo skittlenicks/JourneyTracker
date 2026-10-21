@@ -95,7 +95,7 @@ Journey Tracker records your character's road from level 1 to 60 in WoW Forever:
 
 - Time grouped vs solo, groups joined, and how many different players you've grouped with (a count, never names)
 - The level you joined a guild, and the "gz" your dings got
-- Your guild: the Guild page puts you next to guildmates who run Journey Tracker at every 10 levels: the time and days it took, your fastest and slowest level, and your gold, gear and professions when you got there
+- Your guild: the Guild tab puts you next to guildmates who run Journey Tracker at every 10 levels: the time and days it took, your fastest and slowest level, and your gold, gear and professions when you got there
 - Chat messages sent by channel and your most-typed words (counts only), emotes used and received, trades and friends added
 - Loot rolls: Need, Greed and Pass, rolls won and lost, and your highest and lowest roll
 - Reputation with every faction, and the level you reached each standing
@@ -137,7 +137,7 @@ Every 10 levels, the addon also saves your journey as it was when you got there,
 
 - Stats are saved per character and kept when you update the addon.
 - Tracking starts when you install it. On a character that's already leveling, everything from then on is recorded, and the Statistics pane fills in the lifetime totals.
-- **Options**, the button at the bottom of the window, turns off the export pop-up, the screenshot at every ding and the minimap button.
+- **Options**, the last tab at the bottom of the window, turns off the export pop-up, the screenshot at every ding, the minimap button and sharing with your guild.
 - **/journey backup** saves a second copy of your data, just in case.
 - On the website, each character can be saved once every 30 minutes. The journeys saved every 10 levels always go through.
 - This is an early version, made during the WoW Forever beta. Some stats are still being checked in game, so bug reports and ideas are very welcome.

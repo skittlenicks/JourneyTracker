@@ -5,8 +5,8 @@
 --   * left: dark list of collapsible categories (quest log style)
 --   * right: parchment page with dark ink text, gold-free headings, and
 --     blue skill-style bars
---   * red buttons along the bottom (Export, Print to Chat, Options, Close), tabs
---     underneath (Journey / Levels)
+--   * red buttons along the bottom (Export, Print to Chat, Close), tabs
+--     underneath (Journey / Levels / Guild / Options)
 --
 -- The UI only reads JourneyTrackerDB, which holds plain (non-secret) values,
 -- so nothing here touches restricted data. Templates and textures are tried
@@ -1193,7 +1193,7 @@ local function PageOptions(B, db)
     B:Check("Compare with your guild", ns.GuildShareOn and ns.GuildShareOn(),
         function(on) if ns.SetGuildShare then ns.SetGuildShare(on) end end)
     B:Note("Shares how you did at each 10 levels (time, gold, gear and professions) with guildmates who run "
-        .. "Journey Tracker, on the Guild page, and puts a guild code in your exports so the website can compare "
+        .. "Journey Tracker, on the Guild tab, and puts a guild code in your exports so the website can compare "
         .. "you with them. The code doesn't say which guild. Guildmates' names are never saved.")
 end
 
@@ -1215,11 +1215,8 @@ local SECTIONS = {
     { name = "Skills & Professions", pages = {
         { "Skills", PageSkills }, { "Professions & Spells", PageProfs },
         { "Gathering", PageGathering } } },
-    { name = "Social", pages = { { "Social", PageSocial }, { "Guild", PageGuild } } },
+    { name = "Social", pages = { { "Social", PageSocial } } },
 }
--- Pages opened by a button of their own rather than from the list: Options
--- (the Options button at the bottom, /journey options, the reminder's link).
-local OTHER_PAGES = { { "Options", PageOptions } }
 
 -- Levels tab: one row per level, like a ledger.
 local LEVEL_COLS = { 34, 110, 92, 60, 50, 56, 56, 150, 80 }
@@ -1238,6 +1235,18 @@ local function PageLevels(B, db)
     end
     B:Note("Time on level comes from /played at each ding, so it starts with the first level you finish while tracking.")
 end
+
+-- The tabs under the window: Journey is the list and its pages, and each of
+-- the others is one page across the whole window. Options stays the last
+-- tab, on the far right, so a new tab goes before it. (TABS.Guild and so on
+-- are their numbers.)
+local TABS = {
+    { "Journey" },
+    { "Levels", PageLevels },
+    { "Guild", PageGuild },       -- #114
+    { "Options", PageOptions },   -- also /journey options and the milestone reminder's link
+}
+for i, tab in ipairs(TABS) do TABS[tab[1]] = i end
 
 ---------------------------------------------------------------------------
 -- Window
@@ -1258,9 +1267,6 @@ local function FindPage(name)
             if p[1] == name then return p[2] end
         end
     end
-    for _, p in ipairs(OTHER_PAGES) do
-        if p[1] == name then return p[2] end
-    end
     return PageSummary
 end
 
@@ -1277,7 +1283,7 @@ local function RenderPage()
     -- Drawn protected: a page that errors says so on the page instead of
     -- raising a Lua error every second, and End always runs, so nothing
     -- stale is left on screen.
-    local ok, err = pcall(currentTab == 2 and PageLevels or FindPage(UIState().page), B, db)
+    local ok, err = pcall(TABS[currentTab][2] or FindPage(UIState().page), B, db)
     if not ok then B:Note("Something went wrong drawing this page: " .. tostring(err)) end
     B:End()
 end
@@ -1433,7 +1439,7 @@ local function SelectTab(index)
     end
     pagePane:ClearAllPoints()
     pagePane:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 34)
-    if index == 2 then
+    if index ~= 1 then   -- every tab but Journey has the whole window
         listPane:Hide()
         pagePane:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -64)
     else
@@ -1445,6 +1451,9 @@ local function SelectTab(index)
 end
 
 local function CreateWindow()
+    -- Options and Guild were pages of the list before they were tabs.
+    local ui = UIState()
+    if ui.page == "Options" or ui.page == "Guild" then ui.page = "Summary" end
     -- Your class, the cross-class pages and WoW Forever go after the Overview.
     local extra = {}
     for _, source in ipairs({ ns.ClassSections or false, ns.WrappedSections or false }) do
@@ -1545,17 +1554,9 @@ local function CreateWindow()
     printButton:SetText("Print to Chat")
     printButton:SetScript("OnClick", function() ns.PrintSummary() end)
 
-    -- The Options page (the milestone reminder, screenshots, the minimap
-    -- button) opens from here, not from the list.
-    local options = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    options:SetSize(90, 22)
-    options:SetPoint("LEFT", printButton, "RIGHT", 6, 0)
-    options:SetText("Options")
-    options:SetScript("OnClick", function() ns.ShowOptions() end)
-
     -- Tabs under the frame, like Character / Reputation / Skills / Honor.
-    local names = { "Journey", "Levels" }
-    for i, name in ipairs(names) do
+    for i, page in ipairs(TABS) do
+        local name = page[1]
         local tab, tabTemplate = TryCreate("Button", "JourneyTrackerFrameTab" .. i, f,
             { "PanelTabButtonTemplate", "CharacterFrameTabButtonTemplate", "UIPanelButtonTemplate" })
         tab:SetID(i)
@@ -1608,15 +1609,12 @@ function ns.ToggleUI()
 end
 
 -- /journey options, and the milestone reminder's link: the window, open at
--- the Options page.
+-- the Options tab.
 function ns.ShowOptions()
     if not ns.GetDB() then return end
-    local state = UIState()
-    state.page = "Options"
     if not frame then CreateWindow() end
-    if frame:IsShown() then RenderList() end
     frame:Show()
-    SelectTab(1)
+    SelectTab(TABS.Options)
 end
 
 ---------------------------------------------------------------------------
@@ -1835,7 +1833,7 @@ ns.Listen("GROUP_ROSTER_UPDATE", ns.Protect(OnRosterForVersion))
 -- each milestone (10, 20 ... 60) in hidden addon messages to the guild: the
 -- /played and days it took, their fastest and slowest level before it, and
 -- gold on hand, character sheet and profession skill as they reached it.
--- Asked for when the Guild page opens (everyone online answers, so each copy
+-- Asked for when the Guild tab opens (everyone online answers, so each copy
 -- hears the others), and told as each milestone is reached. Names are kept
 -- only while you're online: nothing about a guildmate is saved. Not sent in
 -- a fight or an instance. Off in Options (db.ui.guildShare = false): yours
@@ -1855,7 +1853,7 @@ local MAX_GUILDMATES = 200
 local guildmates, guildmateCount = {}, 0   -- [name] = { class, race, level, at = { [milestone] = row } }
 local askedAt, answeredAt, outbox, sending = -1000, -1000, {}, false
 -- Professions by skill line, the same in every language (#91), shortened
--- for the Guild page.
+-- for the Guild tab.
 local SKILL_LINES = { [171] = "Alch", [164] = "Smith", [333] = "Ench", [202] = "Eng", [182] = "Herb",
     [165] = "Leather", [186] = "Mining", [393] = "Skin", [197] = "Tailor", [185] = "Cook", [129] = "Aid",
     [356] = "Fish" }
@@ -2008,7 +2006,7 @@ local function AskGuild(force)
 end
 
 local function RefreshGuildPage()
-    if frame and frame:IsShown() and UIState().page == "Guild" then RenderPage() end
+    if frame and frame:IsShown() and currentTab == TABS.Guild then RenderPage() end
 end
 
 local function IsMe(name)
@@ -2051,7 +2049,7 @@ ns.Listen("PLAYER_LEVEL_UP", ns.Protect(function(level)
     end
 end))
 
--- The Guild page: a table at each milestone, fastest first.
+-- The Guild tab: a table at each milestone, fastest first.
 local GUILD_COLS = { 92, 62, 36, 54, 54, 70, 36, 50, 60, 40, 116 }
 local function Professions(profs)
     local list = {}

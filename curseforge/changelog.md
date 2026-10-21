@@ -2,9 +2,10 @@
 
 ## 0.6.13
 
-- **Compare with your guild:** the new Guild page, under Social, puts you side by side with guildmates who run Journey Tracker 0.6.13 or later, at every 10 levels you or they have reached. For each one it shows how long it took to get there in /played and in days, the fastest and slowest level on the way, and gold, item level, health, attack or spell power, crit and professions at the level-up. Guildmates show up while they're online. Press **Ask the guild again** to check for more.
+- **Compare with your guild:** the new Guild tab, at the bottom of the window, puts you side by side with guildmates who run Journey Tracker 0.6.13 or later, at every 10 levels you or they have reached. For each one it shows how long it took to get there in /played and in days, the fastest and slowest level on the way, and gold, item level, health, attack or spell power, crit and professions at the level-up. Guildmates show up while they're online. Press **Ask the guild again** to check for more.
 - **Names stay in the game:** the page shows guildmates by name, but names are only kept until you log out. They're never saved or exported.
 - **Your choice:** sharing is on by default. Turn off **Compare with your guild** in Options and you stop sharing yours, but you still see guildmates who share theirs.
+- **Options is a tab now:** it moved from the button row to the tabs at the bottom of the window, always the last one: Journey, Levels, Guild, Options.
 
 ### On the website
 
