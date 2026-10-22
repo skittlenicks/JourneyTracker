@@ -443,11 +443,15 @@ end
 local function Map(id) return type(W[id]) == "table" and W[id] or {} end
 
 -- Camping is a social mechanic, so W-008..012 live on the Social page.
+local CAMPED_STAT = 64222   -- the Statistics pane's "Times camped" (Forever's own)
 local function DrawCamping(B)
     local U = ns.UI
     B:Heading("Camping")
     local camps = 0
     for _, n in pairs(Map("W-008")) do camps = camps + n end
+    -- Forever's own count (the Statistics pane's "Times camped"), where it's
+    -- more: W-008 looks for a Campfire cast, and setting up camp isn't one.
+    camps = math.max(camps, ns.StatNumber and ns.StatNumber(CAMPED_STAT) or 0)
     B:Row("Camps set up", camps)                                       -- W-008
     B:Row("Time at campfires", U.Dur(Map("W-009").Camp or 0))          -- W-009
     B:Row("Time resting in inns and cities", U.Dur(db.time.resting))

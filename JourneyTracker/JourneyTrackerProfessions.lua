@@ -95,10 +95,15 @@ end
 local node = {}            -- the node your last gathering cast was aimed at: name, t
 local gatherCast            -- a gathering cast in progress: castGUID
 local GATHER_SPELLS = { ["Herb Gathering"] = true, ["Mining"] = true, ["Skinning"] = true }
+-- A gathering cast, by name or by the main tracker's spells (Forever's herb
+-- gathering is "Herbalism").
+local function IsGathering(name, spellID)
+    return GATHER_SPELLS[name or ""] or (ns.GatherKind and ns.GatherKind(spellID) ~= nil)
+end
 
 local function OnSent(unit, target, castGUID, spellID)
     local name = ns.SpellName(Num(Safe(spellID)) or 0)
-    if not GATHER_SPELLS[name or ""] then return end
+    if not IsGathering(name, Num(Safe(spellID))) then return end
     node = { name = not IsSecret(target) and Str(target) or nil, t = GetTime() }
 end
 
@@ -371,7 +376,7 @@ castFrame:SetScript("OnEvent", Protect(function(_, event, unit, castGUID, spellI
     if not name then return end
     castGUID = Str(Safe(castGUID))
     if event == "UNIT_SPELLCAST_START" then
-        if GATHER_SPELLS[name] then gatherCast = castGUID end
+        if IsGathering(name, Num(Safe(spellID))) then gatherCast = castGUID end
         return
     end
     if HasAny(name, CABLES) and (not castGUID or castGUID ~= cablesFailed) then

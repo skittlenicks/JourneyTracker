@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.14
+
+- **Quest XP counted right:** for some quests the XP reached Journey Tracker before the game said the quest was turned in, so about a fifth of quest XP was filed as "other", and so were many level-ups. It's now credited to the quest whichever comes first, and what was saved before is fixed once when you log in.
+- **Herbs aren't treasure chests:** Forever calls herb gathering "Herbalism", and every herb you picked counted as a treasure chest. It doesn't any more, and the herbs come off your saved chest count.
+- **Flying over a zone isn't visiting it:** the flight from Ironforge to Stormwind crosses Searing Gorge and Burning Steppes, and each crossing was saved as a stop on your route. Zones you only fly over are now left off your route, and where you land counts.
+- **Loot gold:** your share of a group member's loot, and money from a very quick auto-loot, now count as gold from looting.
+- **Camps set up** now shows the game's own count. Journey Tracker was missing most camps.
+- **A fishing pole isn't your first two-hander** any more.
+- **Asking your guild:** the Guild tab now says when you last asked and how many guildmates have answered, or that you can't ask during a fight or in a dungeon.
+
+### On the website
+
+- Journeys saved before this version get the same fixes where the data allows: the XP split, treasure chests, camps and the fishing pole. Routes saved before this version still include zones you flew over, since they don't say which stops were flights.
+- The quest chapter no longer says the same thing twice.
+
 ## 0.6.13
 
 - **Compare with your guild:** the new Guild tab, at the bottom of the window, puts you side by side with guildmates who run Journey Tracker 0.6.13 or later, at every 10 levels you or they have reached. For each one it shows how long it took to get there in /played and in days, the fastest and slowest level on the way, and gold, item level, health, attack or spell power, crit and professions at the level-up. Guildmates show up while they're online. Press **Ask the guild again** to check for more.

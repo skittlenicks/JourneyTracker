@@ -62,13 +62,13 @@ end
 
 -- What the game knows about an item (by ID or link).
 local function ItemInfo(item)
-    local name, _, quality, iLevel, _, _, _, _, equipLoc, _, sellPrice, classID, _, bindType =
+    local name, _, quality, iLevel, _, _, _, _, equipLoc, _, sellPrice, classID, subclassID, bindType =
         Call("C_Item.GetItemInfo", item)
     if not name then
-        name, _, quality, iLevel, _, _, _, _, equipLoc, _, sellPrice, classID, _, bindType = Call("GetItemInfo", item)
+        name, _, quality, iLevel, _, _, _, _, equipLoc, _, sellPrice, classID, subclassID, bindType = Call("GetItemInfo", item)
     end
     return { name = Str(name), quality = Num(quality), iLevel = Num(iLevel), equipLoc = Str(equipLoc),
-             sellPrice = Num(sellPrice), classID = Num(classID), bindType = Num(bindType) }
+             sellPrice = Num(sellPrice), classID = Num(classID), subclassID = Num(subclassID), bindType = Num(bindType) }
 end
 
 local function Wearable(info) return info.equipLoc ~= nil and not NOT_WORN[info.equipLoc] end
@@ -429,7 +429,11 @@ local function ScanEquipped()
     return any and now or nil
 end
 
-local function IsTwoHander(item) return ItemInfo(item.link).equipLoc == "INVTYPE_2HWEAPON" end
+-- (To the game a fishing pole is a two-hander too: weapon (2), subclass 20.)
+local function IsTwoHander(item)
+    local info = ItemInfo(item.link)
+    return info.equipLoc == "INVTYPE_2HWEAPON" and not (info.classID == 2 and info.subclassID == 20)
+end
 
 local function Baseline()
     if equipped then return end
@@ -799,7 +803,11 @@ ns.OnItemChange(Protect(function(c)
 end))
 ns.OnMoneyChange(Protect(OnMoney))
 ns.OnLootItem(Protect(OnLoot))
-ns.OnCast(Protect(function(name) if GATHER_CASTS[name] then lastGather = GetTime() end end))
+-- (By the main tracker's gathering spells too: Forever's herb gathering is
+-- "Herbalism", and every herb was a treasure chest before 0.6.14.)
+ns.OnCast(Protect(function(name, spellID)
+    if GATHER_CASTS[name] or (ns.GatherKind and ns.GatherKind(spellID)) then lastGather = GetTime() end
+end))
 ns.OnDing(Protect(function(snapshot)
     pendingSheet = snapshot
     if C_Timer and C_Timer.After then C_Timer.After(3, Protect(TakeSheet)) end
@@ -852,6 +860,23 @@ On("MAIL_SHOW", function() inboxCount = nil end)
 On("MAIL_CLOSED", function() inboxCount = nil end)
 On("MAIL_INBOX_UPDATE", OnInboxUpdate)
 On("MAIL_SEND_SUCCESS", OnMailSent)
+ns.OnLoad(function(saved)
+    -- Before 0.6.14 every herb picked counted as a treasure chest (W-381):
+    -- where there are at least as many chests as herbs picked (#103), the
+    -- herbs come off, once. The website reads the flag to do the same for
+    -- older exports. And a fishing pole isn't your first two-hander (W-397).
+    if not Track.get("herbChestsRemoved") then
+        local herbs = type(saved.gathering) == "table" and type(saved.gathering.herb) == "table"
+            and tonumber(saved.gathering.herb.nodes) or 0
+        local chests = tonumber(Track.get("W-381")) or 0
+        if herbs > 0 and chests >= herbs then Track.set("W-381", chests - herbs) end
+        Track.set("herbChestsRemoved", true)
+    end
+    local first = Track.get("W-397")
+    if type(first) == "table" and type(first.name) == "string" and first.name:find("Fishing Pole", 1, true) then
+        Track.set("W-397", nil)
+    end
+end)
 ns.OnLoad(function()
     ns.Hook("SendMail", Protect(function()
         pendingMail = { money = Num(Call("GetSendMailMoney")) or 0, cod = Num(Call("GetSendMailCOD")) or 0 }

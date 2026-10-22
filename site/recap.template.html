@@ -2303,10 +2303,11 @@ kbd {
     hide("chapter-quests", !Q.completed && !Q.accepted);
     $("quests-title").textContent = (Q.completed ? num(Q.completed) + " quests done." : "No quests turned in yet.") +
       (LQ ? " One stayed in your log for " + heldFor + "." : "");
-    $("longest-quest").innerHTML = !LQ ? "" : LQ.title ?
-      '<span class="quest">' + esc(LQ.title) + "</span> sat in your quest log for " + heldFor + ", from level " + LQ.from + " to " + LQ.to + "." :
-      "Your longest-held quest sat in your quest log for " + heldFor + ".";
-    hide("longest-quest", !LQ);
+    // (Named only where the quest's title is known; otherwise the title
+    // above has said it.)
+    $("longest-quest").innerHTML = LQ && LQ.title ?
+      '<span class="quest">' + esc(LQ.title) + "</span> sat in your quest log for " + heldFor + ", from level " + LQ.from + " to " + LQ.to + "." : "";
+    hide("longest-quest", !(LQ && LQ.title));
     stats("quest-stats", [
       ["Quests accepted", num(Q.accepted)],
       ["Abandoned", num(Q.abandoned)],
@@ -2616,7 +2617,8 @@ kbd {
   var squares = (S.where || []).filter(function (w) { var m = MAP_BY_ID[w[0]]; return m && m.world; });
   var placed = Object.create(null);
   squares.forEach(function (w) { placed[w[0]] = true; });
-  // Zones of the route it has time for but no squares (time from before 0.5.0).
+  // Zones of the route it has time for but no squares: time from before
+  // 0.5.0, or zones flown over (before 0.6.14 marked those).
   var unplaced = S.imported && zoneStops.some(function (r) { return r.seconds > 0 && !placed[r.map.uiMapID]; });
 
   // The opening line: how far you went, and the place you lingered longest.
@@ -2654,8 +2656,8 @@ kbd {
       $("map-caption").textContent = "Point at a zone to light it up and click it to open its map, as in the game. " +
         "The dotted line joins the zones in the order you first reached them, the glow is where you spent your time" +
         (deathSpots.length ? " and each × is where you died." : ".") +
-        (unplaced ? " Before version 0.5.0 the addon didn't record where in a zone you were, so for that time a zone " +
-          "glows as a whole on the continent maps, brighter the longer you stayed, and not on its own map." : "") +
+        (unplaced ? " Where the addon has no record of your spot in a zone (before version 0.5.0, or flying over it), " +
+          "the zone glows as a whole on the continent maps, brighter the longer you stayed, and not on its own map." : "") +
         " Map art: World of Warcraft © Blizzard Entertainment.";
     }
   });

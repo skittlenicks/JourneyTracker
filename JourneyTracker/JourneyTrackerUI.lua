@@ -873,7 +873,8 @@ local function PagePath(B, db)
     B:Cols({ "When", "Level", "Zone" }, widths, INK_DARK)
     for i = #db.path, 1, -1 do
         local p = db.path[i]
-        if p.zone ~= "Unknown" then B:Cols({ DateTime(p.t), p.level, p.zone }, widths) end
+        -- (not zones you only flew over, 0.6.14 on)
+        if p.zone ~= "Unknown" and not p.taxi then B:Cols({ DateTime(p.t), p.level, p.zone }, widths) end
     end
     B:Heading("Subzones")
     local subs = Sorted(db.subzones, function(t) return -t end) -- oldest first
@@ -2032,6 +2033,7 @@ OnGuildMessage = function(body, channel, sender)
         mate = { at = {} }
         guildmates[sender], guildmateCount = mate, guildmateCount + 1
     end
+    mate.heard = GetTime()   -- (for the page: who answered since you asked)
     if f[1] == "H" then
         mate.class, mate.race, mate.level = f[2] ~= "" and f[2] or nil, f[3] ~= "" and f[3] or nil, Count(f[4], ns.MAX_LEVEL)
     elseif f[1] == "R" then
@@ -2106,5 +2108,18 @@ function ns.DrawGuild(B, db)
     B:Gap(6)
     B:Footnote("Each milestone as it was when they got there: the /played and days it took, the fastest and slowest "
         .. "level before it, and gold, gear and professions at the level-up. Names are only kept while you're online.")
+    -- What asking did: when, and who has answered since. (Messages aren't
+    -- sent in a fight or an instance.)
+    if ns.InCombat() or ns.Call("IsInInstance") == true then
+        B:Note("You can't ask the guild during a fight or in a dungeon.")
+    elseif askedAt >= 0 then
+        local answered, ago = 0, math.floor(GetTime() - askedAt)
+        for _, mate in pairs(guildmates) do
+            if (mate.heard or -1) >= askedAt then answered = answered + 1 end
+        end
+        B:Note(string.format("Asked the guild %s ago, and %d %s answered. Only guildmates online with "
+            .. "Journey Tracker 0.6.13 or later can answer.", ago < 60 and (ago .. "s") or Dur(ago), answered,
+            answered == 1 and "guildmate has" or "guildmates have"))
+    end
     B:Button("Ask the guild again", function() AskGuild(true) end)
 end

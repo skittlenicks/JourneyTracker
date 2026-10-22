@@ -27,7 +27,11 @@ var JourneyModel = (function () {
   //    0.6.12); zone changes without "Unknown" moments and their returns.
   // 10: how the journey did at its milestone, for its guild's table
   //    (guildRow, addon 0.6.13's guild code).
-  var MODEL = 10;
+  // 11: before addon 0.6.14: quest XP filed as "other" goes back to quests,
+  //    herbs picked come off the treasure chests, a fishing pole isn't a
+  //    first two-hander; camps from the game's own count; zones you only
+  //    flew over (0.6.14 on) aren't visits or zone changes.
+  var MODEL = 11;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -185,6 +189,18 @@ var JourneyModel = (function () {
     var cls = named(own(classes, classToken)), all = named(classes.ALL);
     var now = number(data.exportedAt) || Math.floor(Date.now() / 1000), since = number(st.firstSeen) || now;
     var reachedMax = number(st.reachedMax);
+    // Before addon 0.6.14 every herb picked counted as a treasure chest
+    // (W-381). An export from before then (without herbChestsRemoved, which
+    // the addon sets once it has taken them off) loses them here the same
+    // way. And a fishing pole isn't your first two-hander (W-397).
+    var herbNodes = number(named(named(st.gathering).herb).nodes), chests = number(own(wr, "W-381"));
+    if (!wr.herbChestsRemoved && herbNodes > 0 && chests >= herbNodes) {
+      wr = Object.assign(Object.create(null), wr, { "W-381": chests - herbNodes });
+    }
+    if (/Fishing Pole/i.test(String(named(own(wr, "W-397")).name || ""))) {
+      wr = Object.assign(Object.create(null), wr);
+      delete wr["W-397"];
+    }
     var level = number(ch.level), className = own(CLASS_NAMES, classToken) || capFirst(classToken.toLowerCase());
     var race = own(RACE_NAMES, ch.race) || String(ch.race || "").replace(/([a-z])([A-Z])/g, "$1 $2");
     var J = { imported: true, level: level, played: number(ch.played), className: className, classToken: classToken,
@@ -411,8 +427,12 @@ var JourneyModel = (function () {
     var xp = named(st.xp), xpTotal = number(xp.total);
     J.xpTotal = xpTotal;
     function xpShare(v) { return xpTotal ? Math.round(number(v) / xpTotal * 100) : 0; }
-    J.xpSplit = [["Quests", xpShare(xp.quest), "var(--gold)"], ["Kills", xpShare(xp.kill), "var(--gold-deep)"],
-                 ["Exploration", xpShare(xp.explore), "var(--gold-pale)"], ["Other", xpShare(xp.other), "var(--ink-soft)"]]
+    // Before addon 0.6.14 a quest's XP that came before its turn-in was
+    // filed as "other": the quest XP the turn-ins reported that "quest" is
+    // missing moves back (nothing, once the addon has done it itself).
+    var xpOther = number(xp.other), xpMissing = Math.min(xpOther, Math.max(0, number(quests.xp) - number(xp.quest)));
+    J.xpSplit = [["Quests", xpShare(number(xp.quest) + xpMissing), "var(--gold)"], ["Kills", xpShare(xp.kill), "var(--gold-deep)"],
+                 ["Exploration", xpShare(xp.explore), "var(--gold-pale)"], ["Other", xpShare(xpOther - xpMissing), "var(--ink-soft)"]]
       .filter(function (p) { return p[1] > 0; });
     J.restedShare = xpShare(xp.restedUsed);
     J.groupXP = xpShare(xp.grouped);
@@ -430,7 +450,8 @@ var JourneyModel = (function () {
     var zones = named(st.zones), stops = [], stopOf = Object.create(null);
     path.forEach(function (p, i) {
       p = named(p);
-      if (typeof p.zone !== "string" || !p.zone || p.zone === "Unknown") return;
+      // (not a zone you only flew over: a stop made in flight, 0.6.14 on)
+      if (typeof p.zone !== "string" || !p.zone || p.zone === "Unknown" || p.taxi === true) return;
       var at = number(p.level), stop = stopOf[p.zone];
       // (with the zone's map ID where the addon saved it, 0.6.8 on, from any
       // visit: the page places the stop by it, whatever language the name
@@ -464,7 +485,14 @@ var JourneyModel = (function () {
                       (Math.floor((n - 1) / SPOT_GRID) + 0.5) * 100 / SPOT_GRID, seconds]);
       });
     });
-    J.zonesVisited = Object.keys(zones).filter(function (z) { return z !== "Unknown"; }).length;
+    // (Zones you only flew over aren't visits: every stop there made in
+    // flight, addon 0.6.14 on.)
+    var landed = Object.create(null), flownOver = Object.create(null);
+    path.forEach(function (p) {
+      p = named(p);
+      if (typeof p.zone === "string") (p.taxi === true ? flownOver : landed)[p.zone] = true;
+    });
+    J.zonesVisited = Object.keys(zones).filter(function (z) { return z !== "Unknown" && !(flownOver[z] && !landed[z]); }).length;
     J.subzones = Object.keys(named(st.subzones)).length;
     // The level you were at a moment: the last level-up or zone change the
     // tracker saw before it (levels only go up). The places below ask in
@@ -492,10 +520,11 @@ var JourneyModel = (function () {
       J.places[zone].push({ name: key.slice(at + 2), date: t > 0 ? dayOf(t) : null, level: t > 0 ? levelAt(t) : null });
     });
     // Zone changes: each stop, but not "Unknown" (a moment just after a
-    // loading screen, recorded before addon 0.6.12) or a return to the zone
-    // you were in before it.
+    // loading screen, recorded before addon 0.6.12), a zone you flew over
+    // (0.6.14 on) or a return to the zone you were in before it.
     J.zoneChanges = path.reduce(function (seen, p) {
       var z = named(p).zone;
+      if (named(p).taxi === true) return seen;
       if (typeof z === "string" && z && z !== "Unknown" && z !== seen.last) { seen.last = z; seen.n++; }
       return seen;
     }, { n: 0, last: null }).n;
@@ -582,7 +611,10 @@ var JourneyModel = (function () {
     J.classAll = all;
 
     // WoW Forever and friends
-    J.camps = addUp(wr["W-008"]);
+    // (and the game's own count, the Statistics pane's "Times camped",
+    // where it's more: W-008 looks for a Campfire cast, and setting up camp
+    // on Forever isn't one)
+    J.camps = best(addUp(wr["W-008"]), 64222);
     J.campTime = number(named(wr["W-009"]).Camp);
     J.campShops = number(named(wr["W-010"]).vendor);
     J.campBuffs = addUp(wr["W-011"]);

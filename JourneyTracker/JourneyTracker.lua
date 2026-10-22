@@ -453,6 +453,26 @@ local function FreshXPSource(window)
     end
 end
 
+-- Forever sometimes gives a quest's XP, and the level-up it brings, before
+-- QUEST_TURNED_IN, so it was filed as "other" (#23), and the ding's cause
+-- too (#21). The turn-in takes its XP back from the last few seconds'
+-- "other" (xpSource.other since xpSource.otherT; the ding: xpSource.ding).
+function ns.CreditQuestXP(xp)
+    local now, X = GetTime(), db.xp
+    if xpSource.other and now - xpSource.otherT <= XP_SOURCE_WINDOW + 1 then
+        local move = math.min(xpSource.other, xp)
+        X.other = math.max(0, (X.other or 0) - move)
+        X.quest = (X.quest or 0) + move
+        xpSource.other = xpSource.other - move
+    end
+    local ding = xpSource.ding
+    if ding and now - ding.t <= XP_SOURCE_WINDOW + 1 then
+        local d = db.dings[ding.level]
+        if d and d.cause == "other" then d.cause = "quest" end
+    end
+    xpSource.ding = nil
+end
+
 local lastXP, lastXPMax, lastRested, lastLevel
 local function ReadXP()
     local xp = Num(Call("UnitXP", "player"))
@@ -481,6 +501,11 @@ local function OnXPUpdate()
             local kind = FreshXPSource() or "other"
             X.total = X.total + gained                            -- #24 total XP
             Inc(X, kind, gained)                                  -- #23 split (#65 explore)
+            if kind == "other" then                               -- (a quest's, if its turn-in follows)
+                local t = GetTime()
+                local recent = xpSource.other and t - xpSource.otherT <= XP_SOURCE_WINDOW + 1
+                xpSource.other, xpSource.otherT = (recent and xpSource.other or 0) + gained, t
+            end
             if InGroup() then                                     -- #25 solo vs grouped
                 X.grouped = X.grouped + gained
             else
@@ -931,6 +956,9 @@ local function OnZoneChange()
             -- in from (seen in the last minute): the website pins the stop
             -- at its entrance.
             local stop = { zone = z, t = time(), level = Level(), map = ns.ZoneMapID and ns.ZoneMapID() }
+            -- On a flight path it's a zone you flew over, unless the flight
+            -- ends there (the tick clears the mark when you land).
+            if Call("UnitOnTaxi", "player") == true then stop.taxi = true end
             local inside, kind = Call("IsInInstance")
             if inside == true and (kind == "party" or kind == "raid") then
                 stop.instance = Num(Safe((select(8, Call("GetInstanceInfo")))))
@@ -1105,6 +1133,8 @@ local function OnMoney()
             M.vendor = M.vendor + d                           -- #79 vendor sales
         elseif ctx.mail then
             M.mail = M.mail + d                               -- #83 all mail income (see OnTakeMail)
+        else
+            ctx.unclaimed, ctx.unclaimedAt = d, t             -- loot, if "You loot..." follows (CHAT_MSG_MONEY)
         end
         -- Quest gold (#57) comes straight from QUEST_TURNED_IN.
     elseif d < 0 then
@@ -1167,6 +1197,14 @@ local function BuildGatherNames()
         local name = SpellName(id)
         if name then gatherNames[name] = kind end
     end
+end
+
+-- What a cast gathers ("herb", "mining", "skinning"), by spell ID or the
+-- name it has here, for the other files' checks: Forever calls herb
+-- gathering "Herbalism", so "Herb Gathering" alone misses it.
+function ns.GatherKind(spellID)
+    spellID = Num(spellID)
+    return spellID and (GATHER_SPELLS[spellID] or gatherNames[SpellName(spellID) or ""]) or nil
 end
 
 local function OnGather(kind)
@@ -1524,6 +1562,8 @@ local function Tick()
     if Call("IsResting") == true then T.resting = T.resting + dt end       -- #11
     local onTaxi = Call("UnitOnTaxi", "player") == true
     if onTaxi then T.taxi = T.taxi + dt end                                -- #13
+    local lastStop = not onTaxi and db.path[#db.path]
+    if lastStop and lastStop.taxi then lastStop.taxi = nil end             -- #67 landed there
     -- The game reports a flight path as being mounted, so taxis don't count.
     if not onTaxi and Call("IsMounted") == true then
         T.mounted = T.mounted + dt                                         -- #14
@@ -1599,6 +1639,7 @@ local function OnLevelUp(level)
         quests = db.quests.completed, grouped = InGroup(),
     }
     db.dings[level] = snapshot
+    if snapshot.cause == "other" then xpSource.ding = { level = level, t = GetTime() } end -- (see ns.CreditQuestXP)
     for _, fn in ipairs(dingCallbacks) do Run("ding", fn, snapshot, level) end
     pendingDing = level
     Call("RequestTimePlayed")                                 -- #2 reply fills in .played
@@ -1765,6 +1806,7 @@ handlers.QUEST_TURNED_IN = function(questID, xp, money)
     L.quests = L.quests + 1                                   -- #54 per level
     Inc(Q.byZone, Zone())                                     -- #55 per zone
     if xp then Q.xp = Q.xp + xp end                           -- #56 quest XP
+    if xp and xp > 0 then ns.CreditQuestXP(xp) end            -- (when its XP came first)
     if money then Q.money = Q.money + money end               -- #57 quest gold
     MarkXPSource("quest")
     if not questID then return end
@@ -1824,6 +1866,19 @@ end
 
 -- Money and windows
 handlers.PLAYER_MONEY = function() OnMoney() end
+-- #78 "You loot..." and "Your share of the loot is...": money that came
+-- with no loot window open (a group member's loot, a fast auto-loot) is
+-- loot too. The message follows the money (the probe), so it claims what
+-- came in the last two seconds, or else what comes in the next one.
+handlers.CHAT_MSG_MONEY = function()
+    local t = GetTime()
+    if ctx.unclaimed and t - ctx.unclaimedAt <= 2 then
+        db.money.loot = db.money.loot + ctx.unclaimed
+        ctx.unclaimed = nil
+    elseif not ctx.loot and t >= ctx.lootUntil then
+        ctx.lootUntil = t + 1
+    end
+end
 handlers.MERCHANT_SHOW = function() ctx.merchant = true end
 handlers.MERCHANT_CLOSED = function() ctx.merchant = false end
 handlers.TRAINER_SHOW = function()
@@ -1950,6 +2005,24 @@ end
 
 function ns.OnLoad(fn) table.insert(loadCallbacks, fn) end -- runs once saved data is ready
 function ns.OnDing(fn) table.insert(dingCallbacks, fn) end -- adds fields to each ding snapshot
+
+-- Before 0.6.14 a quest's XP that came before its turn-in was filed as
+-- "other" (see ns.CreditQuestXP). Once: the quest XP the turn-ins reported
+-- (#56) that "quest" is missing moves over from "other", and where that was
+-- nearly all of "other", the level-ups put down to "other" were quests'.
+ns.OnLoad(function(saved)
+    local X, Q = saved.xp, saved.quests
+    if saved.questXPFixed or type(X) ~= "table" or type(Q) ~= "table" then return end
+    saved.questXPFixed = true
+    local other, gap = tonumber(X.other) or 0, (tonumber(Q.xp) or 0) - (tonumber(X.quest) or 0)
+    local move = math.min(other, math.max(0, gap))
+    if move <= 0 then return end
+    X.other, X.quest = other - move, (tonumber(X.quest) or 0) + move
+    if move < 0.9 * other then return end
+    for _, d in pairs(saved.dings or {}) do
+        if type(d) == "table" and d.cause == "other" then d.cause = "quest" end
+    end
+end)
 
 local function Dispatch(event, ...)
     local list = listeners[event]
