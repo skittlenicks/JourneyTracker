@@ -95,6 +95,7 @@ Journey Tracker records your character's road from level 1 to 60 in WoW Forever:
 
 - Time grouped vs solo, groups joined, and how many different players you've grouped with (a count, never names)
 - The level you joined a guild, and the "gz" your dings got
+- Who you met: the players you grouped or traded with, by race and class, with Forever's new combinations counted on their own (never names)
 - Your guild: the Guild tab puts you next to guildmates who run Journey Tracker at every 10 levels: the time and days it took, your fastest and slowest level, and your gold, gear and professions when you got there
 - Chat messages sent by channel and your most-typed words (counts only), emotes used and received, trades and friends added
 - Loot rolls: Need, Greed and Pass, rolls won and lost, and your highest and lowest roll
@@ -122,6 +123,7 @@ Paste an export at [www.journeytracker.dev](https://www.journeytracker.dev) and 
 - **Your guild:** guildmates who saved their journey at the same level, side by side with yours, by race and class (never by name)
 - **Compare:** your journey side by side with a friend's: the time each of you took to every ten levels, kills, deaths, quests and where each of you ranks
 - **A share card:** posting your link on Discord or elsewhere shows a card with your level, /played and best rankings
+- **A picture for your stories:** a tall card with four stats you pick, to download or share straight to Instagram, TikTok or Discord
 
 Every 10 levels, the addon also saves your journey as it was when you got there, and a small window offers to export it while it's fresh. Share your road to 10, 20, 30 and on, even after you've passed it, and see how you rank against others at the same level. A journey shared long after reaching its level is ranked only on the time it took, so nobody's fresh 60 is up against one that's been 60 for weeks.
 

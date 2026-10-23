@@ -507,6 +507,22 @@ local function DrawSocial(B)
         { "W-302", "Emotes used" }, { "W-303", "By emote" }, { "W-311", "Emotes aimed at you" },
         { "W-312", "Aimed at you, by emote" },
     })
+    -- W-511 players you met, by race and class, Forever's new ones first
+    B:Heading("Players You Met")
+    local total, new, list = 0, 0, {}
+    local met = Track.get("W-511")
+    for key, n in pairs(type(met) == "table" and met or {}) do
+        local isNew = ns.IsNewCombo(key)
+        total = total + n
+        if isNew then new = new + n end
+        list[#list + 1] = { key = key, n = n, new = isNew }
+    end
+    table.sort(list, function(a, b) if a.new ~= b.new then return a.new end return a.n > b.n end)
+    B:Row("Players met (grouped or traded with)", total)
+    B:Row("...of Forever's new race and class combinations", new)
+    for i = 1, math.min(#list, 8) do
+        B:Note(ns.ComboName(list[i].key) .. ": " .. list[i].n .. (list[i].new and " (new in Forever)" or ""))
+    end
 end
 
 local function DrawBloopers(B)
@@ -590,7 +606,10 @@ On("INSPECT_READY", function(guid)
     end
 end)
 On("PLAYER_GUILD_UPDATE", function() if wasInGuild ~= nil then CheckGuild() end end) -- after the login check
-On("TRADE_SHOW", function() tradeOpen = true end)
+On("TRADE_SHOW", function()
+    tradeOpen = true
+    if ns.MetPlayer then ns.MetPlayer("NPC") end              -- W-511 (who you trade with)
+end)
 On("TRADE_CLOSED", function() tradeOpen, tradeUntil = false, GetTime() + 2 end)
 ns.OnMoneyChange(function(delta)
     if not InTrade() then return end

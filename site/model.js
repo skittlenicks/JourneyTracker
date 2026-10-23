@@ -31,7 +31,9 @@ var JourneyModel = (function () {
   //    herbs picked come off the treasure chests, a fishing pole isn't a
   //    first two-hander; camps from the game's own count; zones you only
   //    flew over (0.6.14 on) aren't visits or zone changes.
-  var MODEL = 11;
+  // 12: players of Forever's new race and class combinations met (W-511,
+  //    addon 0.6.15) ranked.
+  var MODEL = 12;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -43,7 +45,7 @@ var JourneyModel = (function () {
   var SPOT_GRID = 25;
   // From this many players up, a place reads as a share ("Top 3%") instead
   // of a place ("2nd of 9").
-  var SHARE_FROM = 100;
+  var SHARE_FROM = 50;
   // A level's /played past this is a broken record, not a slow level.
   var LEVEL_TIME_MAX = 30 * 86400;
   // A Statistics pane value past this is no count or copper amount a
@@ -154,6 +156,18 @@ var JourneyModel = (function () {
   var CLASS_NAMES = { WARRIOR: "Warrior", PALADIN: "Paladin", HUNTER: "Hunter", ROGUE: "Rogue", PRIEST: "Priest",
                       SHAMAN: "Shaman", MAGE: "Mage", WARLOCK: "Warlock", DRUID: "Druid" };
   var RACE_NAMES = { NightElf: "Night Elf", Scourge: "Undead" };
+  // The race (token) and class Forever newly allows (the addon's W-003; a
+  // Skyborne is new as any class), and a race and class key from the addon
+  // ("Scourge:PALADIN", W-509..W-511) as the page names it.
+  var NEW_COMBOS = { Gnome: "PRIEST", Human: "HUNTER", Dwarf: "SHAMAN", Orc: "MAGE", Troll: "WARLOCK", Scourge: "PALADIN" };
+  function comboOf(key) {
+    var at = String(key).indexOf(":");
+    if (at < 1) return null;
+    var race = String(key).slice(0, at), cls = String(key).slice(at + 1);
+    return { race: own(RACE_NAMES, race) || race.replace(/([a-z])([A-Z])/g, "$1 $2"),
+             className: own(CLASS_NAMES, cls) || capFirst(cls.toLowerCase()),
+             isNew: race.indexOf("Skyborne") >= 0 || own(NEW_COMBOS, race) === cls };
+  }
   var PRIMARY = ["Alchemy", "Blacksmithing", "Enchanting", "Engineering", "Herbalism", "Leatherworking", "Mining",
                  "Skinning", "Tailoring"];
   // A profession by its skill line (addon 0.6.8 on saves it), the same in
@@ -622,6 +636,25 @@ var JourneyModel = (function () {
     J.valthalak = listOf(wr["W-016"]).length;
     J.transmog = number(named(wr["W-019"]).changes);
     J.autoFlagged = number(wr["W-021"]);
+    // Players met by race and class (W-511, addon 0.6.15: groupmates and
+    // who you traded with, each once), Forever's new combinations first;
+    // the one player who killed you most (W-510) and deaths to players by
+    // race and class (W-509). Never a name.
+    var met = named(wr["W-511"]);
+    J.met = Object.keys(met).map(function (k) {
+      var c = comboOf(k);
+      return c && number(met[k]) > 0 ? [c.race + " " + c.className, number(met[k]), c.isNew] : null;
+    }).filter(Boolean).sort(function (a, b) { return Number(b[2]) - Number(a[2]) || b[1] - a[1]; });
+    J.metTotal = sum(J.met.map(function (r) { return r[1]; }));
+    J.metNew = sum(J.met.filter(function (r) { return r[2]; }).map(function (r) { return r[1]; }));
+    var nemesis = named(wr["W-510"]), nemesisCombo = typeof nemesis.race === "string" && typeof nemesis.class === "string" &&
+      comboOf(nemesis.race + ":" + nemesis.class);
+    J.nemesis = nemesisCombo && number(nemesis.n) > 0 ? { who: nemesisCombo.race + " " + nemesisCombo.className, n: number(nemesis.n) } : null;
+    var byCombo = named(wr["W-509"]);
+    J.pvpKillers = Object.keys(byCombo).map(function (k) {
+      var c = comboOf(k);
+      return c && number(byCombo[k]) > 0 ? [c.race + " " + c.className, number(byCombo[k])] : null;
+    }).filter(Boolean).sort(function (a, b) { return b[1] - a[1]; });
     J.zephras = number(named(wr["W-001"]).level) || null;
     // Days after 60 you first reached Mount Hyjal: the addon notes the
     // arrival before 60 too, without them.
@@ -1065,7 +1098,8 @@ var JourneyModel = (function () {
         grouped: when(enoughTime, J.grouped / trackedTime * 100), solo: when(enoughTime, (1 - J.grouped / trackedTime) * 100),
         groupedWith: J.groupedWith,
         guild: J.guildLevel || undefined, jumps: J.jumps, jumpEvery: J.jumps ? trackedTime / J.jumps : undefined,
-        camps: J.camps, campTime: J.campTime, campBuffs: J.campBuffs, transmog: J.transmog, healing: J.healing
+        camps: J.camps, campTime: J.campTime, campBuffs: J.campBuffs, transmog: J.transmog, healing: J.healing,
+        metNew: J.metNew
       }
     };
     J.professions.forEach(function (r) { if (own(PROFESSION_KEYS, r[0])) p.values[PROFESSION_KEYS[r[0]]] = r[1]; });

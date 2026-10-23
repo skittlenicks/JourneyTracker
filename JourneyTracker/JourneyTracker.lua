@@ -160,7 +160,9 @@ local function Hash(s)
     for i = 1, #s do
         h = (h * 33 + s:byte(i)) % 4294967296
     end
-    return string.format("%08x", h)
+    -- (as two 16-bit halves: the same text, and safe where "%x" can't take
+    -- a number past 2^31)
+    return string.format("%04x%04x", math.floor(h / 65536), h % 65536)
 end
 
 local function FormatDuration(sec)
@@ -874,10 +876,15 @@ local function OnDeath()
     if run then run.deaths = run.deaths + 1 end               -- #75 deaths per dungeon
     death = { rec = rec, start = GetTime() }
     -- For the other files: what the killer was (if we saw it), and whether
-    -- a fall or a fight was going on. They may add fields to rec.
+    -- a fall or a fight was going on. They may add fields to rec. A player
+    -- killer comes with class, level, race and a hash of their GUID (to know
+    -- the same player again, W-510), never a name.
+    local killerGUID = Str(Safe(Call("UnitGUID", "target")))
     Fire("death", rec, { mob = mobInfo[rec.killer], fell = FellToDeath(), fight = fight,
                          player = rec.killer == "Player (PvP)" and Call("UnitIsPlayer", "target") == true
-                             and { class = select(2, Call("UnitClass", "target")), level = Num(Call("UnitLevel", "target")) } })
+                             and { class = select(2, Call("UnitClass", "target")), level = Num(Call("UnitLevel", "target")),
+                                   race = Str(Safe((select(2, Call("UnitRace", "target"))))),
+                                   id = killerGUID and Hash(killerGUID) or nil } })
 end
 
 -- Called once we're alive again. `how` is the resurrection type.
@@ -1490,6 +1497,23 @@ end
 -- Group and guild (#97-99)
 ---------------------------------------------------------------------------
 
+-- W-511 players you met (grouped with or traded with), by race and class:
+-- each once, by a hash of their GUID kept only here (db.social.met, never
+-- exported, like #98's).
+function ns.MetPlayer(unit)
+    if Call("UnitIsPlayer", unit) ~= true or Call("UnitIsUnit", unit, "player") == true or not ns.Track then return end
+    local guid = Str(Safe(Call("UnitGUID", unit)))
+    local race = Str(Safe((select(2, Call("UnitRace", unit)))))
+    local class = Str(Safe((select(2, Call("UnitClass", unit)))))
+    if not guid or not race or not class then return end
+    local S = db.social
+    S.met = S.met or {}
+    local h = Hash(guid)
+    if S.met[h] then return end
+    S.met[h] = true
+    ns.Track.count("W-511", race .. ":" .. class)
+end
+
 local function ScanGroup()
     local n = Num(Call("GetNumGroupMembers")) or 0
     local raid = Call("IsInRaid") == true
@@ -1497,6 +1521,7 @@ local function ScanGroup()
     for i = 1, raid and n or (n - 1) do
         local unit = (raid and "raid" or "party") .. i
         if Call("UnitIsPlayer", unit) == true and Call("UnitIsUnit", unit, "player") ~= true then
+            ns.MetPlayer(unit)                                -- W-511
             local guid = Str(Call("UnitGUID", unit))
             if guid then
                 local h = Hash(guid)

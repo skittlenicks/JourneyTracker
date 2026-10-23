@@ -218,6 +218,7 @@ var RANKINGS = (function () {
     R("jumpEvery", "J100", "fun", "bunny hoppers", "a jump every {n} seconds", "-", 25, 0.5, "Walking is just jumping with extra steps.", { family: "jumps" }),
 
     // ---- WoW Forever (wrapped W-001..W-021) ----
+    R("metNew", "W-511", "forever", "fans of the new combinations", "{n} players of Forever's new race and class combinations met", "+", 6, 0.6, "Twenty years of asking for them, and now they're everywhere."),
     R("zephras", "W-001", "forever", "quick fledglings", "left Zephras Isle at level {n}", "-", 10, 0.2, "The nest was nice, but the world was waiting.", { only: { race: "Skyborne" }, cohort: "race" }),
     R("hyjal", "W-006", "forever", "Hyjal pioneers", "reached Mount Hyjal {n} days after 60", "-", 5, 0.8, "You didn't even unpack at 60.", { at60: true, fixed: true }),
     R("forever", "W-007", "forever", "Forever explorers", "{n} new Forever quests done", "+", 55, 0.45, "You went looking for what's new, and found it."),

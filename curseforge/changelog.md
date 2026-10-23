@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.15
+
+- **Who you met:** Journey Tracker now counts the players you group or trade with by race and class, so you can see how many Dwarf Shamans, Undead Paladins and other new Forever combinations crossed your path. It's on the Groups & Chat page. Each player counts once, and no names are kept: only a scrambled code, which never leaves the game.
+- **Your PvP nemesis:** deaths to other players are now counted by race and class too, and Journey Tracker remembers the one player who killed you most, as "an Undead Rogue, 3 times", never by name. It's on the World PvP page.
+
+### On the website
+
+- **A picture for your stories:** every journey's page can now make a tall picture for Instagram, TikTok or Discord. Pick up to four of your stats and rankings, then download it or share it straight from your phone.
+- **Who you met and your nemesis** show on your page, and there's a new ranking for meeting players of Forever's new race and class combinations.
+- Rankings now show your place as a share, like "Top 4%", once 50 players are on a ranking instead of 100.
+
 ## 0.6.14
 
 - **Quest XP counted right:** for some quests the XP reached Journey Tracker before the game said the quest was turned in, so about a fifth of quest XP was filed as "other", and so were many level-ups. It's now credited to the quest whichever comes first, and what was saved before is fixed once when you log in.

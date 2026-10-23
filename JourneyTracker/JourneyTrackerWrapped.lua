@@ -45,6 +45,18 @@ local CAMP_OBJECTS = { ["Iron Oven"] = true, ["Sharpening Wheel"] = true, ["Fact
 -- W-003: race (token) and class Forever newly allows. Skyborne: any class.
 local NEW_COMBOS = { Gnome = "PRIEST", Human = "HUNTER", Dwarf = "SHAMAN", Orc = "MAGE",
     Troll = "WARLOCK", Scourge = "PALADIN" }
+-- A race and class key ("Scourge:PALADIN", W-509..W-511) as the window
+-- shows it ("Undead Paladin"), and whether Forever newly allows it.
+local COMBO_RACES = { Scourge = "Undead", NightElf = "Night Elf" }
+function ns.ComboName(key)
+    local race, class = tostring(key):match("^(.-):(.+)$")
+    if not race then return tostring(key) end
+    return (COMBO_RACES[race] or (race:gsub("(%l)(%u)", "%1 %2"))) .. " " .. class:sub(1, 1) .. class:sub(2):lower()
+end
+function ns.IsNewCombo(key)
+    local race, class = tostring(key):match("^(.-):(.+)$")
+    return race ~= nil and (race:find("Skyborne", 1, true) ~= nil or NEW_COMBOS[race] == class)
+end
 -- W-007: Classic's quest IDs stop below this; Forever's new quests are above it.
 local FOREVER_QUEST_ID = 10000
 

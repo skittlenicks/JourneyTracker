@@ -88,11 +88,12 @@ local function BuildSummary(db, milestone)
     end
     -- Never exported: the character's name and realm (exports are anonymous),
     -- window settings, dev probe dumps, internal bookkeeping, and the hashed
-    -- IDs used to count players you grouped with (only the count goes out).
+    -- IDs used to count players you grouped with, met or were killed by
+    -- (only the counts go out).
     for _, key in ipairs({ "char", "ui", "dev", "legacy", "legacySchema", "replaceOnLoad" }) do stats[key] = nil end
     if stats.money then stats.money.last = nil end
     if stats.quests then stats.quests.open = nil end
-    if stats.social then stats.social.seen = nil end
+    if stats.social then stats.social.seen, stats.social.met, stats.social.killers = nil, nil, nil end
     -- Skill-ups summarized to the highest rank reached at each level.
     for _, skill in pairs(stats.skills or {}) do
         local byLevel = {}

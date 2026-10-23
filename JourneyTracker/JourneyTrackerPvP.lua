@@ -228,6 +228,23 @@ local function OnDeath(rec, extra)
     end
     if world then
         if class then Track.count("W-151", class) end         -- W-151 deaths by class (W-152 nemesis)
+        -- W-509 by race and class too, and W-510 the one player who killed
+        -- you most: known again by a hash of their GUID, kept only in
+        -- db.social.killers (never exported); only race, class and count go out.
+        if p.race and class then
+            Track.count("W-509", p.race .. ":" .. class)
+            if p.id then
+                local S = ns.GetDB().social
+                S.killers = S.killers or {}
+                local k = S.killers[p.id] or { race = p.race, class = class, n = 0 }
+                k.n = k.n + 1
+                S.killers[p.id] = k
+                local top = Track.get("W-510")
+                if type(top) ~= "table" or k.n > (tonumber(top.n) or 0) then
+                    Track.set("W-510", { race = p.race, class = class, n = k.n })
+                end
+            end
+        end
         Track.count("W-155", rec.zone or "?")                 -- W-155 deaths by zone
     end
     -- W-165 third-partied: a mob was in the fight too
@@ -536,6 +553,15 @@ local function DrawPvP(B)
         rows[#rows + 1] = { "W-100", "Alliance killed in Hillsbrad" }
     end
     ns.ShowItems(B, rows)
+    -- W-510 your nemesis, W-509 deaths by race and class
+    local nemesis = Track.get("W-510")
+    B:Row("Your nemesis", type(nemesis) == "table" and string.format("a %s, killed you %d %s",
+        ns.ComboName(nemesis.race .. ":" .. nemesis.class), nemesis.n, nemesis.n == 1 and "time" or "times") or "-")
+    local by = Track.get("W-509")
+    if type(by) == "table" and next(by) then
+        B:Row("Deaths by race and class", "")
+        for key, n in pairs(by) do B:Note(ns.ComboName(key) .. ": " .. n) end
+    end
 end
 
 local function DrawBattlegrounds(B)

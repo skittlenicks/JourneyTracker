@@ -442,6 +442,49 @@ kbd {
 .card-lines .item-name { font-size: inherit; }
 .card-foot { margin: 0; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; color: var(--gold-deep); }
 .share-note { margin: 0; font-size: var(--step--1); color: var(--ink-soft); }
+/* A picture for your stories: up to four stats on a tall card (1080x1920) */
+.story {
+  box-sizing: border-box;
+  width: min(100%, 56rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px 32px;
+  align-items: start;
+  margin-top: 24px;
+  padding-top: 28px;
+  text-align: left;
+  border-top: 1px solid var(--rule);
+}
+.story h3 { margin: 0 0 6px; font-family: var(--font-display); font-size: var(--step-1); font-weight: 400; color: var(--gold-pale); }
+.story-lede { margin: 0 0 14px; color: var(--ink-soft); }
+.story-options {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  max-height: 26rem;
+  overflow-y: auto;
+  display: grid;
+  gap: 2px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.story-options .group { padding: 10px 8px 4px; font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+.story-options label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: baseline; padding: 7px 8px; border-radius: 4px; cursor: pointer; }
+.story-options label:hover { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.story-options input { grid-row: 1 / span 2; margin: 0; accent-color: var(--gold); }
+.story-options input:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; }
+.story-options span { line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
+.story-options b { font-family: var(--font-display); font-weight: 400; color: var(--gold); }
+.story-options small { grid-column: 2; font-size: var(--step--1); color: var(--ink-soft); }
+.story-options input:disabled ~ span, .story-options input:disabled ~ small { opacity: 0.45; }
+.story-count { margin: 8px 0 0; font-size: var(--step--1); color: var(--ink-soft); }
+.story-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.story-canvas { display: block; width: 270px; max-width: 100%; height: auto; aspect-ratio: 9 / 16; border: 1px solid var(--rule); border-radius: 8px; }
+@media (max-width: 720px) {
+  .story { grid-template-columns: minmax(0, 1fr); }
+  .story-canvas { grid-row: 1; justify-self: center; width: min(100%, 300px); }
+}
 .share-note a { color: var(--gold-pale); text-underline-offset: 3px; }
 /* A shared journey's link, to copy */
 .share-link { width: min(100%, 37rem); display: grid; gap: 8px; text-align: left; }
@@ -1178,6 +1221,10 @@ kbd {
       <dl class="stats cols-2" id="forever-stats"></dl>
       <dl class="stats cols-2" id="social-stats"></dl>
       <div>
+        <p class="label">Who you met</p>
+        <ul class="bars" id="met-bars"></ul>
+      </div>
+      <div>
         <p class="label">Groups, chat and reputation</p>
         <dl class="stats" id="group-stats"></dl>
       </div>
@@ -1244,7 +1291,7 @@ kbd {
         <summary id="all-ranks-summary"></summary>
         <ol id="all-ranks-list"></ol>
       </details>
-      <p class="footnote"><span id="rank-count"></span> rankings in all: one for every stat the addon tracks, each class's own stats and the game's Statistics pane. A saved journey is ranked among the others at its milestone, every ten levels: a level 34 journey among the level 30 ones, on its time to 30, with each other character's export closest to 30. One exported at its milestone's level more than two hours of play after reaching it is ranked only on the time it took and the levels it did things at, since everything else kept growing after. It's ranked on the rankings that apply to it, among all players or its own class, race, faction or realm type. You see the ones you stand out in most. A place shows once 3 journeys are on a ranking, like "2nd of 9", and becomes a share like "Top 3%" at 100. <span id="ranks-madeup">The sample journey's places are made up, and so are the numbers it doesn't have.</span></p>
+      <p class="footnote"><span id="rank-count"></span> rankings in all: one for every stat the addon tracks, each class's own stats and the game's Statistics pane. A saved journey is ranked among the others at its milestone, every ten levels: a level 34 journey among the level 30 ones, on its time to 30, with each other character's export closest to 30. One exported at its milestone's level more than two hours of play after reaching it is ranked only on the time it took and the levels it did things at, since everything else kept growing after. It's ranked on the rankings that apply to it, among all players or its own class, race, faction or realm type. You see the ones you stand out in most. A place shows once 3 journeys are on a ranking, like "2nd of 9", and becomes a share like "Top 3%" at 50. <span id="ranks-madeup">The sample journey's places are made up, and so are the numbers it doesn't have.</span></p>
     </div>
   </section>
 
@@ -1264,6 +1311,19 @@ kbd {
       <dl class="card-stats" id="card-stats"></dl>
       <dl class="card-lines" id="card-lines"></dl>
       <p class="card-foot">Journey Tracker · WoW Forever</p>
+    </div>
+    <div class="story" id="story">
+      <div>
+        <h3>A picture for your stories</h3>
+        <p class="story-lede">A tall card for Instagram, TikTok or Discord. Pick up to four stats to put on it.</p>
+        <ul class="story-options" id="story-options" aria-label="Stats on the picture"></ul>
+        <p class="story-count" id="story-count" aria-live="polite"></p>
+        <div class="story-actions">
+          <button type="button" class="copy-link" id="story-download">Download picture</button>
+          <button type="button" class="copy-link" id="story-share" hidden>Share picture</button>
+        </div>
+      </div>
+      <canvas class="story-canvas" id="story-canvas" width="1080" height="1920" role="img" aria-label="Your story card"></canvas>
     </div>
     <div class="share-link" id="share-link" hidden>
       <label for="share-url">This recap's link</label>
@@ -2464,7 +2524,11 @@ kbd {
       ["Players grouped with", num(S.groupedWith)],
       ["Joined a guild", S.guildLevel ? "Level " + S.guildLevel : S.guildBefore ? "Before tracking began" : "Not yet"],
       ["Jumps", num(S.jumps) + (S.jumps && trackedTime > 0 ? " <small>(one every " + Math.round(trackedTime / S.jumps) + "s)</small>" : "")]
-    ]);
+    ].concat(S.metTotal ? [["Players met", num(S.metTotal)], ["Of Forever's new combinations", num(S.metNew)]] : []));
+    // Who you met, by race and class (addon 0.6.15 on), the new ones first.
+    var met = (S.met || []).slice(0, 6);
+    bars("met-bars", met.map(function (r) { return [r[0] + "s" + (r[2] ? " (new)" : ""), r[1]]; }), num);
+    hideBlock("met-bars", !met.length);
     stats("group-stats", littleRows("social", LT));
     hideBlock("group-stats", !LT.social.length);
     // Left out when there's nothing at all in it.
@@ -2481,11 +2545,16 @@ kbd {
         (AT.duelsWon ? " and " + num(AT.duelsWon) + " duels won." : ".") :
       AT.duelsWon ? num(AT.duelsWon) + " duels won." :
       AT.wipes ? num(AT.wipes) + " wipes, and you went back in every time." : "Out in the world, and down in the dungeons.";
-    stats("pvp-stats", littleRows("pvp", LT));
+    // Your nemesis: the one player who killed you most (addon 0.6.15 on),
+    // by race and class, never a name.
+    var nemesis = S.nemesis && S.nemesis.n >= 2 ? [["Your nemesis", (/^[AEIOU]/.test(S.nemesis.who) ? "An " : "A ") +
+      esc(S.nemesis.who) + ", " + num(S.nemesis.n) + " times"]] : [];
+    var killedMost = S.pvpKillers && S.pvpKillers.length ? [["Killed you most", esc(S.pvpKillers[0][0]) + "s (" + num(S.pvpKillers[0][1]) + ")"]] : [];
+    stats("pvp-stats", nemesis.concat(killedMost, littleRows("pvp", LT)));
     stats("dungeon-stats", littleRows("dungeons", LT));
-    hideBlock("pvp-stats", !LT.pvp.length);
+    hideBlock("pvp-stats", !LT.pvp.length && !nemesis.length && !killedMost.length);
     hideBlock("dungeon-stats", !LT.dungeons.length);
-    hide("chapter-pvp", !LT.pvp.length && !LT.dungeons.length);
+    hide("chapter-pvp", !LT.pvp.length && !LT.dungeons.length && !nemesis.length && !killedMost.length);
   });
   draw("chapter-fun", function () {
     $("fun-title").textContent = AT.errors ? num(AT.errors) + " red error messages" +
@@ -3459,11 +3528,11 @@ kbd {
 
   // This journey's rankings, best first, and the ones it shows, for the hero
   // and the share card too (none if they couldn't be worked out).
-  var mine = [], myPicks = [];
+  var mine = [], myPicks = [], myProfile = null;
   draw("chapter-ranks", function () {
     // This journey's values (site/model.js). The sample's zone times are
     // spread over its route, and it has a few values of its own.
-    var YOU = M.profileOf(S, RANKINGS);
+    var YOU = myProfile = M.profileOf(S, RANKINGS);
     if (!S.imported) {
       var formTimes = S.forms;
       Object.assign(YOU.values, {
@@ -3678,6 +3747,206 @@ kbd {
     ].filter(Boolean);
     $("card-lines").innerHTML = lines.map(function (l) { return "<dt>" + l[0] + "</dt><dd>" + l[1] + "</dd>"; }).join("");
     hide("card-lines", !lines.length);
+  });
+
+  // A picture for your stories: a tall card (1080x1920) of the journey and
+  // up to four stats the player picks, drawn on a canvas in the page's own
+  // fonts, to download or share. Places only where they're real (a saved
+  // journey's, or the sample's made-up ones); a journey that wasn't saved
+  // shows its numbers alone.
+  draw("story", function () {
+    var real = !S.imported || !!(myProfile && myProfile.places);
+    var reached = atMilestone && S.playedTo;
+    var C = { ground: "#120e09", rule: "#3b2d1b", ink: "#ece3cf", soft: "#b3a386", gold: "#f2b234", pale: "#ffe9a3",
+              deep: "#c4660a" };
+    // A ranking as a stat: "{n} quests completed" reads as 335 over QUESTS
+    // COMPLETED; one that doesn't start with its number shows whole, under
+    // the part of the game it's from.
+    function fromStanding(x) {
+      var m = /^\{[ntgpd]\} (.+)$/.exec(x.r.detail);
+      var rest = m && myProfile ? M.fill(m[1], myProfile.values[x.r.key], myProfile) : "";
+      var split = rest && x.detail.length > rest.length && x.detail.slice(-rest.length) === rest;
+      return { label: split ? rest : GROUP_NAMES[x.r.group] || x.name, whole: !split,
+               value: split ? x.detail.slice(0, -rest.length).trim() : cap(x.detail),
+               place: x.big + " " + x.who + (x.cohort && x.cohort !== "All players" ? " · " + x.cohort : "") };
+    }
+    var shown = real ? mine.slice(0, 40) : [];
+    var places = shown.map(fromStanding);
+    var numbers = [
+      reached && { label: "to level " + milestone, value: dur(S.playedTo) },
+      reached && S.complete && S.daysTo && { label: "days to level " + milestone, value: num(S.daysTo) },
+      !reached && { label: "/played", value: dur(total) },
+      { label: "kills", value: num(S.kills), n: S.kills },
+      { label: "deaths", value: num(S.deaths), n: 1 },
+      { label: "quests completed", value: num(S.quests.completed), n: S.quests.completed },
+      { label: "zones explored", value: num(zoneStops.length), n: zoneStops.length },
+      { label: earned >= 10000 ? "gold earned" : "earned", value: earned >= 10000 ? gold(earned) : coins(earned), n: earned },
+      { label: "miles traveled", value: miles(S.travel.groundYards + S.travel.airYards), n: S.travel.groundYards + S.travel.airYards },
+      { label: "jumps", value: num(S.jumps), n: S.jumps }
+    ].filter(function (s) { return s && (s.n === undefined || s.n > 0); });
+    var options = places.concat(numbers);
+    // To start with: the best places the page shows (as the share card
+    // does), or the headline numbers.
+    var picked = places.length ? myPicks.slice(0, 4).map(function (x) { return places[shown.indexOf(x)]; }).filter(Boolean) :
+      numbers.slice(0, 4);
+    $("story-options").innerHTML = options.map(function (s, i) {
+      return (i === 0 && places.length ? '<li class="group">Your places</li>' : "") +
+        (i === places.length ? '<li class="group">Your numbers</li>' : "") +
+        '<li><label><input type="checkbox" id="story-opt-' + i + '"' + (picked.indexOf(s) >= 0 ? " checked" : "") + ">" +
+        "<span><b>" + esc(s.value) + "</b>" + (s.whole ? "" : " " + esc(s.label)) + "</span>" +
+        (s.place ? "<small>" + esc(s.place) + "</small>" : "") +
+        "</label></li>";
+    }).join("");
+    function chosen() { return options.filter(function (s, i) { return $("story-opt-" + i).checked; }); }
+
+    var canvas = $("story-canvas"), ctx = canvas.getContext("2d");
+    var W = canvas.width, H = canvas.height, cx = W / 2;
+    var logo = new Image();
+    logo.onload = render;
+    logo.src = document.querySelector("#card .card-head img").src;
+    function face(size, kind) {
+      return kind === "display" ? size + 'px Marcellus, "Palatino Linotype", Georgia, serif' :
+        kind === "mono" ? "500 " + size + 'px "IBM Plex Mono", Consolas, monospace' :
+        (kind === "medium" ? "500 " : "400 ") + size + 'px "Alegreya Sans", "Segoe UI", Arial, sans-serif';
+    }
+    // Text centred at (x, y), shrunk to fit `width`, and cut short with an
+    // ellipsis if even the smallest size doesn't.
+    function text(t, x, y, size, kind, color, width, spacing) {
+      var min = Math.max(14, Math.round(size * 0.45));
+      if ("letterSpacing" in ctx) ctx.letterSpacing = (spacing || 0) + "px";
+      for (ctx.font = face(size, kind); size > min && ctx.measureText(t).width > width; ) ctx.font = face(size -= 2, kind);
+      while (t.length > 1 && ctx.measureText(t).width > width) t = t.slice(0, -2) + "…";
+      ctx.fillStyle = color;
+      ctx.fillText(t, x, y);
+      if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+    }
+    function panel(x, y, w, h, r) {
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+    }
+    function render() {
+      var stats = chosen();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = C.ground;
+      ctx.fillRect(0, 0, W, H);
+      var glow = ctx.createRadialGradient(cx, 300, 40, cx, 300, 1000);
+      glow.addColorStop(0, "rgba(242, 178, 52, 0.17)");
+      glow.addColorStop(1, "rgba(242, 178, 52, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+      // The page card's double frame.
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = C.gold;
+      ctx.strokeRect(40, 40, W - 80, H - 80);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = C.rule;
+      ctx.strokeRect(56, 56, W - 112, H - 112);
+      if (logo.complete && logo.naturalWidth) {   // round, as on the page's card
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, 180, 72, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(logo, cx - 72, 108, 144, 144);
+        ctx.restore();
+      }
+      text("JOURNEY TRACKER · WOW FOREVER", cx, 314, 26, "mono", C.deep, 860, 6);
+      text(S.race + " " + S.className, cx, 432, 96, "display", C.pale, 900);
+      text("Level " + S.level + (S.faction ? " · " + S.faction : ""), cx, 494, 40, "body", C.soft, 860);
+      text(reached ? "THE ROAD TO " + milestone : "THE ROAD SO FAR", cx, 592, 28, "mono", C.gold, 860, 5);
+      text(dur(reached ? S.playedTo : total) + " /played" + (reached && S.complete && S.daysTo ? " · " + days(S.daysTo) : ""),
+        cx, 660, 58, "display", C.ink, 900);
+      ctx.strokeStyle = C.gold;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(250, 712); ctx.lineTo(cx - 18, 712); ctx.moveTo(cx + 18, 712); ctx.lineTo(W - 250, 712);
+      ctx.stroke();
+      ctx.fillStyle = C.gold;
+      ctx.beginPath();
+      ctx.moveTo(cx, 702); ctx.lineTo(cx + 10, 712); ctx.lineTo(cx, 722); ctx.lineTo(cx - 10, 712);
+      ctx.fill();
+      // The stats, as tall as four fit, centred in their space.
+      var top = 750, bottom = 1590, gap = 24, n = stats.length;
+      var h = n ? Math.min(198, (bottom - top - gap * (n - 1)) / n) : 0;
+      var y0 = top + (bottom - top - (n * h + gap * Math.max(0, n - 1))) / 2;
+      stats.forEach(function (s, i) {
+        var y = y0 + i * (h + gap);
+        panel(100, y, W - 200, h, 10);
+        ctx.fillStyle = "rgba(242, 178, 52, 0.06)";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = C.rule;
+        ctx.stroke();
+        var mid = y + h / 2;
+        text(s.label.toUpperCase(), cx, mid - (s.place ? 46 : 34), 28, "mono", C.gold, 800, 4);
+        text(s.value, cx, mid + (s.place ? 30 : 46), 80, "display", C.ink, 820);
+        if (s.place) text(s.place, cx, mid + 72, 30, "body", C.pale, 820);
+      });
+      // The road: the time each level took.
+      var levels = perLevel.slice(0, Math.max(0, S.level - 1));
+      var longest = Math.max.apply(null, levels.map(function (v) { return v > 0 ? v : 0; }).concat([0]));
+      if (longest > 0) {
+        text("TIME AT EACH LEVEL", cx, 1640, 22, "mono", C.soft, 860, 4);
+        var left = 140, width = W - 280, slot = width / levels.length, bar = Math.max(3, slot * 0.66);
+        var fill = ctx.createLinearGradient(0, 1662, 0, 1752);
+        fill.addColorStop(0, C.gold);
+        fill.addColorStop(1, C.deep);
+        levels.forEach(function (v, i) {
+          if (!(v > 0)) return;
+          var bh = Math.max(3, v / longest * 90);
+          ctx.fillStyle = v === longest ? C.pale : fill;
+          ctx.fillRect(left + i * slot + (slot - bar) / 2, 1752 - bh, bar, bh);
+        });
+        ctx.textAlign = "left";
+        text("1", left, 1784, 22, "mono", C.soft, 80);
+        ctx.textAlign = "right";
+        text(String(levels.length), left + width, 1784, 22, "mono", C.soft, 80);
+        ctx.textAlign = "center";
+      }
+      text(shareUrl ? shareUrl.replace(/^https?:\/\/(www\.)?/, "") : "journeytracker.dev", cx, 1846, 34, "medium", C.pale, 900);
+      $("story-count").textContent = n ? n + " of 4 picked." : "Pick a stat to put it on the picture.";
+    }
+    function pick() {
+      var count = chosen().length;
+      options.forEach(function (s, i) {
+        var input = $("story-opt-" + i);
+        input.disabled = !input.checked && count >= 4;
+      });
+      render();
+    }
+    options.forEach(function (s, i) { $("story-opt-" + i).addEventListener("change", pick); });
+    pick();
+    // Again once the fonts are in (the canvas draws in a fallback until then).
+    if (document.fonts && document.fonts.load) {
+      Promise.all(["96px Marcellus", '500 28px "IBM Plex Mono"', '400 40px "Alegreya Sans"', '500 34px "Alegreya Sans"']
+        .map(function (f) { return document.fonts.load(f); })).then(render, render);
+    }
+
+    var name = ("journey-tracker-" + S.race + "-" + S.className + "-" + S.level).toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".png";
+    function picture(then) { canvas.toBlob(function (blob) { if (blob) then(blob); }, "image/png"); }
+    $("story-download").addEventListener("click", function () {
+      picture(function (blob) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+      });
+    });
+    // Share straight to an app where the browser can (phones, mostly).
+    var canShare = false;
+    try {
+      canShare = !!(navigator.canShare && navigator.share && navigator.canShare({ files: [new File([""], name, { type: "image/png" })] }));
+    } catch (err) { canShare = false; }
+    hide("story-share", !canShare);
+    $("story-share").addEventListener("click", function () {
+      picture(function (blob) {
+        navigator.share({ files: [new File([blob], name, { type: "image/png" })], text: shareUrl || undefined })
+          .catch(function () {});
+      });
+    });
   });
 })();
 </script>
