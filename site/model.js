@@ -284,8 +284,9 @@ var JourneyModel = (function () {
     var path = listOf(st.path);
     // One place by two names: in Wailing Caverns the game's text for the zone
     // says "The Wailing Caverns" and its instance "Wailing Caverns". Where a
-    // journey has both, they're one stop with the time of both.
-    var zones = named(st.zones);
+    // journey has both, they're one stop with the time of both, and one place
+    // in the lists of deaths and quests.
+    var zones = named(st.zones), twoNames = Object.create(null);
     Object.keys(zones).forEach(function (z) {
       var bare = z.indexOf("The ") === 0 ? z.slice(4) : "";
       if (!bare || !own(zones, bare)) return;
@@ -293,7 +294,9 @@ var JourneyModel = (function () {
       merged[bare] = Object.assign({}, named(zones[bare]), { seconds: number(named(zones[bare]).seconds) + number(named(zones[z]).seconds) });
       delete merged[z];
       zones = merged;
+      twoNames[z] = bare;
       path = path.map(function (p) { return named(p).zone === z ? Object.assign({}, p, { zone: bare }) : p; });
+      deaths = deaths.map(function (d) { return named(d).zone === z ? Object.assign({}, d, { zone: bare }) : d; });
     });
     J.firstLevel = path.reduce(function (lowest, p) {
       var l = number(named(p).level);
@@ -476,7 +479,13 @@ var JourneyModel = (function () {
                  deaths: deaths.length, quests: number(quests.completed) };
     var heldFor = number(named(quests.longest).seconds);
     J.longestQuest = heldFor > 0 ? { days: Math.round(heldFor / 86400), seconds: heldFor } : null;
-    J.questZones = topRows(quests.byZone, 5);
+    var questsIn = Object.assign(Object.create(null), named(quests.byZone));
+    Object.keys(twoNames).forEach(function (z) {
+      if (!own(questsIn, z)) return;
+      questsIn[twoNames[z]] = number(own(questsIn, twoNames[z])) + number(questsIn[z]);
+      delete questsIn[z];
+    });
+    J.questZones = topRows(questsIn, 5);
     J.questGold = best(quests.money, 326);
     J.levelQuests = mostIn("quests");
     var xp = named(st.xp), xpTotal = number(xp.total);
