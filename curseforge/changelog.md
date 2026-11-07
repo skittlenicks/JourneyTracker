@@ -2,7 +2,7 @@
 
 ## 0.6.17
 
-These come from reading the journeys players have uploaded since launch. Your saved journey is corrected the first time you log in, and the website corrects journeys you've already uploaded.
+These fixes come from reading the journeys players have uploaded since launch. Your saved journey is corrected the first time you log in with 0.6.17, and the website corrects journeys you've already uploaded.
 
 - **Your deaths are right:** your pet dying no longer counts as you dying. Warlocks and hunters were seeing far more deaths than they'd really had.
 - **Every language:** on clients in other languages, such as German and Russian, many kills, experience and other stats weren't being counted. They are now. Camps and cloth are read by their IDs, so they count in any language too. A few stats still look for English names, such as creatures counted by name and emotes aimed at you.
@@ -11,7 +11,7 @@ These come from reading the journeys players have uploaded since launch. Your sa
 - **Your PvP nemesis works:** deaths to other players now record the killer's race and class, even if you weren't targeting them when you died. As before, it never saves a name.
 - **Reputation:** the level you reached each standing and your first Exalted are now recorded.
 - **Random-suffix gear:** "of the Monkey" and friends now count when you loot them.
-- **Smaller fixes:** trades completed, enchants applied and critters killed now count. Running back into a dungeon as a ghost now counts as a corpse run instead of "unknown". Wailing Caverns only appears once on your route.
+- **Smaller fixes:** trades completed, enchants applied and critters killed now count. Running back into a dungeon as a ghost now counts as a corpse run instead of "unknown". On the website, Wailing Caverns now shows up once, both on your route and in where you died.
 - **A privacy fix:** the list of emotes aimed at you could pick up another player's surname, or part of one. That list now starts over and keeps only the verb, like "hugs".
 
 ## 0.6.16
