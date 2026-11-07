@@ -1689,7 +1689,13 @@ local function OnTimePlayed(total, thisLevel)
         if d then d.played = total end                        -- #2 /played at each ding
         -- #3 /played spent on the level just finished
         if P.levelStart and thisLevel then
-            LevelStats(pendingDing - 1).played = math.max(0, (total - thisLevel) - P.levelStart)
+            local took = math.max(0, (total - thisLevel) - P.levelStart)
+            LevelStats(pendingDing - 1).played = took
+            -- #117 said in chat, with the game's own /played lines (which by
+            -- now only give the new level's time)
+            if took > 0 then
+                print(PREFIX, string.format("You spent %s of /played at level %d.", FormatDuration(took), pendingDing - 1))
+            end
         end
         pendingDing = nil
     end

@@ -1853,6 +1853,7 @@ local SEND_EVERY = 0.3    -- seconds between your messages, one after another
 local MAX_GUILDMATES = 200
 local guildmates, guildmateCount = {}, 0   -- [name] = { class, race, level, at = { [milestone] = row } }
 local askedAt, answeredAt, outbox, sending = -1000, -1000, {}, false
+local sentAt, mySender = {}, nil   -- your recent messages ([text] = GetTime()), and your name in them (see IsMe)
 -- Professions by skill line, the same in every language (#91), shortened
 -- for the Guild tab.
 local SKILL_LINES = { [171] = "Alch", [164] = "Smith", [333] = "Ench", [202] = "Eng", [182] = "Herb",
@@ -1974,6 +1975,7 @@ local function SendNext()
         outbox, sending = {}, false
         return
     end
+    sentAt[text] = GetTime()
     ns.Call("C_ChatInfo.SendAddonMessage", VERSION_PREFIX, GUILD_TAG .. text, "GUILD")
     if C_Timer and C_Timer.After then C_Timer.After(SEND_EVERY, ns.Protect(SendNext)) else SendNext() end
 end
@@ -2010,14 +2012,28 @@ local function RefreshGuildPage()
     if frame and frame:IsShown() and currentTab == TABS.Guild then RenderPage() end
 end
 
-local function IsMe(name)
+-- Whether a message came from you: your own come back to you. Forever signs
+-- them with your full name ("Skittle Nipss"), where UnitName gives "Skittle",
+-- and two players can share a first name. So a sender that only starts with
+-- your name is you if this is a message you just sent, and then that sender
+-- is you from there on. (Not learned from "?", which anyone might send.)
+local ECHO_WITHIN = 60
+local function IsMe(name, body)
+    if name == mySender then return true end
     local me = ns.Str(ns.Call("UnitName", "player"))
-    return me ~= nil and (name == me or name:match("^(.-)%-") == me)
+    if not me then return false end
+    local bare = name:match("^(.-)%-") or name
+    if bare == me then return true end
+    if bare:sub(1, #me) == me and sentAt[body] and GetTime() - sentAt[body] <= ECHO_WITHIN then
+        if body ~= "?" then mySender = name end
+        return true
+    end
+    return false
 end
 
 OnGuildMessage = function(body, channel, sender)
     sender = ns.Str(ns.Safe(sender))
-    if channel ~= "GUILD" or not sender or IsMe(sender) then return end
+    if channel ~= "GUILD" or not sender or IsMe(sender, body) then return end
     if body == "?" then
         -- Asked: answer a few seconds on, once a minute at most.
         if ns.GuildShareOn() and GetTime() - answeredAt > ANSWER_GAP then
@@ -2052,7 +2068,7 @@ ns.Listen("PLAYER_LEVEL_UP", ns.Protect(function(level)
 end))
 
 -- The Guild tab: a table at each milestone, fastest first.
-local GUILD_COLS = { 92, 62, 36, 54, 54, 70, 36, 50, 60, 40, 116 }
+local GUILD_COLS = { 110, 62, 34, 60, 60, 70, 34, 46, 56, 40, 140 }
 local function Professions(profs)
     local list = {}
     for line, rank in pairs(profs or {}) do list[#list + 1] = { SKILL_LINES[line], rank } end

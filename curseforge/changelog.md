@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.16
+
+- **How long each level took:** when you level up, Journey Tracker now says in chat how long you spent at the level you just finished, in /played time. The game's own /played lines only show the new level's time by then.
+- **You're only in your guild table once:** the Guild tab listed you twice, as "You" and under your character's full name. Its columns are wider too, so long names and times aren't cut off as often.
+
 ## 0.6.15
 
 - **Who you met:** Journey Tracker now counts the players you group or trade with by race and class, so you can see how many Dwarf Shamans, Undead Paladins and other new Forever combinations crossed your path. It's on the Groups & Chat page. Each player counts once, and no names are kept: only a scrambled code, which never leaves the game.
