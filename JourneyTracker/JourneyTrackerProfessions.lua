@@ -18,8 +18,9 @@ local FISHING_BOBBER = 35591              -- the bobber's object ID; loot from a
 local FISHING_GAP = 120                   -- seconds between casts that still make one session
 local VISIT_GAP = 600                     -- a new Darkmoon Faire visit after this long away
 local FAIRE_TURN_IN = 60                  -- a quest turned in this soon after seeing the Faire was there (W-461)
-local CLOTH = { ["Linen Cloth"] = true, ["Wool Cloth"] = true, ["Silk Cloth"] = true, ["Mageweave Cloth"] = true,
-    ["Runecloth"] = true, ["Felcloth"] = true }
+-- By item ID, so it works in any language; counted under the English name.
+local CLOTH = { [2589] = "Linen Cloth", [2592] = "Wool Cloth", [4306] = "Silk Cloth", [4338] = "Mageweave Cloth",
+    [14047] = "Runecloth", [14256] = "Felcloth" }
 local EXPLOSIVES = { "Dynamite", "Bomb", "Grenade", "Sapper Charge", "Land Mine", "Explosive Sheep" }
 local GADGETS = { "Gnomish", "Goblin Rocket", "Goblin Dragon Gun", "Goblin Bomb Dispenser", "Goblin Mortar",
     "Net-o-Matic", "Death Ray", "Mind Control Cap", "Shrink Ray", "Discombobulator", "Dimensional Ripper",
@@ -58,7 +59,18 @@ local HOLIDAY_WORDS = { "Darkmoon", "Hallow", "Winter Veil", "Greatfather Winter
 
 local INCREASED = ns.PatternFrom(FACTION_STANDING_INCREASED, "Your %s reputation has increased by %d.")
 local DECREASED = ns.PatternFrom(FACTION_STANDING_DECREASED, "Your %s reputation has decreased by %d.")
-local STANDING = ns.PatternFrom(FACTION_STANDING_CHANGED, "You are now %s with %s.")
+local STANDING, STANDING_ORDER = ns.NumberedPattern(FACTION_STANDING_CHANGED, "You are now %s with %s.")
+-- The standings by the game's number, and that number from a standing's name
+-- in this client's language.
+local STANDING_NAMES = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+local STANDING_OF = {}
+for i, name in ipairs(STANDING_NAMES) do
+    STANDING_OF[name] = i
+    for _, tail in ipairs({ "", "_FEMALE" }) do
+        local here = _G["FACTION_STANDING_LABEL" .. i .. tail]
+        if type(here) == "string" then STANDING_OF[here] = i end
+    end
+end
 local LEARNED_RECIPE = ns.PatternFrom(ERR_LEARN_RECIPE_S, "You have learned how to create a new item: %s.")
 
 local function HasAny(text, words)
@@ -152,8 +164,9 @@ local function OnLoot(link, count, quality, extra)
     if extra.gather == "mining" and (quality or 0) >= 2 then
         Track.count("W-415", name, count)                     -- W-415 gems found mining
     end
-    if CLOTH[name] and not extra.gather then
-        Track.count("W-417", name, count)                     -- W-417 cloth by type (total: W-418)
+    local cloth = CLOTH[tonumber(link:match("|Hitem:(%d+)")) or 0]
+    if cloth and not extra.gather then
+        Track.count("W-417", cloth, count)                    -- W-417 cloth by type (total: W-418)
     end
     if extra.fishing then
         Track.count("W-422", name, count)                     -- W-422 caught, by type
@@ -290,11 +303,12 @@ local function OnItemChange(c)
         end
         if HasAny(name, EXPLOSIVES) then Track.count("W-432", name, n) end -- W-432 explosives
         if name:find("Target Dummy", 1, true) then Track.count("W-433", name, n) end -- W-433 dummies
-        if CLOTH[name] then
+        local cloth = CLOTH[c.id or 0]
+        if cloth then
             if DonationJustNow() then
-                Track.count("W-453", name, n)                 -- W-453 cloth donated
+                Track.count("W-453", cloth, n)                -- W-453 cloth donated
             else
-                table.insert(recentCloth, { name = name, n = n, t = GetTime() }) -- the quest may come next
+                table.insert(recentCloth, { name = cloth, n = n, t = GetTime() }) -- the quest may come next
                 if #recentCloth > 5 then table.remove(recentCloth, 1) end
             end
         end
@@ -483,6 +497,46 @@ local function MigrateRep()
     end
 end
 
+-- W-440 the level you reached each standing, W-475 the first time Exalted.
+local function ReachedStanding(faction, number)
+    local standing = STANDING_NAMES[number or 0]
+    if not faction or not standing then return end
+    local map = Track.get("W-440")
+    if type(map) ~= "table" then map = {} end
+    map[faction] = map[faction] or {}
+    if not map[faction][standing] then
+        map[faction][standing] = Track.context()
+        Track.set("W-440", map)
+    end
+    if number == 8 then Track.firstEver("W-475", { name = faction }) end
+end
+
+-- The game's message for it, for a standing named as this client names it.
+local function OnStandingMessage(msg)
+    msg = Str(Safe(msg))
+    if not msg then return end
+    local standing, faction = ns.MatchParts(msg, STANDING, STANDING_ORDER)
+    if standing then ReachedStanding(faction, STANDING_OF[standing]) end
+end
+
+-- Which way the message comes isn't certain and it reads differently in each
+-- language, so also the game's own numbers: a faction you know going up.
+local standings                                               -- [faction ID] = standing, this session
+local function ScanStandings()
+    if not (C_Reputation and C_Reputation.GetNumFactions) then return end
+    standings = standings or {}
+    for i = 1, Num(Call("C_Reputation.GetNumFactions")) or 0 do
+        local data = Call("C_Reputation.GetFactionDataByIndex", i)
+        if type(data) == "table" and (not Safe(data.isHeader) or Safe(data.isHeaderWithRep)) then
+            local id, number = Num(Safe(data.factionID)), Num(Safe(data.reaction))
+            if id and number then
+                if standings[id] and number > standings[id] then ReachedStanding(Str(Safe(data.name)), number) end
+                standings[id] = number
+            end
+        end
+    end
+end
+
 local function OnFactionMessage(msg)
     msg = Str(Safe(msg))
     if not msg then return end
@@ -511,20 +565,7 @@ local function OnFactionMessage(msg)
         Track.count("W-441", faction, tonumber(amount) or 0)  -- W-441 reputation lost
         return
     end
-    local standing
-    standing, faction = msg:match(STANDING)
-    if standing and faction then
-        local map = Track.get("W-440")
-        if type(map) ~= "table" then map = {} end
-        map[faction] = map[faction] or {}
-        if not map[faction][standing] then
-            map[faction][standing] = Track.context()          -- W-440 level you reached each standing
-            Track.set("W-440", map)
-        end
-        if standing == (FACTION_STANDING_LABEL8 or "Exalted") then
-            Track.firstEver("W-475", { name = faction })      -- W-475 first time Exalted
-        end
-    end
+    OnStandingMessage(msg)
 end
 
 -- W-452 reputation turn-ins, W-453 cloth donations: a quest turned in that
@@ -716,9 +757,13 @@ On("CHAT_MSG_LOOT", function(msg)
     if link then OnCreated(NameOf(link) or link, tonumber(n) or 1) end
 end)
 On("CHAT_MSG_COMBAT_FACTION_CHANGE", OnFactionMessage)
+On("CHAT_MSG_SYSTEM", OnStandingMessage)
+On("UPDATE_FACTION", ScanStandings)
+On("FACTION_STANDING_CHANGED", ScanStandings)
 On("QUEST_TURNED_IN", OnQuestTurnedIn)
 On("SKILL_LINES_CHANGED", CheckProfessions)
 On("PLAYER_ENTERING_WORLD", function()
+    ScanStandings()
     if C_Timer and C_Timer.After then C_Timer.After(5, Protect(CheckProfessions)) end
 end)
 On("ZONE_CHANGED", CheckFaire)

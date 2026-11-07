@@ -32,7 +32,6 @@ local classToken  -- "DRUID", "WARRIOR", ...
 local def         -- this class's entry in CLASSES, once logged in
 local data        -- db.class[classToken]
 local all         -- db.class.ALL
-local me          -- your character's name, only to tell self-casts apart
 
 ---------------------------------------------------------------------------
 -- What each class tracks
@@ -398,18 +397,15 @@ local function ClassName(token)
     return (LOCALIZED_CLASS_NAMES_MALE and token and LOCALIZED_CLASS_NAMES_MALE[token]) or token or "Unknown"
 end
 
--- A character's name without the "-Realm" the game can add to it.
-local function ShortName(name)
-    return type(name) == "string" and name:match("^[^%-]+") or nil
-end
 
 -- Class of a group member with this name (counts only; names aren't kept).
 local function ClassOfGroupMember(name)
     local n = Num(Call("GetNumGroupMembers")) or 0
     local raid = Call("IsInRaid") == true
+    name = name and (name:match("^(.-)%-") or name)
     for i = 1, raid and n or (n - 1) do
         local unit = (raid and "raid" or "party") .. i
-        if Str(Call("UnitName", unit)) == name then
+        if Str(Call("UnitName", unit)) == name or ns.FullName(unit) == name then
             local _, token = Call("UnitClass", unit)
             return Str(token)
         end
@@ -1126,7 +1122,7 @@ local function OnSent(unit, target, castGUID, spellID)
         -- kept. Yours can come with your realm ("Name-Realm").
         if IsSecret(target) then
             pendingTarget[castGUID] = "unknown"
-        elseif target == nil or target == "" or (me and ShortName(target) == ShortName(me)) then
+        elseif target == nil or target == "" or ns.IsMe(target) then
             pendingTarget[castGUID] = "self"
         else
             pendingTarget[castGUID] = "other"
@@ -1408,7 +1404,6 @@ local function Activate()
     activated = true
     local _, token = Call("UnitClass", "player")
     classToken = Str(token)
-    me = Str(Call("UnitName", "player"))
     db.class = db.class or {}
     all = db.class.ALL or {}
     db.class.ALL = all

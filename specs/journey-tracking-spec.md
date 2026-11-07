@@ -82,12 +82,12 @@ Rules for Claude:
 43. `BUILT` PvP honorable kills (PLAYER_PVP_KILLS_CHANGED)
 
 ## Deaths
-44. `BUILT` Total deaths (PLAYER_DEAD)
+44. `BUILT` Total deaths (PLAYER_DEAD, only when you're dead and weren't already: the event also comes for your pet's death)
 45. `BUILT` Deaths per level
 46. `BUILT` Zone and coordinates of every death
 47. `BUILT` What killed you: last cached target or mob in that fight [probe] (a hostile targeted more than a minute before isn't used)
 48. `BUILT` Deaths solo vs grouped vs in dungeons
-49. `BUILT` Resurrection type: corpse run, spirit healer, player res (AcceptXPLoss missing on Forever; spirit healer detected from its dialog)
+49. `BUILT` Resurrection type: corpse run, spirit healer, player res (AcceptXPLoss missing on Forever; spirit healer detected from its dialog; a ghost coming back with no other hint is a corpse run, as when walking back into a dungeon)
 50. `BUILT` Time spent on corpse runs
 51. `BUILT` Deadliest zone
 52. `BUILT` Longest streak of levels with no deaths
@@ -222,3 +222,4 @@ Rules for Claude:
 - 2026-10-22: Fixes from a level 1-30 journey and every saved upload (addon 0.6.14, site MODEL 11): quest XP that came before its turn-in filed as "other" (#21, #23), every herb picked counted as a treasure chest (W-381; Forever's herb cast is "Herbalism"), camps set up from the game's own count (W-008), zones flown over on the route (#67), loot money with no loot window (#78), a fishing pole as the first two-hander (W-397). Saved data from before is fixed once at login, and the website fixes older exports the same way where it can (not the flights: older stops have no marks). Checked outside the game (fengari: a new 0.6.14 test, the whole suite on a fixed copy of the saved data) and with the site's tests and in headless Edge (a real level 30 journey before and after).
 - 2026-10-23: Ideas from Blizzard's beta recap (timewalking.blizzard.com), addon 0.6.15 and site MODEL 12: players met by race and class (W-511), deaths to players by race and class (W-509) and the one player who killed you most (W-510), each without a name, the players known again by GUID hashes kept only in the saved data; the website shows who you met (Forever's new combinations first) and your nemesis, and ranks new-combination players met. The website also gets a picture for your stories (#116) and shows places as shares from 50 players (#110). Checked outside the game (fengari: a new 0.6.15 test, the export without names or hashes) and with the site's tests and in headless Edge (the picture for the sample and a saved journey, desktop and phone).
 - 2026-11-07: #117 added and `BUILT` (addon 0.6.16): at each ding, chat says how long you spent at the level you just finished. Checked outside the game (fengari: a ding, under a minute, over a day, a /played you type or at login saying nothing, no line when the level's start isn't known).
+- 2026-11-07: Fixes from 1,105 live uploads (addon 0.6.17, site MODEL 13): a pet's death counted as yours (warlocks 1.55x the game's deaths, hunters 1.33x; #44, #45, with a one-time repair of saved journeys, saved.phantomDeathsFixed, and the same on the website for older exports); a ghost walking back into a dungeon was "unknown" (#49); the kill message wasn't read on non-English clients (numbered parts, grammar markers and rested wordings; ns.NumberedPattern, ns.MatchParts, ns.MobFromXP). Wailing Caverns on the route under two names is now one stop (website). Checked outside the game (fengari: every format the addon reads in 10 languages from Forever's strings, and each bug played out; the site model over all 1,105 uploads). Not yet tested in the game.

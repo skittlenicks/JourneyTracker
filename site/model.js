@@ -33,7 +33,9 @@ var JourneyModel = (function () {
   //    flew over (0.6.14 on) aren't visits or zone changes.
   // 12: players of Forever's new race and class combinations met (W-511,
   //    addon 0.6.15) ranked.
-  var MODEL = 12;
+  // 13: pets' deaths out; enemy players killed, duels and battlegrounds from
+  //     the game's own pane where the addon couldn't count them (addon 0.6.17).
+  var MODEL = 13;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -230,6 +232,12 @@ var JourneyModel = (function () {
       if (n !== null) pane[id] = n;
     });
     function best(tracked, id) { return Math.max(number(tracked), pane[id] || 0); }
+    // Up to addon 0.6.16 enemy players killed and critters never counted (the
+    // game no longer says who died by name). The game's own counts stand in.
+    wr = Object.assign(Object.create(null), wr);
+    [["W-140", 588], ["W-057", 108]].forEach(function (r) {
+      if (pane[r[1]] > number(own(wr, r[0]))) wr[r[0]] = pane[r[1]];
+    });
     J.pane = pane;
     J.firstLogin = dayOf(since);
     J.reached60 = reachedMax ? dayOf(reachedMax) : null;
@@ -246,6 +254,25 @@ var JourneyModel = (function () {
     // the level-ups on either side. Levels before the tracker stay empty,
     // and so does one past LEVEL_TIME_MAX.
     var levelStats = numbered(lv.stats), dings = numbered(lv.snapshots), L;
+    // Before addon 0.6.17 a pet's death was filed as yours: a death you never
+    // came back from. They go as the addon's own repair takes them, as far as
+    // the game's count of deaths allows (the last may be happening right now),
+    // from the list, its level and the running totals at each level-up after.
+    var deaths = listOf(st.deaths);
+    if (pane[60] !== undefined && deaths.length > pane[60]) {
+      deaths = deaths.slice();
+      for (var dead = deaths.length - 2; dead >= 0 && deaths.length > pane[60]; dead--) {
+        var phantom = named(deaths[dead]);
+        if (phantom.rez) continue;
+        deaths.splice(dead, 1);
+        var inLevel = named(levelStats[number(phantom.level)]);
+        if (number(inLevel.deaths) > 0) levelStats[number(phantom.level)] = Object.assign({}, inLevel, { deaths: number(inLevel.deaths) - 1 });
+        Object.keys(dings).forEach(function (k) {
+          var d = named(dings[k]);
+          if (number(d.t) >= number(phantom.t) && number(d.deaths) > 0) dings[k] = Object.assign({}, d, { deaths: number(d.deaths) - 1 });
+        });
+      }
+    }
     function levelTime(t) { return t > 0 && t <= LEVEL_TIME_MAX; }
     J.perLevel = [];
     for (L = 1; L <= 59; L++) {
@@ -255,6 +282,19 @@ var JourneyModel = (function () {
       J.perLevel.push(levelTime(took) ? took : null);
     }
     var path = listOf(st.path);
+    // One place by two names: in Wailing Caverns the game's text for the zone
+    // says "The Wailing Caverns" and its instance "Wailing Caverns". Where a
+    // journey has both, they're one stop with the time of both.
+    var zones = named(st.zones);
+    Object.keys(zones).forEach(function (z) {
+      var bare = z.indexOf("The ") === 0 ? z.slice(4) : "";
+      if (!bare || !own(zones, bare)) return;
+      var merged = Object.assign(Object.create(null), zones);
+      merged[bare] = Object.assign({}, named(zones[bare]), { seconds: number(named(zones[bare]).seconds) + number(named(zones[z]).seconds) });
+      delete merged[z];
+      zones = merged;
+      path = path.map(function (p) { return named(p).zone === z ? Object.assign({}, p, { zone: bare }) : p; });
+    });
     J.firstLevel = path.reduce(function (lowest, p) {
       var l = number(named(p).level);
       return l > 0 && (!lowest || l < lowest) ? l : lowest;
@@ -398,11 +438,12 @@ var JourneyModel = (function () {
     }, 0) || undefined;
 
     // Deaths
-    var deaths = listOf(st.deaths), rez = named(st.rez);
+    var rez = named(st.rez);
     J.deaths = best(deaths.length, 60);
     J.deathZones = topRows(tally(deaths, "zone"), 4);
     J.killers = topRows(tally(deaths, "killer"), 4);
-    J.rez = { corpse: number(rez["corpse run"]), spirit: number(rez["spirit healer"]), player: number(rez["player rez"]) };
+    // ("unknown" before addon 0.6.17: a ghost walking back into a dungeon.)
+    J.rez = { corpse: number(rez["corpse run"]) + number(rez.unknown), spirit: number(rez["spirit healer"]), player: number(rez["player rez"]) };
     // Where each death happened: the zone map (UiMapID) and the spot on it, 0 to 100.
     J.deathSpots = deaths.filter(function (d) {
       return d && number(d.mapID) > 0 && typeof d.x === "number" && typeof d.y === "number" &&
@@ -445,8 +486,12 @@ var JourneyModel = (function () {
     // filed as "other": the quest XP the turn-ins reported that "quest" is
     // missing moves back (nothing, once the addon has done it itself).
     var xpOther = number(xp.other), xpMissing = Math.min(xpOther, Math.max(0, number(quests.xp) - number(xp.quest)));
-    J.xpSplit = [["Quests", xpShare(number(xp.quest) + xpMissing), "var(--gold)"], ["Kills", xpShare(xp.kill), "var(--gold-deep)"],
-                 ["Exploration", xpShare(xp.explore), "var(--gold-pale)"], ["Other", xpShare(xpOther - xpMissing), "var(--ink-soft)"]]
+    // And before 0.6.17 a client whose kill message the addon couldn't read
+    // (German's, for one) filed all its kills' XP as "other".
+    var xpKill = number(xp.kill), xpRest = xpOther - xpMissing;
+    if (!xpKill && pane[1198] > 0) { xpKill = xpRest; xpRest = 0; }
+    J.xpSplit = [["Quests", xpShare(number(xp.quest) + xpMissing), "var(--gold)"], ["Kills", xpShare(xpKill), "var(--gold-deep)"],
+                 ["Exploration", xpShare(xp.explore), "var(--gold-pale)"], ["Other", xpShare(xpRest), "var(--ink-soft)"]]
       .filter(function (p) { return p[1] > 0; });
     J.restedShare = xpShare(xp.restedUsed);
     J.groupXP = xpShare(xp.grouped);
@@ -461,7 +506,7 @@ var JourneyModel = (function () {
 
     // The road: zones in the order you first reached them, the levels you
     // were while there, and the time spent in each.
-    var zones = named(st.zones), stops = [], stopOf = Object.create(null);
+    var stops = [], stopOf = Object.create(null);
     path.forEach(function (p, i) {
       p = named(p);
       // (not a zone you only flew over: a stop made in flight, 0.6.14 on)
@@ -827,6 +872,12 @@ var JourneyModel = (function () {
       });
       if (Object.keys(v).length) stats[id] = v;
     });
+    // Battlegrounds won and played, where the addon has no results (up to
+    // 0.6.16 it asked for them with a function Forever doesn't have).
+    if (pane && !Object.keys(named(stats["W-171"])).length && number(own(pane, 839)) > 0) {
+      var bgsWon = number(own(pane, 840));
+      stats["W-171"] = { "Battlegrounds won": bgsWon, "Battlegrounds lost": Math.max(0, number(own(pane, 839)) - bgsWon) };
+    }
     var sent = littleValue(stats, "W-277+W-278+W-279+W-280+W-281+W-283", "n");
     stats["W-293"] = played > 0 ? Math.round(sent / (played / 3600)) : 0;
     var between = 0, gaps = 0, last = null;
@@ -867,7 +918,7 @@ var JourneyModel = (function () {
   }
   // Wrapped counts shown the bigger of theirs and the Statistics pane's, by
   // statistic ID: Need and Greed rolls.
-  var LITTLE_PANE = { "W-246": { need: 1044, greed: 1043 } };
+  var LITTLE_PANE = { "W-246": { need: 1044, greed: 1043 }, "W-186": { won: 319, lost: 320 } };
   // Rankings the Statistics pane answers that the wrapped stats count too:
   // the bigger of the two counts (both start partway through a character).
   var LITTLE_BEST = {

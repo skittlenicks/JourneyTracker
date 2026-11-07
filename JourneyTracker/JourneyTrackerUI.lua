@@ -2019,11 +2019,10 @@ end
 -- is you from there on. (Not learned from "?", which anyone might send.)
 local ECHO_WITHIN = 60
 local function IsMe(name, body)
-    if name == mySender then return true end
+    if name == mySender or ns.IsMe(name) then return true end
     local me = ns.Str(ns.Call("UnitName", "player"))
     if not me then return false end
     local bare = name:match("^(.-)%-") or name
-    if bare == me then return true end
     if bare:sub(1, #me) == me and sentAt[body] and GetTime() - sentAt[body] <= ECHO_WITHIN then
         if body ~= "?" then mySender = name end
         return true

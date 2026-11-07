@@ -67,39 +67,22 @@ local function InBattleground()
     return inInstance == true and kind == "pvp"
 end
 
-local function MyName() return Str(Call("UnitName", "player")) end
-
--- A pattern for a game message whose format may use numbered parts
--- ("%1$s has defeated %2$s"): returns the pattern and which part each
--- capture is, in order.
-local function NumberedPattern(fmt, english)
+-- The honor message for a kill: of a victim with a PvP rank or without one
+-- (where the client has that string), with a rested bonus or not.
+local HONOR_KILLS = {}
+local function HonorKill(fmt, english, ranked)
     if type(fmt) ~= "string" then fmt = english end
-    local order, i = {}, 0
-    -- Escape the pattern characters ("$" too, so "%1$s" becomes "%1%$s"),
-    -- then turn each %N$s, %s and %d into a capture.
-    local p = fmt:gsub("[%^%$%(%)%.%[%]%*%+%-%?]", "%%%0")
-    p = p:gsub("%%(%d)%%%$s", function(n) order[#order + 1] = tonumber(n); return "(.-)" end)
-    p = p:gsub("%%s", function() i = i + 1; order[#order + 1] = i; return "(.-)" end)
-    p = p:gsub("%%d", "(%%d+)")
-    return "^" .. p .. "$", order
+    if fmt then table.insert(HONOR_KILLS, { pattern = ns.PatternFrom(fmt), ranked = ranked }) end
 end
-
-local HONOR_KILL = ns.PatternFrom(COMBATLOG_HONORGAIN, "%s dies, honorable kill Rank: %s (Estimated Honor Points: %d)")
--- (a victim with no PvP rank, where the client has the string for it)
-local HONOR_KILL_NO_RANK = type(COMBATLOG_HONORGAIN_NO_RANK) == "string" and ns.PatternFrom(COMBATLOG_HONORGAIN_NO_RANK)
+HonorKill(COMBATLOG_HONORGAIN, "%s dies, honorable kill Rank: %s (Estimated Honor Points: %d)", true)
+HonorKill(COMBATLOG_HONORGAIN_EXHAUSTION1, nil, true)
+HonorKill(COMBATLOG_HONORGAIN_NO_RANK, nil, false)
+HonorKill(COMBATLOG_HONORGAIN_NO_RANK_EXHAUSTION1, nil, false)
 local DISHONOR_KILL = ns.PatternFrom(COMBATLOG_DISHONORGAIN, "%s dies, dishonorable kill.")
 local HONOR_AWARD = ns.PatternFrom(COMBATLOG_HONORAWARD, "You have been awarded %d honor points.")
-local DUEL_WIN, DUEL_WIN_ORDER = NumberedPattern(DUEL_WINNER_KNOCKOUT, "%1$s has defeated %2$s in a duel")
-local DUEL_FLED, DUEL_FLED_ORDER = NumberedPattern(DUEL_WINNER_RETREAT, "%2$s has fled from %1$s in a duel")
-
--- The two names in a duel message, as (winner, loser).
-local function DuelNames(msg, pattern, order)
-    local caps = { msg:match(pattern) }
-    if #caps < 2 then return nil end
-    local parts = {}
-    for i, n in ipairs(order) do parts[n] = caps[i] end
-    return parts[1], parts[2]
-end
+-- (Parts 1 and 2 are the winner and the loser.)
+local DUEL_WIN, DUEL_WIN_ORDER = ns.NumberedPattern(DUEL_WINNER_KNOCKOUT, "%1$s has defeated %2$s in a duel", true)
+local DUEL_FLED, DUEL_FLED_ORDER = ns.NumberedPattern(DUEL_WINNER_RETREAT, "%2$s has fled from %1$s in a duel", true)
 
 ---------------------------------------------------------------------------
 -- Killing enemy players
@@ -110,11 +93,11 @@ local lastKill            -- { t, guid, name } the last kill counted
 local streak = 0          -- W-169 enemy players killed since you last died
 local stealthOpen = false -- the current fight began from stealth (W-142)
 
--- W-140 one kill can arrive three ways (the honor message, your target
--- dying, the combat log), with a GUID or not, and a name with or without
--- its realm, or none: it's the same kill by GUID or name within 10
--- seconds, and one with no name to compare is the kill just before it,
--- within 2.
+-- W-140 one kill can arrive several ways (the honor message, your target
+-- dying, the game's kill events), with a GUID or not, and a name with or
+-- without its surname and realm, or none: it's the same kill by GUID or first
+-- name within 10 seconds, and one with no name to compare is the kill just
+-- before it, within 2.
 local function SameKill(guid, name, now)
     if guid and recentKills[guid] and now - recentKills[guid] < 10 then return true end
     if name and recentKills[name] and now - recentKills[name] < 10 then return true end
@@ -125,12 +108,19 @@ end
 
 local function PvPKill(name, info, guid)
     local now = GetTime()
-    name = name and (name:match("^(.-)%-") or name)
-    if SameKill(guid, name, now) then return end
+    local first = name and (name:match("^(.-)%-") or name)
+    first = first and (first:match("^%S+") or first)
+    if SameKill(guid, first, now) then return end
     if guid then recentKills[guid] = now end
-    if name then recentKills[name] = now end
-    lastKill = { t = now, guid = guid, name = name }
-    info = info or (name and ns.PlayerInfo(name)) or {}
+    if first then recentKills[first] = now end
+    lastKill = { t = now, guid = guid, name = first }
+    if not info then
+        info = name and ns.PlayerInfo(name)
+        -- The player last seen coming at you, if this could be them.
+        local h = ns.FreshHostile()
+        if not info and h and (not first or (h.name and h.name:match("^%S+") == first)) then info = h end
+        info = info or {}
+    end
     local me, zone, subzone = ns.Level(), ns.Zone(), ns.SubZone()
     local level, class = info.level, info.class
     local world = not InBattleground()
@@ -188,7 +178,7 @@ local function WatchTarget()
     local guid = Str(Call("UnitGUID", "target"))
     if not guid then return end
     local _, class = Call("UnitClass", "target")
-    watched = { guid = guid, name = Str(Call("UnitName", "target")), class = Str(class), level = Num(Call("UnitLevel", "target")) }
+    watched = { guid = guid, name = ns.FullName("target"), class = Str(class), level = Num(Call("UnitLevel", "target")) }
 end
 local function Attacked()
     attackedAt = GetTime()
@@ -351,12 +341,14 @@ local duel -- { started, opponent class } while a duel runs
 local function OnCombatMessage(msg)
     msg = Str(Safe(msg))
     if not msg then return end
-    local victim, _, honor = msg:match(HONOR_KILL)
-    if not victim and HONOR_KILL_NO_RANK then victim, honor = msg:match(HONOR_KILL_NO_RANK) end
-    if victim then
-        PvPKill(victim)
-        if tonumber(honor) then Track.count("W-182", nil, tonumber(honor)) end -- W-182 honor
-        return
+    for _, kill in ipairs(HONOR_KILLS) do
+        local victim, second, third = msg:match(kill.pattern)
+        if victim then
+            PvPKill(victim)
+            local honor = tonumber(kill.ranked and third or second)
+            if honor then Track.count("W-182", nil, honor) end -- W-182 honor
+            return
+        end
     end
     if msg:match(DISHONOR_KILL) then Track.count("W-159") return end -- W-159 dishonorable kills
     local award = msg:match(HONOR_AWARD)
@@ -366,17 +358,18 @@ end
 local function OnSystem(msg)
     msg = Str(Safe(msg))
     if not msg then return end
-    local me = MyName()
-    local winner, loser = DuelNames(msg, DUEL_WIN, DUEL_WIN_ORDER)
+    local winner, loser = ns.MatchParts(msg, DUEL_WIN, DUEL_WIN_ORDER)
     local fled = false
     if not winner then
-        winner, loser = DuelNames(msg, DUEL_FLED, DUEL_FLED_ORDER)
+        winner, loser = ns.MatchParts(msg, DUEL_FLED, DUEL_FLED_ORDER)
         fled = winner ~= nil
     end
-    if not winner or not me or (winner ~= me and loser ~= me) then return end
-    local opponent = winner == me and loser or winner
+    if not winner then return end
+    local won = ns.IsMe(winner)
+    if not won and not ns.IsMe(loser) then return end
+    local opponent = won and loser or winner
     local class = (duel and duel.class) or (ns.PlayerInfo(opponent) or {}).class or "Unknown"
-    if winner == me then
+    if won then
         Track.count("W-186", "won")                           -- W-186 duels won and lost
         Track.count("W-187", class .. " won")                 -- W-187 by opponent class
         Track.first("W-480", { class = class })               -- W-480 first duel won
@@ -431,45 +424,99 @@ end
 
 -- The scoreboard at the end: your killing blows, honorable kills, deaths
 -- and each objective column, by battleground.
+local BG_OBJECTIVES = { [489] = "W-176", [529] = "W-177", [30] = "W-179" } -- by the instance, in any language
+
+local function SaveScore(kb, hk, deaths, columns)
+    local s = Track.get("W-174")
+    s = type(s) == "table" and s or {}
+    local row = s[match.name] or { killingBlows = 0, honorableKills = 0, deaths = 0 }
+    row.killingBlows = row.killingBlows + kb                  -- W-174 killing blows and HKs
+    row.honorableKills = row.honorableKills + hk
+    row.deaths = row.deaths + deaths                          -- W-175 battleground deaths
+    s[match.name] = row
+    Track.set("W-174", s)
+    Track.count("W-175", match.name, deaths)
+    -- W-176..W-179 the objective columns, whatever this battleground reports
+    local id = BG_OBJECTIVES[select(8, Call("GetInstanceInfo"))]
+        or (match.name:find("Warsong") and "W-176") or (match.name:find("Arathi") and "W-177")
+        or (match.name:find("Alterac") and "W-179") or "W-178"
+    for _, column in ipairs(columns) do
+        local label, value = column.label, column.value
+        if label and value and value > 0 then Track.count(id, match.name .. ": " .. label, value) end
+    end
+end
+
+-- Forever has your row by GUID (and keeps it secret until the match is over:
+-- no reading it yet, try again); older clients go down the list for your name.
 local function ReadScore()
     if not match then return end
-    local me = MyName()
+    local info = Call("C_PvP.GetScoreInfoByPlayerGuid", Str(Call("UnitGUID", "player")))
+    if type(info) == "table" then
+        local kb = Num(Safe(info.killingBlows))
+        if not kb then return end
+        local columns, stats = {}, Safe(info.stats)
+        for _, stat in ipairs(type(stats) == "table" and stats or {}) do
+            columns[#columns + 1] = { label = Str(Safe(stat.name)), value = Num(Safe(stat.pvpStatValue)) }
+        end
+        SaveScore(kb, Num(Safe(info.honorableKills)) or 0, Num(Safe(info.deaths)) or 0, columns)
+        return true
+    end
     local n = Num(Call("GetNumBattlefieldScores")) or 0
     for i = 1, n do
         local name, kb, hk, deaths = Call("GetBattlefieldScore", i)
-        if Str(name) and me and (name == me or Str(name):match("^(.-)%-") == me) then
-            local s = Track.get("W-174")
-            s = type(s) == "table" and s or {}
-            local row = s[match.name] or { killingBlows = 0, honorableKills = 0, deaths = 0 }
-            row.killingBlows = row.killingBlows + (Num(kb) or 0)          -- W-174 killing blows and HKs
-            row.honorableKills = row.honorableKills + (Num(hk) or 0)
-            row.deaths = row.deaths + (Num(deaths) or 0)                  -- W-175 battleground deaths
-            s[match.name] = row
-            Track.set("W-174", s)
-            Track.count("W-175", match.name, Num(deaths) or 0)
-            -- W-176..W-179 the objective columns, whatever this battleground reports
-            local id = (match.name:find("Warsong") and "W-176") or (match.name:find("Arathi") and "W-177")
-                or (match.name:find("Alterac") and "W-179") or "W-178"
-            local columns = Num(Call("GetNumBattlefieldStats")) or 0
-            for c = 1, columns do
-                local label = Str(Call("GetBattlefieldStatInfo", c))
-                local value = Num(Call("GetBattlefieldStatData", i, c))
-                if label and value and value > 0 then Track.count(id, match.name .. ": " .. label, value) end
+        if ns.IsMe(name) then
+            local columns = {}
+            for c = 1, Num(Call("GetNumBattlefieldStats")) or 0 do
+                columns[c] = { label = Str(Call("GetBattlefieldStatInfo", c)), value = Num(Call("GetBattlefieldStatData", i, c)) }
             end
+            SaveScore(Num(kb) or 0, Num(hk) or 0, Num(deaths) or 0, columns)
             return true
         end
     end
 end
 
+local function TryScore()
+    if match and match.wantScore and ReadScore() then match.wantScore = false end
+end
+
+-- The match is over; winner: 0 Horde, 1 Alliance.
+local function MatchOver(winner)
+    if not match or match.decided then return end
+    match.decided = true
+    local mine = Faction() == "Horde" and 0 or 1
+    if winner == 0 or winner == 1 then
+        Track.count("W-171", match.name .. (winner == mine and " won" or " lost")) -- W-171 wins and losses
+    end
+    Call("RequestBattlefieldScoreData")
+    match.wantScore = true
+    -- (The answer is UPDATE_BATTLEFIELD_SCORE; this in case none comes.)
+    if C_Timer and C_Timer.After then C_Timer.After(2, Protect(TryScore)) end
+end
+
 local function OnBattlefieldStatus()
     if not match or match.decided then return end
     local winner = Num(Call("GetBattlefieldWinner"))
-    if not winner then return end
-    match.decided = true
-    local mine = Faction() == "Horde" and 0 or 1
-    Track.count("W-171", match.name .. (winner == mine and " won" or " lost")) -- W-171 wins and losses
-    Call("RequestBattlefieldScoreData")
-    match.wantScore = true
+    if winner then MatchOver(winner) end
+end
+
+-- W-140 the game counting one more honorable kill for you: it's the signal
+-- that comes whether or not an honor message names the victim. (A lifetime
+-- count, where the client has it, tells it apart from the event at login.)
+local knownKills, enteredAt = nil, 0
+local function OnKillsChanged(unit)
+    unit = Str(Safe(unit))
+    if unit and unit ~= "player" then return end
+    local kills = Num((Call("GetPVPLifetimeStats")))
+    if kills then
+        local was = knownKills
+        knownKills = kills
+        if not was or kills <= was then return end
+    elseif GetTime() - enteredAt < 10 then
+        return
+    end
+    ns.RememberHostile("target")
+    local h = ns.FreshHostile()
+    PvPKill(h and h.name, h, h and h.guid)
 end
 
 local lastXP, lastXPMax
@@ -614,6 +661,7 @@ end))
 On("PLAYER_ENTERING_WORLD", function()
     wasPvP = Call("UnitIsPVP", "player") and true or false
     lastXP, lastXPMax = Num(Call("UnitXP", "player")), Num(Call("UnitXPMax", "player"))
+    knownKills, enteredAt = Num((Call("GetPVPLifetimeStats"))), GetTime()
     OnZone()
 end)
 On("ZONE_CHANGED_NEW_AREA", OnZone)
@@ -631,9 +679,10 @@ On("CHAT_MSG_SYSTEM", OnSystem)
 On("UNIT_FACTION", CheckFlag, "player")
 On("PLAYER_FLAGS_CHANGED", CheckFlag)
 On("UPDATE_BATTLEFIELD_STATUS", OnBattlefieldStatus)
-On("UPDATE_BATTLEFIELD_SCORE", function()
-    if match and match.wantScore and ReadScore() then match.wantScore = false end
-end)
+On("UPDATE_BATTLEFIELD_SCORE", TryScore)
+On("PVP_MATCH_COMPLETE", function(winner) MatchOver(Num(Safe(winner))) end)
+On("PVP_MATCH_INACTIVE", TryScore)
+On("PLAYER_PVP_KILLS_CHANGED", OnKillsChanged)
 On("PLAYER_XP_UPDATE", OnXP)
 On("DUEL_REQUESTED", function(challenger)
     Track.count("W-190")                                      -- W-190 challenged to a duel

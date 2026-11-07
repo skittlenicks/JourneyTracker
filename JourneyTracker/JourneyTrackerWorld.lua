@@ -292,7 +292,7 @@ local function OnDeath(rec, extra)
         for _, id in ipairs(ns.FamiliesOf(killer, mob and mob.ctype, mob and mob.family)) do
             if id == "W-022" then Track.count("W-341") end    -- W-341 murlocs
         end
-        if mob and mob.ctype == "Critter" then Track.count("W-342") end -- W-342 critters
+        if mob and ns.EnglishType(mob.ctype) == "Critter" then Track.count("W-342") end -- W-342 critters
     end
     if now - dingAt <= 10 then Track.count("W-343") end       -- W-343 within 10 seconds of a ding
     if now - loginAt <= 60 then Track.count("W-344") end      -- W-344 within a minute of logging in

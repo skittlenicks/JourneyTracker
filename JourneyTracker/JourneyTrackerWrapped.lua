@@ -34,6 +34,12 @@ local RIVERGLADES = "Riverglades"
 local SHENDRALAS = "Shen'dralas"
 local HYJAL = "Mount Hyjal"
 local CAMP_AURAS = { "Campfire Nearby", "Welcoming Campfire", "Camp Benefits" }
+-- Each camp spell's ID (from the client's tables), to get its name in this
+-- client's language; they're counted under the English name either way.
+local CAMP_SPELLS = { ["Campfire Nearby"] = 1283391, ["Welcoming Campfire"] = 1229739, ["Camp Benefits"] = 1229741,
+    ["Mana Well"] = 1230564, ["Sharpening Wheel"] = 1230171, ["Enchanted Lute"] = 1230643, ["First Aid Kit"] = 1230117,
+    ["Fish Bowl"] = 1229745, ["Incense Candle"] = 1229705, ["Camp Tent"] = 1229432, ["Lodestone"] = 1230161,
+    ["Camp Chair"] = 1229517, ["Faction Banner"] = 1229504, ["Basic Campfire"] = 818 }
 local CAMP_BUFFS = { ["Welcoming Campfire"] = true, ["Camp Benefits"] = true, ["Mana Well"] = true,
     ["Sharpening Wheel"] = true, ["Enchanted Lute"] = true, ["First Aid Kit"] = true, ["Fish Bowl"] = true,
     ["Incense Candle"] = true, ["Camp Tent"] = true, ["Lodestone"] = true, ["Camp Chair"] = true,
@@ -337,7 +343,22 @@ end
 -- W-008 camps set up vs W-012 camping objects crafted. A campfire cast that
 -- makes a campfire item was crafting; one that doesn't was setting up camp.
 local campCast
+-- A camp spell's English name from its name in this client's language.
+local campEnglish
+local function CampEnglish(name)
+    if not campEnglish then
+        campEnglish = {}
+        for english, id in pairs(CAMP_SPELLS) do
+            campEnglish[english] = english
+            local here = ns.SpellName(id)
+            if here then campEnglish[here] = english end
+        end
+    end
+    return campEnglish[name]
+end
+
 local function OnCast(name)
+    name = CampEnglish(name) or name
     if not name:find("Campfire", 1, true) then return end
     campCast = { name = name }
     local this = campCast
@@ -361,7 +382,7 @@ end
 -- "Welcoming Campfire"). Buffs can only be read out of combat.
 local function AtCamp()
     for _, name in ipairs(CAMP_AURAS) do
-        local has = ns.HasAura(name)
+        local has = ns.HasAura(ns.SpellName(CAMP_SPELLS[name]) or name)
         if has == nil then return nil end
         if has then return true end
     end
@@ -396,6 +417,7 @@ local function OnAura(unit, info)
     for _, aura in ipairs(added) do
         local fine, name = pcall(function() return Safe(aura.name) end)
         name = fine and Str(name)
+        name = name and (CampEnglish(name) or name)
         if name and (CAMP_BUFFS[name] or name:find("Camp", 1, true)) then
             Track.count("W-011", name)
         end

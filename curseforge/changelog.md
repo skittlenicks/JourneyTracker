@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.17
+
+These come from reading the journeys players have uploaded since launch. Your saved journey is corrected the first time you log in, and the website corrects journeys you've already uploaded.
+
+- **Your deaths are right:** your pet dying no longer counts as you dying. Warlocks and hunters were seeing far more deaths than they'd really had.
+- **Every language:** on clients in other languages, such as German and Russian, many kills, experience and other stats weren't being counted. They are now. Camps and cloth are read by their IDs, so they count in any language too. A few stats still look for English names, such as creatures counted by name and emotes aimed at you.
+- **Duels and /roll now count:** Journey Tracker was looking for your first name, and the game's messages use your full name.
+- **Enemy players you kill now count**, along with your battleground scoreboards. The website also shows the game's own count of honorable kills, duels and battlegrounds, including on journeys you've already uploaded.
+- **Your PvP nemesis works:** deaths to other players now record the killer's race and class, even if you weren't targeting them when you died. As before, it never saves a name.
+- **Reputation:** the level you reached each standing and your first Exalted are now recorded.
+- **Random-suffix gear:** "of the Monkey" and friends now count when you loot them.
+- **Smaller fixes:** trades completed, enchants applied and critters killed now count. Running back into a dungeon as a ghost now counts as a corpse run instead of "unknown". Wailing Caverns only appears once on your route.
+- **A privacy fix:** the list of emotes aimed at you could pick up another player's surname, or part of one. That list now starts over and keeps only the verb, like "hugs".
+
 ## 0.6.16
 
 - **How long each level took:** when you level up, Journey Tracker now says in chat how long you spent at the level you just finished, in /played time. The game's own /played lines only show the new level's time by then.

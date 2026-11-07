@@ -20,7 +20,6 @@ local On, Protect = ns.WrappedOn, ns.Protect
 local HEARTHSTONE_ITEM = 6948
 local GZ_WINDOW = 60       -- seconds after a ding that a guild "gz" counts (W-290)
 
-local function MyName() return Str(Call("UnitName", "player")) end
 -- A message in lower case without color codes (|cffffffff, and Forever's
 -- item colors like |cnIQ4:) or link wrappers (one value).
 local function Words(text)
@@ -49,11 +48,19 @@ local rolls = {}          -- [item name] = { type, value } for items you rolled 
 local settled = {}        -- [item name] = GetTime() its roll was settled
 
 -- Anchored at the end: these end in a name, which would otherwise match empty.
-local NEED_ROLLED = ns.PatternFrom(LOOT_ROLL_ROLLED_NEED, "Need Roll - %d for %s by %s", true)
-local GREED_ROLLED = ns.PatternFrom(LOOT_ROLL_ROLLED_GREED, "Greed Roll - %d for %s by %s", true)
-local YOU_WON = ns.PatternFrom(LOOT_ROLL_YOU_WON, "You won: %s", true)
-local SOMEONE_WON = ns.PatternFrom(LOOT_ROLL_WON, "%s won: %s", true)
-local RANDOM_ROLL = ns.PatternFrom(RANDOM_ROLL_RESULT, "%s rolls %d (%d-%d)")
+local NEED_ROLLED, NEED_ORDER = ns.NumberedPattern(LOOT_ROLL_ROLLED_NEED, "Need Roll - %d for %s by %s", true)
+local GREED_ROLLED, GREED_ORDER = ns.NumberedPattern(LOOT_ROLL_ROLLED_GREED, "Greed Roll - %d for %s by %s", true)
+local YOU_WON, YOU_WON_ORDER = ns.NumberedPattern(LOOT_ROLL_YOU_WON, "You won: %s", true)
+local SOMEONE_WON, SOMEONE_WON_ORDER = ns.NumberedPattern(LOOT_ROLL_WON, "%s won: %s", true)
+local RANDOM_ROLL, RANDOM_ROLL_ORDER = ns.NumberedPattern(RANDOM_ROLL_RESULT, "%s rolls %d (%d-%d)")
+
+-- A loot message's last `count` parts: on Forever each begins with a link to
+-- the loot history, which counts as the first.
+local function LootParts(msg, pattern, order, count)
+    local parts = { ns.MatchParts(msg, pattern, order) }
+    local skip = #order - count
+    return parts[skip + 1], parts[skip + 2], parts[skip + 3]
+end
 
 local function ItemName(link) return link and (link:match("%[(.-)%]") or link) end
 
@@ -136,21 +143,20 @@ end
 local function OnLootMessage(msg)
     msg = Str(Safe(msg))
     if not msg then return end
-    local me = MyName()
-    local value, item, who = msg:match(NEED_ROLLED)
-    if not value then value, item, who = msg:match(GREED_ROLLED) end
+    local value, item, who = LootParts(msg, NEED_ROLLED, NEED_ORDER, 3)
+    if not value then value, item, who = LootParts(msg, GREED_ROLLED, GREED_ORDER, 3) end
     value = tonumber(value)
-    if value and who == me then
+    if value and ns.IsMe(who) then
         local name = ItemName(item)
         if rolls[name] then rolls[name].value = value end
         Track.max("W-248", value, { item = name })            -- W-248 highest roll
         Track.min("W-248.lowest", value, { item = name })     -- and lowest
         return
     end
-    local won = msg:match(YOU_WON)
+    local won = LootParts(msg, YOU_WON, YOU_WON_ORDER, 1)
     if won then RollResult(ItemName(won), true) return end
-    local winner, lost = msg:match(SOMEONE_WON)
-    if winner and winner ~= me then RollResult(ItemName(lost), false) end
+    local winner, lost = LootParts(msg, SOMEONE_WON, SOMEONE_WON_ORDER, 2)
+    if winner and not ns.IsMe(winner) then RollResult(ItemName(lost), false) end
 end
 
 ---------------------------------------------------------------------------
@@ -300,21 +306,23 @@ local names = {}
 local function AddName(name)
     name = Str(Safe(name))
     if not name then return end
-    name = (name:match("^(.-)%-") or name):lower()
-    names[name] = true
     local words = Track.get("W-292")
-    if type(words) == "table" then words[name] = nil end -- tallied before it was known to be a name
+    -- (A first name and a surname are each a word someone might type.)
+    for word in (name:match("^(.-)%-") or name):lower():gmatch("%S+") do
+        names[word] = true
+        if type(words) == "table" then words[word] = nil end -- tallied before it was known to be a name
+    end
 end
 
 -- You, your realm, your group and your friends, as they are now.
 local function AddKnownNames()
-    AddName(MyName())
+    AddName(ns.FullName("player"))
     for word in (Str(Call("GetRealmName")) or ""):gmatch("[%a']+") do
         if #word >= 3 then AddName(word) end
     end
     local n = Num(Call("GetNumGroupMembers")) or 0
     local raid = Call("IsInRaid") == true
-    for i = 1, raid and n or (n - 1) do AddName(Call("UnitName", (raid and "raid" or "party") .. i)) end
+    for i = 1, raid and n or (n - 1) do AddName(ns.FullName((raid and "raid" or "party") .. i)) end
     for i = 1, Num(Call("C_FriendList.GetNumFriends")) or Num(Call("GetNumFriends")) or 0 do
         local info = Call("C_FriendList.GetFriendInfoByIndex", i)
         AddName(type(info) == "table" and Safe(info.name) or Call("GetFriendInfo", i))
@@ -339,9 +347,14 @@ local function OnSent(msg, chatType, _, target)
     if chatType == "CHANNEL" then
         local _, name = Call("GetChannelName", Safe(target))
         name = Str(name) or ""
-        if name:find("General", 1, true) or name:find("Trade", 1, true) or name:find("LookingForGroup", 1, true) then
-            id = "W-283"                                      -- W-283 General/Trade/LFG
+        local public = name:find("General", 1, true) or name:find("Trade", 1, true) or name:find("LookingForGroup", 1, true)
+        -- (The server's own channels, by their names in this client's language.)
+        if not public and name ~= "" and Call("GetLocale") ~= "enUS" then
+            for _, server in ipairs({ Call("EnumerateServerChannels") }) do
+                if type(server) == "string" and name:find(server, 1, true) then public = true end
+            end
         end
+        if public then id = "W-283" end                       -- W-283 General/Trade/LFG
     end
     if id then Track.count(id) end
     local text = Words(msg)
@@ -361,9 +374,7 @@ local lastDing, dingGz = 0, 0
 local function OnGuildChat(msg, sender)
     if GetTime() - lastDing > GZ_WINDOW then return end
     msg, sender = Str(Safe(msg)), Str(Safe(sender))
-    if not msg or not sender then return end
-    local me = MyName()
-    if me and (sender == me or sender:match("^(.-)%-") == me) then return end
+    if not msg or not sender or ns.IsMe(sender) then return end
     if HasWord(Words(msg), { "gz", "grats", "gratz", "congrats", "congratulations", "ding" }) then
         Track.count("W-290")
         dingGz = dingGz + 1
@@ -410,18 +421,22 @@ local function OnEmote(token, _, byInterface)
     Track.count("W-303", token)                               -- W-303 by emote (W-304..W-310 read from this)
 end
 
--- Emotes aimed at you: the sender's name is dropped and only the verb kept
--- ("hugs"), for W-311 and W-312.
+-- Emotes aimed at you: only the verb is kept ("hugs"), for W-311 and W-312.
+-- It's the first word all in lower case, which a name never is: the message
+-- can have more of the sender's name than the sender's name for it does, so
+-- cutting off that many letters left a surname or a piece of one here.
 local function OnTextEmote(text, sender)
     text, sender = Str(Safe(text)), Str(Safe(sender))
-    if not text or not sender then return end
-    local me = MyName()
-    if sender == me or (me and sender:match("^(.-)%-") == me) then return end
+    if not text or not sender or ns.IsMe(sender) then return end
     if not text:find("%f[%w]you%f[%W]") then return end
     Track.count("W-311")
-    local rest = text:sub(#sender + 1)
-    local verb = rest:match("^%s*(%a+)")
-    if verb then Track.count("W-312", verb:lower()) end
+    for word in text:gmatch("%S+") do
+        local verb = word:match("^(%l+)%p*$")
+        if verb then
+            Track.count("W-312", verb)
+            return
+        end
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -559,12 +574,21 @@ On("GROUP_ROSTER_UPDATE", OnRoster)
 On("CHAT_MSG_LOOT", OnLootMessage)
 On("LOOT_ITEM_ROLL_WON", OnRollWon)
 On("LOOT_HISTORY_UPDATE_DROP", OnLootHistoryDrop)
+-- W-296 trades completed: the message comes as a chat line or as text on
+-- the screen, or both.
+local tradeDoneAt = -10
+local function TradeMessage(msg)
+    if msg == (type(ERR_TRADE_COMPLETE) == "string" and ERR_TRADE_COMPLETE or "Trade complete.") and GetTime() - tradeDoneAt > 1 then
+        tradeDoneAt = GetTime()
+        Track.count("W-296")
+    end
+end
 On("CHAT_MSG_SYSTEM", function(msg)
     OnSystemForLegacy(msg)
     msg = Str(Safe(msg))
     if not msg then return end
-    local who, value, low, high = msg:match(RANDOM_ROLL)
-    if who and who == MyName() then
+    local who, value = ns.MatchParts(msg, RANDOM_ROLL, RANDOM_ROLL_ORDER)
+    if who and ns.IsMe(who) then
         Track.count("W-251", "rolls")                         -- W-251 /roll uses and their total (average on the website)
         Track.count("W-251", "total", tonumber(value) or 0)
         return
@@ -572,10 +596,11 @@ On("CHAT_MSG_SYSTEM", function(msg)
     if msg == (type(ERR_UNINVITE_YOU) == "string" and ERR_UNINVITE_YOU or "You have been removed from the group.") then
         removedAt = GetTime()
         Track.count("W-255", "removed")                       -- W-255 removed from a group
-    elseif msg == (type(ERR_TRADE_COMPLETE) == "string" and ERR_TRADE_COMPLETE or "Trade complete.") then
-        Track.count("W-296")                                  -- W-296 trades completed
+    else
+        TradeMessage(msg)
     end
 end)
+On("UI_INFO_MESSAGE", function(_, msg) TradeMessage(Str(Safe(msg))) end)
 On("UI_ERROR_MESSAGE", OnError)
 -- W-268 your casts interrupted. On a frame of its own: the class tracker
 -- listens to the same event for your target, and the shared frame keeps
@@ -646,6 +671,13 @@ ns.OnLoad(function()
             Track.set("W-302", math.max(0, (tonumber(Track.get("W-302")) or 0) - read))
         end
         Track.set("mapReadsRemoved", true)
+    end
+    -- Before 0.6.17 a surname, or part of one, could land among the emotes
+    -- aimed at you (see OnTextEmote), with nothing to tell them from verbs.
+    -- The list starts over, once.
+    if not Track.get("emoteVerbsCleared") then
+        Track.set("W-312", nil)
+        Track.set("emoteVerbsCleared", true)
     end
     local Sent = Once(function(msg, chatType, language, target) OnSent(msg, chatType, language, target) end)
     ns.Hook("SendChatMessage", Protect(Sent))

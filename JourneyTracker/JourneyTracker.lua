@@ -125,17 +125,53 @@ end
 -- Turn a Blizzard format string ("%s dies, you gain %d experience.") into a
 -- Lua pattern. Uses the client's own global string so it matches the
 -- client's wording; falls back to the English text if the global is missing.
--- Positional formats (%1$s, used by some locales) aren't handled.
-local function PatternFrom(fmt, english, anchorEnd)
+-- Also returns which numbered part of the format each capture is, as some
+-- languages put the parts in another order ("%2$s ... %1$s", see
+-- ns.MatchParts). The grammar markers the game fills in as it builds a message
+-- match whatever it put there: a plural (|4point:points;), a particle after a
+-- name (|1a;b;), a declined word (|3-6(%s)), "de" or "d'" before a name (|2 %s).
+function ns.NumberedPattern(fmt, english, anchorEnd)
     if type(fmt) ~= "string" then fmt = english end
+    fmt = fmt:gsub("|3%-%d+%((.-)%)", "%1")
+    fmt = fmt:gsub("|4[^;]*;", "\1")
+    -- (Where the two are the same length, as in Korean, only their own bytes
+    -- match: a name just before it comes out whole, without the particle.)
+    local particles = {}
+    fmt = fmt:gsub("|1([^;]*);([^;]*);", function(a, b)
+        if #a ~= #b then return "\1" end
+        for i = 1, #a do particles[#particles + 1] = "[" .. a:sub(i, i) .. b:sub(i, i) .. "]" end
+        return string.rep("\2", #a)
+    end)
+    fmt = fmt:gsub("|2 ", "\3")
     local p = fmt:gsub("[%^%$%(%)%.%[%]%*%+%-%?]", "%%%0")
-    p = p:gsub("%%s", "(.-)")
-    p = p:gsub("%%d", "(%%d+)")
-    return "^" .. p .. (anchorEnd and "$" or "")
+    local order, count = {}, 0
+    p = p:gsub("%%(%d*)%%?%$?([sd])", function(part, kind)
+        count = count + 1
+        order[count] = tonumber(part) or count
+        return kind == "s" and "(.-)" or "(%d+)"
+    end)
+    local particle = 0
+    p = p:gsub("\2", function() particle = particle + 1; return particles[particle] end)
+    p = p:gsub("\1", ".-"):gsub("\3", "d[e'\226\128\153]*%%s*")
+    return "^" .. p .. (anchorEnd and "$" or ""), order
+end
+
+-- A message's parts in the format's numbered order, whatever order this
+-- language has them in. Nothing if it doesn't match.
+function ns.MatchParts(msg, pattern, order)
+    local caps = { msg:match(pattern) }
+    if caps[1] == nil then return nil end
+    local parts = {}
+    for i, n in ipairs(order) do parts[n] = caps[i] end
+    return parts[1], parts[2], parts[3], parts[4], parts[5]
+end
+
+local function PatternFrom(fmt, english, anchorEnd)
+    return (ns.NumberedPattern(fmt, english, anchorEnd))
 end
 
 local PATTERNS = {
-    kill        = PatternFrom(COMBATLOG_XPGAIN_FIRSTPERSON, "%s dies, you gain %d experience."),
+    kills       = {},   -- every wording of a kill's experience message, see ns.MobFromXP
     lootMulti   = PatternFrom(LOOT_ITEM_SELF_MULTIPLE, "You receive loot: %sx%d.", true),
     loot        = PatternFrom(LOOT_ITEM_SELF, "You receive loot: %s.", true),
     createMulti = PatternFrom(LOOT_ITEM_CREATED_SELF_MULTIPLE, "You create: %sx%d.", true),
@@ -150,6 +186,34 @@ local PATTERNS = {
     auctionExpired = PatternFrom(ERR_AUCTION_EXPIRED_S, "Your auction of %s has expired.", true),
     auctionRemoved = PatternFrom(ERR_AUCTION_REMOVED, "Auction cancelled.", true),
 }
+-- A kill's experience message comes in many wordings: rested or not, in a
+-- group or a raid. In English they all begin the same, but not in every
+-- language (Russian's change their wording and punctuation).
+do
+    local seen = {}
+    local function Add(fmt)
+        if type(fmt) ~= "string" then return end
+        local pattern, order = ns.NumberedPattern(fmt)
+        if not seen[pattern] then
+            seen[pattern] = true
+            table.insert(PATTERNS.kills, { pattern = pattern, order = order })
+        end
+    end
+    Add(COMBATLOG_XPGAIN_FIRSTPERSON or "%s dies, you gain %d experience.")
+    for _, tail in ipairs({ "", "_GROUP", "_RAID" }) do
+        Add(_G["COMBATLOG_XPGAIN_FIRSTPERSON" .. tail])
+        for n = 1, 5 do Add(_G["COMBATLOG_XPGAIN_EXHAUSTION" .. n .. tail]) end
+    end
+end
+
+-- The mob an experience message names, if it's a kill's.
+function ns.MobFromXP(msg)
+    for _, kill in ipairs(PATTERNS.kills) do
+        local mob = ns.MatchParts(msg, kill.pattern, kill.order)
+        if mob and mob ~= "" then return mob end
+    end
+end
+
 local NEW_TAXI_PATH = type(ERR_NEWTAXIPATH) == "string" and ERR_NEWTAXIPATH
     or "New flight path discovered!"
 
@@ -667,6 +731,46 @@ local function RecentHostile()
     if lastHostile and GetTime() - lastHostileAt <= HOSTILE_FRESH then return lastHostile end
 end
 
+-- A player's whole name. Forever gives it in two parts, and its messages use
+-- both ("First Last"); other clients have the one.
+function ns.FullName(unit)
+    local name, surname = Call("UnitName", unit)
+    name, surname = Str(name), Str(surname)
+    if name and surname then
+        local names = Constants and Constants.CharacterNameSeparatorConsts
+        return name .. (names and Str(Safe(names.CHARACTERNAME_SURNAME_SEPARATOR)) or " ") .. surname
+    end
+    return name
+end
+
+-- Is this name in a message you? With or without a surname and a realm.
+function ns.IsMe(name)
+    name = Str(Safe(name))
+    local me = ns.FullName("player")
+    if not name or not me then return false end
+    name = name:match("^(.-)%-") or name
+    return name == me or name == me:match("^%S+")
+end
+
+-- The enemy player last seen coming at you (your target, or a nameplate with
+-- you as its target): by the time you die or they do, your target may have
+-- changed or gone. For this session only, and the name and GUID are only ever
+-- compared. True if this unit is one.
+function ns.RememberHostile(unit)
+    if Call("UnitIsPlayer", unit) ~= true or Call("UnitCanAttack", "player", unit) ~= true then return false end
+    local _, class = Call("UnitClass", unit)
+    local _, race = Call("UnitRace", unit)
+    local guid = Str(Call("UnitGUID", unit))
+    ns.hostilePlayer = { t = GetTime(), class = Str(class), race = Str(race), level = Num(Call("UnitLevel", unit)),
+                         guid = guid, id = guid and Hash(guid) or nil, name = ns.FullName(unit) }
+    return true
+end
+
+function ns.FreshHostile()
+    local h = ns.hostilePlayer
+    if h and GetTime() - h.t <= HOSTILE_FRESH then return h end
+end
+
 -- A unit's name, or "Player (PvP)" so player names are never stored.
 local function UnitLabel(unit)
     if Call("UnitIsPlayer", unit) == true then return "Player (PvP)" end
@@ -683,8 +787,11 @@ local function CacheUnit(unit)
         local name = Str(Call("UnitName", unit))
         local _, class = Call("UnitClass", unit)
         if name then
-            playerInfo[name] = { class = Str(class), level = Num(Call("UnitLevel", unit)),
-                                 enemy = Call("UnitIsEnemy", "player", unit) == true }
+            -- (Known by both: messages use the whole name.)
+            local info = { class = Str(class), level = Num(Call("UnitLevel", unit)),
+                           enemy = Call("UnitIsEnemy", "player", unit) == true }
+            playerInfo[name] = info
+            playerInfo[ns.FullName(unit) or name] = info
         end
         return
     end
@@ -737,6 +844,11 @@ local function SampleFight()
     if not fight then return end
     local count = 0
     for unit in pairs(plates) do
+        -- An enemy player after you (players have no threat to read).
+        if Call("UnitIsUnit", unit .. "target", "player") == true and ns.RememberHostile(unit) then
+            fight.lastHostile = fight.lastHostile or "Player (PvP)"
+            fight.names["Player (PvP)"] = true
+        end
         local threat = Num(Call("UnitThreatSituation", "player", unit))
         local guid = Str(Call("UnitGUID", unit))
         if threat and guid then
@@ -878,13 +990,15 @@ local function OnDeath()
     -- For the other files: what the killer was (if we saw it), and whether
     -- a fall or a fight was going on. They may add fields to rec. A player
     -- killer comes with class, level, race and a hash of their GUID (to know
-    -- the same player again, W-510), never a name.
-    local killerGUID = Str(Safe(Call("UnitGUID", "target")))
-    Fire("death", rec, { mob = mobInfo[rec.killer], fell = FellToDeath(), fight = fight,
-                         player = rec.killer == "Player (PvP)" and Call("UnitIsPlayer", "target") == true
-                             and { class = select(2, Call("UnitClass", "target")), level = Num(Call("UnitLevel", "target")),
-                                   race = Str(Safe((select(2, Call("UnitRace", "target"))))),
-                                   id = killerGUID and Hash(killerGUID) or nil } })
+    -- the same player again, W-510), never a name. It's who you last saw
+    -- coming at you: at this moment your target is often gone.
+    local player
+    if rec.killer == "Player (PvP)" then
+        ns.RememberHostile("target")
+        local h = ns.FreshHostile()
+        if h then player = { class = h.class, level = h.level, race = h.race, id = h.id } end
+    end
+    Fire("death", rec, { mob = mobInfo[rec.killer], fell = FellToDeath(), fight = fight, player = player })
 end
 
 -- Called once we're alive again. `how` is the resurrection type.
@@ -1715,19 +1829,23 @@ handlers.TIME_PLAYED_MSG = function(total, thisLevel) OnTimePlayed(total, thisLe
 handlers.CHAT_MSG_COMBAT_XP_GAIN = function(msg)
     msg = Str(Safe(msg))
     if not msg then return end
-    local mob = msg:match(PATTERNS.kill)
+    local mob = ns.MobFromXP(msg)
     if mob then
         MarkXPSource("kill")
         QueueKill(mob)                                        -- #26-33
     end
 end
 
-handlers.PLAYER_REGEN_DISABLED = function() StartFight() end
+handlers.PLAYER_REGEN_DISABLED = function()
+    if death.rec then death.alive = true end                  -- (you were back, whatever we missed: see PLAYER_DEAD)
+    StartFight()
+end
 handlers.PLAYER_REGEN_ENABLED = function() EndFight() end
 
 handlers.PLAYER_TARGET_CHANGED = function()
     CacheUnit("target")
     if Call("UnitCanAttack", "player", "target") ~= true then return end
+    ns.RememberHostile("target")
     local label = UnitLabel("target")
     if label then lastHostile, lastHostileAt = label, GetTime() end
     local guid = Str(Call("UnitGUID", "target"))
@@ -1783,7 +1901,22 @@ handlers.PLAYER_PVP_KILLS_CHANGED = function()
 end
 
 -- Deaths
-handlers.PLAYER_DEAD = function() OnDeath() end
+-- The game sends this for your pet's death too (warlocks' journeys had 1.55
+-- times the game's count of deaths, hunters' 1.33), and a pet often goes down
+-- after you. So it's your death only if you're dead and weren't already. The
+-- state might lag the event, so it gets one more look a second later.
+handlers.PLAYER_DEAD = function()
+    local function Check(again)
+        if Call("UnitIsFeignDeath", "player") == true or Call("UnitIsGhost", "player") == true then return end
+        if Call("UnitIsDeadOrGhost", "player") == false then
+            if not again and C_Timer and C_Timer.After then C_Timer.After(1, function() Check(true) end) end
+            return
+        end
+        if death.rec and not death.alive then return end
+        OnDeath()
+    end
+    Check()
+end
 -- #101 a loading screen ends any fall (a zeppelin, a portal or a summon in
 -- mid-air isn't a fall to time).
 handlers.PLAYER_LEAVING_WORLD = function() fallStart = nil end
@@ -1807,8 +1940,10 @@ handlers.PLAYER_ALIVE = function()
     end
 end
 
+-- (With no other hint it's a corpse run: walking back into a dungeon as a
+-- ghost brings you back without coming near your corpse.)
 handlers.PLAYER_UNGHOST = function()
-    FinishDeath(death.accepted or death.hint or "unknown")
+    FinishDeath(death.accepted or death.hint or "corpse run")
 end
 
 handlers.CONFIRM_XP_LOSS = function() death.hint = "spirit healer" end
@@ -2041,6 +2176,41 @@ function ns.OnDing(fn) table.insert(dingCallbacks, fn) end -- adds fields to eac
 -- "other" (see ns.CreditQuestXP). Once: the quest XP the turn-ins reported
 -- (#56) that "quest" is missing moves over from "other", and where that was
 -- nearly all of "other", the level-ups put down to "other" were quests'.
+ns.OnLoad(function(saved)
+    if saved.phantomDeathsFixed or type(saved.deaths) ~= "table" then return end
+    saved.phantomDeathsFixed = true
+    -- Before 0.6.17 coming back as a ghost by walking into a dungeon was
+    -- "unknown": those were corpse runs.
+    local rez = saved.rez
+    if type(rez) == "table" and tonumber(rez.unknown) then
+        rez["corpse run"] = (tonumber(rez["corpse run"]) or 0) + tonumber(rez.unknown)
+        rez.unknown = nil
+    end
+    for _, d in ipairs(saved.deaths) do
+        if type(d) == "table" and d.rez == "unknown" then d.rez = "corpse run" end
+    end
+    -- And the event for a death came for a pet's too, which left a death of
+    -- yours you never came back from. Once: those go, as far as the game's own
+    -- count allows (and the last one stays: you may be dead right now).
+    local S = saved.statistics
+    local game = S and S.latest and S.latest.values and S.latest.values[60]
+    game = game ~= nil and tonumber((tostring(game):gsub("%D", ""))) or nil
+    if not game then return end
+    for i = #saved.deaths - 1, 1, -1 do
+        if #saved.deaths <= game then break end
+        local d = saved.deaths[i]
+        if type(d) == "table" and not d.rez then
+            table.remove(saved.deaths, i)
+            local L = type(saved.levels) == "table" and saved.levels[d.level]
+            if type(L) == "table" and (tonumber(L.deaths) or 0) > 0 then L.deaths = L.deaths - 1 end
+            for _, ding in pairs(saved.dings or {}) do
+                if type(ding) == "table" and d.t and tonumber(ding.t) and ding.t >= d.t and (tonumber(ding.deaths) or 0) > 0 then
+                    ding.deaths = ding.deaths - 1
+                end
+            end
+        end
+    end
+end)
 ns.OnLoad(function(saved)
     local X, Q = saved.xp, saved.quests
     if saved.questXPFixed or type(X) ~= "table" or type(Q) ~= "table" then return end
@@ -2340,7 +2510,12 @@ function ns.OnLootItem(fn) table.insert(hooks.loot, fn) end
 function ns.OnMoneyChange(fn) table.insert(hooks.money, fn) end
 function ns.OnAuctionNotice(fn) table.insert(hooks.auction, fn) end -- (kind, count): "sold", "expired", "cancelled"
 function ns.MobInfo(name) return name and mobInfo[name] end
-function ns.PlayerInfo(name) return name and playerInfo[name] end
+-- (A message's name may have a surname and a realm; UnitName gave a first name.)
+function ns.PlayerInfo(name)
+    if not name then return nil end
+    local bare = name:match("^(.-)%-") or name
+    return playerInfo[name] or playerInfo[bare] or playerInfo[bare:match("^%S+") or bare]
+end
 function ns.CurrentFight() return fight end
 function ns.HookErrors() return hookErrors end
 -- Game functions that moved: Forever (a modern client) only has the C_

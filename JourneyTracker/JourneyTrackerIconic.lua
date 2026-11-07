@@ -188,8 +188,25 @@ local function IsIn(value, list)
 end
 
 -- Which families a kill belongs to.
+-- A creature type in English. The game has most of them in the client's
+-- language as battle pet families.
+local englishTypes
+function ns.EnglishType(ctype)
+    if not englishTypes then
+        englishTypes = {}
+        local PET_FAMILIES = { [1] = "Humanoid", [2] = "Dragonkin", [4] = "Undead", [5] = "Critter", [7] = "Elemental",
+                               [8] = "Beast", [10] = "Mechanical" }
+        for i, english in pairs(PET_FAMILIES) do
+            local here = _G["BATTLE_PET_NAME_" .. i]
+            if type(here) == "string" then englishTypes[here] = english end
+        end
+    end
+    return ctype and englishTypes[ctype] or ctype
+end
+
 local function FamiliesOf(name, ctype, family)
     local out = {}
+    ctype = ns.EnglishType(ctype)
     for _, f in ipairs(FAMILIES) do
         if (HasAny(name, f.names) and not HasAny(name, f.except)) or IsIn(ctype, f.types) or IsIn(family, f.families) then
             out[#out + 1] = f.id
@@ -312,7 +329,8 @@ end
 local function CheckWatched()
     if not watched then return StopWatch() end
     if Str(Call("UnitGUID", "target")) ~= watched.guid then return StopWatch() end
-    if Call("UnitIsTapDenied", "target") == true then return StopWatch() end -- someone else's kill
+    -- Someone else's kill (nobody tags a critter, so it's no sign of that).
+    if Call("UnitIsTapDenied", "target") == true and ns.EnglishType(watched.ctype) ~= "Critter" then return StopWatch() end
     if Call("UnitIsDead", "target") == true then
         CountNoXP(watched.guid, watched)
         StopWatch()
@@ -331,7 +349,10 @@ local function WatchTarget()
     if IsRare(watched.class) then SeenRare(guid) end
     -- A corpse (looted, skinned, or killed before you looked) or a mob
     -- someone else has tagged isn't a kill of yours to wait for.
-    if Call("UnitIsDead", "target") == true or Call("UnitIsTapDenied", "target") == true then watched = nil end
+    if Call("UnitIsDead", "target") == true
+        or (Call("UnitIsTapDenied", "target") == true and ns.EnglishType(watched.ctype) ~= "Critter") then
+        watched = nil
+    end
 end
 
 -- You attacked it: auto-attack started, or a spell went off at it.
@@ -360,6 +381,25 @@ local function OnCombatLog()
     end
     local info = ns.MobInfo(dstName) or {}
     CountNoXP(dst, { name = dstName, ctype = info.ctype, family = info.family, class = info.class, level = info.level })
+end
+
+-- The game's own event for a kill by you or your group: the GUIDs where the
+-- combat log is closed to addons. (Players' are always readable; a mob's can
+-- be secret in some places, and then the target watch above is what's left.)
+local function OnPartyKill(attacker, target)
+    if not Track.enabled("probe") then return end
+    attacker, target = Str(Safe(attacker)), Str(Safe(target))
+    myGUID = myGUID or Str(Call("UnitGUID", "player"))
+    if not attacker or not target or attacker ~= myGUID then return end
+    if target:find("^Player") then
+        for _, fn in ipairs(partyKillListeners) do fn(target, Str(Call("UnitNameFromGUID", target))) end
+        return
+    end
+    local seen = watched and watched.guid == target and watched
+    local name = (seen and seen.name) or Str(Call("UnitNameFromGUID", target))
+    if not name then return end
+    local info = seen or ns.MobInfo(name) or {}
+    CountNoXP(target, { name = name, ctype = info.ctype, family = info.family, class = info.class, level = info.level })
 end
 
 ---------------------------------------------------------------------------
@@ -744,13 +784,14 @@ On("PLAYER_ENTER_COMBAT", Attacked)
 On("PLAYER_REGEN_DISABLED", Attacked)
 On("CHAT_MSG_COMBAT_XP_GAIN", function(msg)
     msg = Str(Safe(msg))
-    local mob = msg and msg:match(ns.PATTERNS.kill)
+    local mob = msg and ns.MobFromXP(msg)
     if not mob then return end
     recentXP[mob] = GetTime()
     -- the target being watched gave experience: the main tracker has it
     if watched and watched.name == mob then counted[watched.guid] = true end
 end)
 On("COMBAT_LOG_EVENT_UNFILTERED", OnCombatLog)
+On("PARTY_KILL", OnPartyKill)
 On("QUEST_ACCEPTED", OnQuestAccepted)
 On("QUEST_TURNED_IN", OnQuestTurnedIn)
 On("CHAT_MSG_CHANNEL", OnChannel)

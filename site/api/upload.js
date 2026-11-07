@@ -140,6 +140,11 @@ module.exports = async function upload(req, res) {
   }
   if (!parsed.ok) return reply(res, 400, 'rejected', parsed.error);
   const row = parsed.row;
+  // Before addon 0.6.17 a surname, or part of one, could land among the emotes
+  // aimed at you (W-312). The website doesn't use that list, so it isn't kept
+  // from an older addon.
+  const wrapped = row.payload && row.payload.wrapped;
+  if (wrapped && !wrapped.emoteVerbsCleared) delete wrapped['W-312'];
   try {
     Object.assign(row.payload, analyze(row.payload));
   } catch (err) {

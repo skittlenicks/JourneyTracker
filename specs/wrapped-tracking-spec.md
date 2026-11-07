@@ -29,10 +29,10 @@ _Content that only exists in Forever. Zone names via GetZoneText/GetSubZoneText.
 5. `SKIP` `W-005` Shen'dralas: level you discovered it, time spent, quests completed (covered by #63, #66 and #55; shown on the WoW Forever page)
 6. `BUILT` `W-006` Mount Hyjal: /played and days after 60 when you first arrived (level, /played and days after 60 on first arrival)
 7. `BUILT` `W-007` New Forever quests completed vs Classic quests completed (split by quest ID: Classic IDs are below 10000; heuristic)
-8. `BUILT` `W-008` Camps set up (Campfire casts that do not create a campfire item; from 0.6.14 the window and the website (MODEL 11) show the Statistics pane's "Times camped" (64222) where it's more: in 30 uploads the game counted far more camps, as setting up camp on Forever isn't a Campfire cast)
-9. `VERIFIED` `W-009` Time spent resting at camps vs inns (camp time from the Campfire Nearby / Welcoming Campfire / Camp Benefits buffs, checked out of combat; inns from #11) (confirmed in game)
+8. `BUILT` `W-008` Camps set up (Campfire casts, by spell ID in any language, that do not create a campfire item; from 0.6.14 the window and the website (MODEL 11) show the Statistics pane's "Times camped" (64222) where it's more: in 30 uploads the game counted far more camps, as setting up camp on Forever isn't a Campfire cast)
+9. `BUILT` `W-009` Time spent resting at camps vs inns (camp time from the Campfire Nearby / Welcoming Campfire / Camp Benefits buffs, checked out of combat, their names from spell IDs in any language; inns from #11) (confirmed in game in English before 0.6.17 changed it on request for other languages)
 10. `BUILT` `W-010` Camp vendors and repairs used (vendor windows opened and Repair All used while at a camp)
-11. `VERIFIED` `W-011` Camp buffs received (camp buffs landing on you (UNIT_AURA), by name) (confirmed in game)
+11. `BUILT` `W-011` Camp buffs received (camp buffs landing on you (UNIT_AURA), by English name, from spell IDs in any language) (confirmed in game in English before 0.6.17 changed it on request for other languages)
 12. `BUILT` `W-012` Camping objects crafted with professions (camp objects and campfires created, by item)
 13. `BUILT` `W-013` Legacy challenges completed while leveling (class levels 25/45/60, tradeskills 150/225/300, etc.) (Legacy API unknown; /jprobe api will find its functions and events) ([probe] the game's system messages that mention Legacy, kept with level and date (newest 60), until the Legacy API is known; never one with a player in it (a player link, a [name] or <guild> as in /who, or a name seen this session, yours included); the Legacy-named functions this client has are listed in db.wrapped.legacyApi (JourneyTrackerSocial.lua))
 14. `BUILT` `W-014` Legacy points earned and when (Legacy API unknown; waiting on /jprobe api) ([probe] Legacy messages that mention points, as W-013)
@@ -82,7 +82,7 @@ _[probe] Kill attribution by mob name/type. Match on name keywords plus UnitCrea
 54. `BUILT` `W-054` Elementals slain (creature type Elemental)
 55. `BUILT` `W-055` Demons slain (creature type Demon)
 56. `BUILT` `W-056` Yetis slain (name)
-57. `BUILT` `W-057` Critters killed total (UnitCreatureType Critter) (creature type Critter; critters give no experience, so these come from the no-experience kill watch; Blizzard's pane also counts critters (statistic 108))
+57. `BUILT` `W-057` Critters killed total (UnitCreatureType Critter) (creature type Critter, in other languages by the battle pet family of the same name; critters give no experience, so these come from the no-experience kill watch and the game's PARTY_KILL event, and nobody's tag on one is no sign of someone else's kill; the website shows the pane's count where it's more; Blizzard's pane also counts critters (statistic 108))
 58. `BUILT` `W-058` Chickens killed (no-experience kill watch)
 59. `BUILT` `W-059` Rabbits and squirrels killed (no-experience kill watch)
 
@@ -185,7 +185,7 @@ _[probe] Use UnitClassification and nameplate/target info._
 ## World PvP and ganking
 _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel, stealth state at combat start, UnitIsDeadOrGhost after combat. Store levels and classes only, never names._
 
-140. `BUILT` `W-140` Enemy players killed total (honorable or not) (honorable kill messages, enemy player targets you attacked dying, and the combat log where Forever allows it; the same player (by GUID, or name without its realm) within 10 seconds counts once, and one with no name to compare is the kill just before it within 2 seconds; a target already dead isn't watched; class and level kept, never names (JourneyTrackerPvP.lua))
+140. `BUILT` `W-140` Enemy players killed total (honorable or not) (the game's PLAYER_PVP_KILLS_CHANGED and PARTY_KILL events, honorable kill messages in all their wordings, enemy player targets you attacked dying, and the combat log where Forever allows it; the website shows the pane's total (588) where it's more; the same player (by GUID, or first name) within 10 seconds counts once, and one with no name to compare is the kill just before it within 2 seconds; a target already dead isn't watched; class and level kept, never names (JourneyTrackerPvP.lua))
 141. `BUILT` `W-141` Lowbies ganked: enemy players 10+ levels below you killed (victims 10+ levels below you)
 142. `BUILT` `W-142` Stealth ganks: lowbies killed where you opened from stealth (rogue/druid) (lowbie kills in a fight that began while you were stealthed)
 143. `BUILT` `W-143` Biggest level gap in a gank (your level minus theirs) (biggest gap, with the victim's class)
@@ -198,8 +198,8 @@ _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel,
 150. `BUILT` `W-150` World PvP kills by enemy class (outside battlegrounds, by class)
 151. `BUILT` `W-151` World PvP deaths by enemy class (outside battlegrounds, by class)
 152. `BUILT` `W-152` Your PvP nemesis class (class that killed you most) (the top class in W-151)
-509. `BUILT` `W-509` World PvP deaths by enemy race and class (outside battlegrounds, keyed "Race:CLASS" by their tokens, as "Scourge:ROGUE"; addon 0.6.15)
-510. `BUILT` `W-510` Your PvP nemesis: the one player who killed you most (race, class and how many times; the same player is known again by a hash of their GUID kept only in the saved data (db.social.killers, never exported), never a name; addon 0.6.15)
+509. `BUILT` `W-509` World PvP deaths by enemy race and class (outside battlegrounds, keyed "Race:CLASS" by their tokens, as "Scourge:ROGUE", from the enemy player last seen coming at you, as your target or a nameplate with you as its target, for this session only; addon 0.6.15, working from 0.6.17)
+510. `BUILT` `W-510` Your PvP nemesis: the one player who killed you most (race, class and how many times; the same player is known again by a hash of their GUID kept only in the saved data (db.social.killers, never exported), never a name; addon 0.6.15, working from 0.6.17)
 153. `BUILT` `W-153` Your favorite PvP victim class (the top class in W-150)
 154. `BUILT` `W-154` Zone with the most world PvP kills (kills by zone, outside battlegrounds)
 155. `BUILT` `W-155` Zone with the most world PvP deaths (deaths by zone, outside battlegrounds)
@@ -222,10 +222,10 @@ _[probe] Player kills need target caching: UnitIsPlayer, UnitIsEnemy, UnitLevel,
 _Forever battlegrounds: Warsong Gulch (10v10, brackets from 10-19), Arathi Basin (15v15, from 20-29), Darkspear Islands (15v15, from 30-39), Alterac Valley (40v40, 51-60). No arenas. Use GetBattlefieldStatus, GetBattlefieldWinner, UPDATE_BATTLEFIELD_SCORE, and duel events._
 
 170. `BUILT` `W-170` Battlegrounds entered, by battleground (WSG, AB, Darkspear Islands, AV) (entering a pvp instance, by name; the match is kept in db.wrapped.bgMatch, so a /reload inside doesn't enter, win or read the scoreboard again)
-171. `BUILT` `W-171` Battleground wins and losses, by battleground (GetBattlefieldWinner at the end, by battleground)
+171. `BUILT` `W-171` Battleground wins and losses, by battleground (PVP_MATCH_COMPLETE, or GetBattlefieldWinner where the client has it, by battleground; for exports with none the website shows the pane's 840 won of 839 played)
 172. `BUILT` `W-172` Time spent in battlegrounds (5-second ticks in a battleground, by name)
 173. `BUILT` `W-173` Time spent in battleground queues (5-second ticks while any queue says queued)
-174. `BUILT` `W-174` Battleground killing blows and honorable kills (from the scoreboard) (your scoreboard row at the end (GetBattlefieldScore): killing blows, honorable kills, deaths, by battleground)
+174. `BUILT` `W-174` Battleground killing blows and honorable kills (from the scoreboard) (your scoreboard row at the end (C_PvP.GetScoreInfoByPlayerGuid on Forever, once the match is over; GetBattlefieldScore on older clients): killing blows, honorable kills, deaths, by battleground)
 175. `BUILT` `W-175` Battleground deaths (deaths from your scoreboard row)
 176. `BUILT` `W-176` Flags captured and returned in Warsong Gulch (Warsong Gulch's scoreboard columns (GetBattlefieldStatInfo/Data), whatever they're called)
 177. `BUILT` `W-177` Bases assaulted and defended in Arathi Basin (Arathi Basin's scoreboard columns)
@@ -237,7 +237,7 @@ _Forever battlegrounds: Warsong Gulch (10v10, brackets from 10-19), Arathi Basin
 183. `BUILT` `W-183` Highest seasonal PvP rank reached while leveling (highest rank seen, with its title: on Forever the renown level of its PvP rank points faction (2800, C_MajorFactions), as its character sheet's PvP tab reads it; UnitPVPRank on older clients)
 184. `BUILT` `W-184` XP earned in battlegrounds, if Forever grants it (XP gained while in a battleground)
 185. `BUILT` `W-185` Duels requested and accepted (StartDuel (asked) and AcceptDuel (accepted) hooks)
-186. `BUILT` `W-186` Duels won and lost (duel result messages compared with your own name)
+186. `BUILT` `W-186` Duels won and lost (duel result messages compared with your own name, first or full, with or without a realm; the website shows the pane's 319 and 320 where they're more)
 187. `BUILT` `W-187` Duels won and lost by opponent class (won and lost by the opponent's class (your target when you challenge, the challenger's from the session's cache when you're challenged, or the cache at the result))
 188. `BUILT` `W-188` Duels fled (left the area) ('has fled from' messages where you're the one who fled)
 189. `BUILT` `W-189` Longest duel (from entering combat during the duel to the result)
@@ -314,7 +314,7 @@ _START_LOOT_ROLL, CHAT_MSG_LOOT, CHAT_MSG_SYSTEM for /roll results, GROUP_ROSTER
 248. `BUILT` `W-248` Highest roll ever and lowest roll ever (your Need and Greed roll messages, or from addon 0.6.8 on your roll in the result as W-247 reads it; the highest, and the lowest as W-248.lowest)
 249. `BUILT` `W-249` Times you won a roll with under 10 (won with a roll under 10, the result as W-247 reads it)
 250. `BUILT` `W-250` Times you lost a roll with over 95 (lost with a roll over 95, the result as W-247 reads it)
-251. `BUILT` `W-251` /roll uses and average /roll result (your /roll results: how many and their total (the average is total over rolls))
+251. `BUILT` `W-251` /roll uses and average /roll result (your /roll results, by your first or full name: how many and their total (the average is total over rolls))
 252. `BUILT` `W-252` Blue items won on Need (blue items you won on Need, the result as W-247 reads it)
 253. `BUILT` `W-253` Items you passed on that someone else won (items you passed on that someone else won, the result as W-247 reads it)
 254. `BUILT` `W-254` Groups joined (going from no group to a group of your own, not a battleground's)
@@ -355,7 +355,7 @@ _Counts only. Never store message contents or other players' names. Chat may be 
 280. `BUILT` `W-280` Messages you sent in guild chat (guild and officer chat, as W-277)
 281. `BUILT` `W-281` Whispers sent (as W-277; the recipient isn't kept)
 282. `BUILT` `W-282` Whispers received (CHAT_MSG_WHISPER, counted)
-283. `BUILT` `W-283` Messages you sent in General/Trade/LFG channels (channels named General, Trade or LookingForGroup, as W-277)
+283. `BUILT` `W-283` Messages you sent in General/Trade/LFG channels (channels named General, Trade or LookingForGroup, or on other languages' clients any server channel by its local name, as W-277)
 284. `BUILT` `W-284` Times you typed 'lol', 'lmao', or 'haha' (whole words in what you send (lol, lmao, haha, rofl))
 285. `BUILT` `W-285` Times you typed 'gz' or 'grats' (gz, grats, gratz, congrats)
 286. `BUILT` `W-286` Times you typed 'ty' or 'thanks' (ty, thanks, thx)
@@ -368,7 +368,7 @@ _Counts only. Never store message contents or other players' names. Chat may be 
 293. `BUILT` `W-293` Messages sent per hour played (the sent counts (W-277..W-283) over /played, worked out on the website)
 294. `BUILT` `W-294` Friends added (AddFriend hooks; one friend seen by both counts once)
 295. `BUILT` `W-295` Players inspected (INSPECT_READY) (INSPECT_READY, once per player a session (by GUID, not kept))
-296. `BUILT` `W-296` Trades completed ('Trade complete' messages)
+296. `BUILT` `W-296` Trades completed ('Trade complete' messages, as a chat line or text on the screen; one within a second of another is the same trade)
 297. `BUILT` `W-297` Gold given away in trades (money down while a trade window is open (or just closed))
 298. `BUILT` `W-298` Gold received in trades (money up while a trade window is open)
 299. `BUILT` `W-299` Items given away in trades (items that left your bags in a trade)
@@ -388,7 +388,7 @@ _CHAT_MSG_TEXT_EMOTE from the player, and emotes targeted at you (count only)._
 309. `BUILT` `W-309` /sit and /sleep count (SIT and SLEEP in W-303)
 310. `BUILT` `W-310` /train count (the classic choo choo) (TRAIN in W-303)
 311. `BUILT` `W-311` Emotes other players directed at you (CHAT_MSG_TEXT_EMOTE from someone else that says 'you'; the sender isn't kept)
-312. `BUILT` `W-312` Most received emote (those by verb ('hugs'), the top one being the most received)
+312. `BUILT` `W-312` Most received emote (those by verb ('hugs'), the top one being the most received; the verb is the first word all in lower case, as a name never is. Before 0.6.17 cutting off the sender's name by its length could keep a surname here, so saved lists start over once, emoteVerbsCleared, and the website doesn't keep the list from older addons. English clients only)
 
 ## Movement and world mechanics
 _IsSwimming, IsFalling, IsFlying, IsIndoors, IsOutdoors, MIRROR_TIMER_START (BREATH, EXHAUSTION, FEIGNDEATH), sampled positions._
@@ -484,7 +484,7 @@ _Snapshot out of combat at each ding: UnitStat, UnitArmor, UnitAttackPower, GetC
 389. `BUILT` `W-389` Main hand weapon DPS at each ding (the main hand weapon's own DPS (its item stats), in the ding's sheet)
 390. `BUILT` `W-390` Average item level at each ding (average item level of what you wear (not the shirt or tabard), in the ding's sheet)
 391. `BUILT` `W-391` Gear rarity breakdown at each ding (grays, whites, greens, blues, purples worn) (items worn by rarity, in the ding's sheet)
-392. `BUILT` `W-392` 'of the Monkey', 'of the Bear', 'of the Eagle', 'of the Whale' and other suffix items looted (looted items with a random suffix, by suffix ('of the Monkey'))
+392. `BUILT` `W-392` 'of the Monkey', 'of the Bear', 'of the Eagle', 'of the Whale' and other suffix items looted (looted items with a random suffix, by suffix ('of the Monkey'): on Forever a bonus ID in the link, as its suffix field stays empty, and the suffix is what the name has beyond the item's own name, in any language)
 393. `BUILT` `W-393` Your most common gear suffix (the top of W-392)
 394. `BUILT` `W-394` Items equipped total (PLAYER_EQUIPMENT_CHANGED putting a different item in a slot, after the first look at your gear each session; another copy of the same item counts too, told apart by its item GUID (C_Item.GetItemGUID) where the client has it)
 395. `BUILT` `W-395` Gear swaps per level (the same, by level)
@@ -493,7 +493,7 @@ _Snapshot out of combat at each ding: UnitStat, UnitArmor, UnitAttackPower, GetC
 398. `BUILT` `W-398` Times an item broke (durability 0) (an item's durability reaching 0; not an item put on already broken)
 399. `BUILT` `W-399` Times your gear went yellow or red (low durability) (your gear's worst state turning yellow or red (GetInventoryAlertStatus for each of the 11 parts of the game's durability figure, head to ranged, which aren't inventory slots; or 20% left if the game can't say))
 400. `BUILT` `W-400` Biggest repair bill (the biggest single repair payment (Repair All or one item))
-401. `BUILT` `W-401` Enchants applied to your gear (an equipped item's enchant changing to a new one, on the same item (its item GUID, where the client has it), so swapping in another copy with a different enchant isn't one; by slot as W-401.bySlot (armor kits included))
+401. `BUILT` `W-401` Enchants applied to your gear (an equipped item's enchant changing to a new one, seen on PLAYER_EQUIPMENT_CHANGED or UNIT_INVENTORY_CHANGED, on the same item (its item GUID, where the client has it), so swapping in another copy with a different enchant isn't one; by slot as W-401.bySlot (armor kits included))
 402. `BUILT` `W-402` Armor kits, sharpening stones, and weightstones used (items named Armor Kit, Sharpening Stone or Weightstone used, by name)
 403. `BUILT` `W-403` BoE items sold or vendored instead of equipped (bind-on-equip gear sold to a vendor or put up on the AH without ever being worn (#104's list))
 404. `BUILT` `W-404` Quest reward choices: which slot you picked most (the GetQuestReward choice when there's more than one, by its slot)
@@ -513,7 +513,7 @@ _Item diffs, CHAT_MSG_LOOT, CHAT_MSG_SKILL, TRADE_SKILL events, UNIT_SPELLCAST_S
 414. `BUILT` `W-414` Truesilver and Silver veins found (mining nodes whose name (the gathering cast's target) says Truesilver or Silver (JourneyTrackerProfessions.lua))
 415. `BUILT` `W-415` Gems found while mining (uncommon or better items from mining nodes, by name)
 416. `SKIP` `W-416` Skins gathered by type (Light, Medium, Heavy, Thick, Rugged leather) (covered by #103 (db.gathering.skinning.items, by leather))
-417. `BUILT` `W-417` Cloth looted by type (Linen, Wool, Silk, Mageweave, Runecloth) (Linen, Wool, Silk, Mageweave, Runecloth and Felcloth looted, by type)
+417. `BUILT` `W-417` Cloth looted by type (Linen, Wool, Silk, Mageweave, Runecloth) (Linen, Wool, Silk, Mageweave, Runecloth and Felcloth looted, by item ID in any language, under their English names)
 418. `BUILT` `W-418` Total cloth looted (the total of W-417)
 419. `BUILT` `W-419` Gathering nodes by zone (each new node the main tracker counts (#103), by zone)
 420. `BUILT` `W-420` Nodes you lost to another player (node vanished mid-gather) [probe] ([probe] a gathering cast interrupted while you stood still out of combat; matched by its cast GUID, so its own FAILED coming first, or another spell failing, doesn't lose it)
@@ -540,7 +540,7 @@ _Item diffs, CHAT_MSG_LOOT, CHAT_MSG_SKILL, TRADE_SKILL events, UNIT_SPELLCAST_S
 _CHAT_MSG_COMBAT_FACTION_CHANGE and the reputation API._
 
 439. `BUILT` `W-439` Reputation gained by faction (reputation gain messages, by faction)
-440. `BUILT` `W-440` Level reached Friendly, Honored, Revered, and Exalted with each faction ('You are now <standing> with <faction>' messages: the level you reached each standing, by faction)
+440. `BUILT` `W-440` Level reached Friendly, Honored, Revered, and Exalted with each faction (a faction you know going up a standing in the game's numbers (C_Reputation, on UPDATE_FACTION and FACTION_STANDING_CHANGED), and 'You are now <standing> with <faction>' messages: the level you reached each standing, by faction, under the standing's English name)
 441. `BUILT` `W-441` Reputation lost by faction (reputation loss messages, by faction)
 442. `BUILT` `W-442` Times you turned on Booty Bay (Bloodsail Buccaneers rep gained) (Bloodsail Buccaneers reputation gains)
 443. `BUILT` `W-443` Timbermaw Hold reputation progression (Timbermaw Hold reputation at each ding, as `{ standing, progress }`: the standing's name (Hated..Exalted, from the game's reaction) and the points into it (current minus where it starts; the older API's barValue minus barMin), so nothing below Neutral is negative (Timbermaw starts Hostile, and the export drops negative numbers); factions at exactly 0 are left out as before; raw values saved by earlier versions are converted once at load on the standard thresholds)
@@ -583,7 +583,7 @@ _Each records level, /played, zone, and real timestamp._
 472. `BUILT` `W-472` First boat or zeppelin ride (first boat or zeppelin ride, with the route)
 473. `SKIP` `W-473` First mount summoned (covered by #84 (level and /played the first time you're mounted))
 474. `BUILT` `W-474` First profession maxed for its bracket (75, 150, 225, 300) (the first profession to reach 75, 150, 225 and 300; brackets reached before tracking are marked before)
-475. `BUILT` `W-475` First time hitting Exalted with any faction (the first 'You are now Exalted with' message (JourneyTrackerProfessions.lua))
+475. `BUILT` `W-475` First time hitting Exalted with any faction (the first time Exalted, as W-440 sees it (JourneyTrackerProfessions.lua))
 476. `BUILT` `W-476` First talent point (the first talent point (JourneyTrackerEconomy.lua); points already spent when tracking began are marked before)
 477. `SKIP` `W-477` First class quest completed (covered by ALL-12 (class quests with the level each was done))
 478. `SKIP` `W-478` First rare killed (covered by W-133 (first rare killed: name, its level, your level, zone))
@@ -656,3 +656,4 @@ _WoW Forever's Statistics pane on the character page (combat, PvP, creatures, go
 - 2026-10-13: Found in 83 uploads (39 from 0.6.10): READ was 6,795 of the emotes counted, from Forever's world map playing it each time it opens (C_ChatInfo.PerformEmote("READ", nil, true), Blizzard_WorldMap.lua). Addon 0.6.12: W-302/W-303 skip emotes the interface plays (that third argument), and the READ counted before goes once; the website (MODEL 9) leaves READ out of older exports. W-302..W-310 stay `BUILT`. The same uploads show the 0.6.8-0.6.10 fixes recording: zone types in all 39, emotes by name in 36, recipes in 38, cooking in 12, roll results in 16, dungeon clears and Forever's final bosses in 16.
 - 2026-10-22: Fixes from a level 1-30 journey and every saved upload (addon 0.6.14, site MODEL 11): quest XP that came before its turn-in filed as "other" (#21, #23), every herb picked counted as a treasure chest (W-381; Forever's herb cast is "Herbalism"), camps set up from the game's own count (W-008), zones flown over on the route (#67), loot money with no loot window (#78), a fishing pole as the first two-hander (W-397). Saved data from before is fixed once at login, and the website fixes older exports the same way where it can (not the flights: older stops have no marks). Checked outside the game (fengari: a new 0.6.14 test, the whole suite on a fixed copy of the saved data) and with the site's tests and in headless Edge (a real level 30 journey before and after).
 - 2026-10-23: Ideas from Blizzard's beta recap (timewalking.blizzard.com), addon 0.6.15 and site MODEL 12: players met by race and class (W-511), deaths to players by race and class (W-509) and the one player who killed you most (W-510), each without a name, the players known again by GUID hashes kept only in the saved data; the website shows who you met (Forever's new combinations first) and your nemesis, and ranks new-combination players met. The website also gets a picture for your stories (#116) and shows places as shares from 50 players (#110). Checked outside the game (fengari: a new 0.6.15 test, the export without names or hashes) and with the site's tests and in headless Edge (the picture for the sample and a saved journey, desktop and phone).
+- 2026-11-07: Fixes from 1,105 live uploads (addon 0.6.17, site MODEL 13). Forever's names are two parts (UnitName returns name and surname) and its messages use both, which broke duels (W-186..W-189), /roll (W-251), scoreboards (W-174..W-179), roll messages (W-248) and the guild echo: ns.FullName and ns.IsMe. Messages in other languages use numbered parts and grammar markers: every format is now read in all 10 languages, and camps (W-008, W-009, W-011) and cloth (W-417, W-453) go by ID. W-009 and W-011 go back to `BUILT` for this change, asked for by the user; they were `VERIFIED`. W-140 from the game's kill events, W-509/W-510 from the hostile player last seen (not your target at death), W-440/W-475 from the game's numbers, W-392 from bonus IDs, W-401 and W-296 from a second signal, W-057 from PARTY_KILL. W-312 could keep a surname: fixed, cleared once, and stripped from older addons' uploads. Still English only: creatures by name and family, iconic kills, emotes aimed at you, enhancers and other lists of English names. The website shows the pane's counts for W-140, W-186, W-171 and W-057 until players update. Checked outside the game (fengari: every format in 10 languages from Forever's strings, each bug played out; the site model over all 1,105 uploads). Not yet tested in the game.

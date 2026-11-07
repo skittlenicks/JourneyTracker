@@ -73,7 +73,7 @@ end
 
 local function Wearable(info) return info.equipLoc ~= nil and not NOT_WORN[info.equipLoc] end
 
--- Item ID, enchant and random suffix from a link.
+-- Item ID, enchant, random suffix and how many bonus IDs, from a link.
 local function LinkParts(link)
     local fields = link and link:match("|Hitem:([^|]+)")
     if not fields then return nil end
@@ -81,10 +81,23 @@ local function LinkParts(link)
     for field in (fields .. ":"):gmatch("([^:]*):") do
         i = i + 1
         parts[i] = tonumber(field) or 0
-        if i >= 7 then break end
+        if i >= 13 then break end
     end
     if not parts[1] or parts[1] == 0 then return nil end
-    return parts[1], parts[2] or 0, parts[7] or 0
+    return parts[1], parts[2] or 0, parts[7] or 0, parts[13] or 0
+end
+
+-- The suffix on a random-suffix item ("of the Monkey"). Forever marks them
+-- with a bonus ID (the link's suffix field stays empty), and the suffix is
+-- what the item's name has beyond the item's own name, in any language.
+local function SuffixOf(link, name)
+    local id, _, suffix, bonuses = LinkParts(link)
+    if not id or (suffix == 0 and bonuses == 0) then return nil end
+    local base = Str(Call("C_Item.GetItemNameByID", id))
+    if base == name then return nil end
+    if base and name:sub(1, #base) == base then return (name:sub(#base + 1):gsub("^%s+", "")) end
+    if base and name:sub(-#base) == base then return (name:sub(1, -#base - 1):gsub("%s+$", "")) end
+    return name:match(" (of .+)$")
 end
 
 -- Ever worn (the main tracker's #104 list, keyed by item ID and suffix)?
@@ -366,9 +379,8 @@ local function OnLoot(link, count)
     local name = link and link:match("%[(.-)%]")
     if not name then return end
     count = count or 1
-    local _, _, suffix = LinkParts(link)
-    local of = suffix and suffix ~= 0 and name:match(" (of .+)$")
-    if of then Track.count("W-392", of, count) end            -- W-392 suffixes looted (top: W-393)
+    local of = SuffixOf(link, name)
+    if of and of ~= "" then Track.count("W-392", of, count) end -- W-392 suffixes looted (top: W-393)
     if HasAny(name, LOCKBOXES) then Track.count("W-380", name, count) end -- W-380 lockboxes
 end
 
@@ -465,6 +477,27 @@ local function OnEquipmentChanged(slot)
     elseif new.enchant ~= old.enchant and new.enchant ~= 0 then
         Track.count("W-401")                                  -- W-401 enchants applied
         Track.count("W-401.bySlot", SLOT_NAMES[slot])
+    end
+end
+
+-- An enchant going on doesn't always come with PLAYER_EQUIPMENT_CHANGED
+-- (W-401 stayed at 0 with enchants on hundreds of items): this is the event
+-- that's left. An item that changed goes to that one.
+local function CheckEnchants()
+    if not equipped then return end
+    for slot = 1, 19 do
+        local old = equipped[slot]
+        if old and Str(Call("GetInventoryItemLink", "player", slot)) ~= old.link then
+            local new = SlotItem(slot)
+            if new and new.key == old.key and new.enchant ~= old.enchant
+                and not (old.guid and new.guid and old.guid ~= new.guid) then
+                equipped[slot] = new
+                if new.enchant ~= 0 then
+                    Track.count("W-401")
+                    Track.count("W-401.bySlot", SLOT_NAMES[slot])
+                end
+            end
+        end
     end
 end
 
@@ -826,6 +859,7 @@ end)
 On("BAG_UPDATE_DELAYED", CheckBags)
 On("PLAYER_REGEN_ENABLED", TakeSheet)
 On("PLAYER_EQUIPMENT_CHANGED", OnEquipmentChanged)
+On("UNIT_INVENTORY_CHANGED", CheckEnchants, "player")
 On("UPDATE_INVENTORY_DURABILITY", CheckDurability)
 On("CHARACTER_POINTS_CHANGED", CheckTalents)
 On("PLAYER_TALENT_UPDATE", CheckTalents)
