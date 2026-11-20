@@ -2,12 +2,14 @@
 // Decode and validate Journey Tracker export strings.
 //
 // Format 1: "JT1:" + base64( raw deflate( UTF-8 JSON ) ), made by the addon's
-// JourneyTrackerSerialize.lua. Only Node built-ins are used and there's no
-// database code here, so the website's upload function (site/api/upload.js)
-// uses this file unchanged. The page itself decodes in the browser with the
-// same rules (site/recap.template.html, decodeExport and checkExport).
+// JourneyTrackerSerialize.lua. Only Node built-ins (and english.js, with its
+// names.json) are used and there's no database code here, so the website's
+// upload function (site/api/upload.js) uses this file unchanged. The page
+// itself decodes in the browser with the same rules (site/recap.template.html,
+// decodeExport and checkExport), without the translating.
 
 const zlib = require('zlib');
+const { toEnglish } = require('./english');
 
 const PREFIX = 'JT1:';
 // Bytes after decompressing. A level 60's export is about 0.3-0.6 MB (the
@@ -124,6 +126,13 @@ function parseExport(text) {
   // A payload's "ranked" is the website's own: the numbers the journey is
   // ranked on, which site/api/upload.js works out. An export can't bring one.
   delete decoded.data.ranked;
+  // Spell and item names in English, whatever the client's language
+  // (english.js); a name it can't translate stays, and so does the export.
+  try {
+    toEnglish(decoded.data);
+  } catch (err) {
+    console.error('english failed:', err.message);
+  }
   return { ok: true, data: decoded.data, row: toRow(decoded.data) };
 }
 

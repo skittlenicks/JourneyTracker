@@ -115,6 +115,81 @@ local function Inc(t, key, amount)
     t[key] = (t[key] or 0) + (amount or 1)
 end
 
+-- Spell and item names to and from English (JourneyTrackerNames.lua, made by
+-- tools/names/build.js). The addon saves and compares English names whatever
+-- the client's language: a German client's "Feuerball" is Fireball, its
+-- "Seelensplitter" a Soul Shard. A name not in the lists stays as it is.
+do
+    local toEnglish, toLocal -- built on first use, from what the game calls each listed spell
+    local function Build()
+        toEnglish, toLocal = {}, {}
+        local list = ns.NAMES_SPELLS or {}
+        for i = 1, #list - 1, 2 do
+            local id, english = list[i], list[i + 1]
+            local here = Str(Call("C_Spell.GetSpellName", id)) or Str(Call("GetSpellInfo", id))
+            if here and here ~= english then
+                if toEnglish[here] == nil then toEnglish[here] = english end
+                if toLocal[english] == nil then toLocal[english] = here end
+            end
+        end
+    end
+    -- A spell's name here to its English name.
+    function ns.SpellEnglish(name)
+        if type(name) ~= "string" then return name end
+        if not toEnglish then Build() end
+        return toEnglish[name] or name
+    end
+    -- An English spell name to the name here (for the game's look-ups by name).
+    function ns.SpellLocal(name)
+        if type(name) ~= "string" then return name end
+        if not toEnglish then Build() end
+        return toLocal[name] or name
+    end
+    -- An item's English name, by its ID, or the name it has here.
+    function ns.ItemEnglish(id, name)
+        return (id and ns.NAMES_ITEMS and ns.NAMES_ITEMS[id]) or name
+    end
+    -- The name in an item or spell link, in English where it's listed.
+    function ns.LinkName(link)
+        if type(link) ~= "string" then return nil end
+        local name = link:match("%[(.-)%]")
+        local item = tonumber(link:match("|Hitem:(%d+)"))
+        if item then return ns.ItemEnglish(item, name) end
+        local spell = tonumber(link:match("|Hspell:(%d+)"))
+        if spell then name = Str(Call("C_Spell.GetSpellName", spell)) or name end
+        return ns.SpellEnglish(name)
+    end
+    -- A saved table keyed by spell name, moved to the English names: what a
+    -- client in another language saved before 0.6.18 joins the same spells'
+    -- English keys. Counts add up; `keep` keeps the entry already there.
+    local function Merge(into, from)
+        for k, v in pairs(from) do
+            if type(v) == "number" and type(into[k]) == "number" then into[k] = into[k] + v
+            elseif type(v) == "table" and type(into[k]) == "table" then Merge(into[k], v)
+            elseif into[k] == nil then into[k] = v end
+        end
+    end
+    function ns.RekeySpells(t, keep)
+        if type(t) ~= "table" then return end
+        local moves
+        for k in pairs(t) do
+            local english = type(k) == "string" and ns.SpellEnglish(k)
+            if english and english ~= k then
+                moves = moves or {}
+                moves[k] = english
+            end
+        end
+        for k, english in pairs(moves or {}) do
+            local v, have = t[k], t[english]
+            t[k] = nil
+            if have == nil then t[english] = v
+            elseif keep then -- (the one already there stays)
+            elseif type(v) == "number" and type(have) == "number" then t[english] = have + v
+            elseif type(v) == "table" and type(have) == "table" then Merge(have, v) end
+        end
+    end
+end
+
 -- Map coordinate (0-1) to a percentage with one decimal, like 45.3. The
 -- game can place you a little past a map's edge; that reads as the edge
 -- (an export with a negative number in it is turned away).
@@ -1214,7 +1289,7 @@ local function OnSystemMessage(msg)
         local learned = msg:match(PATTERNS.learnSpell) or msg:match(PATTERNS.learnAbility)
             or msg:match(PATTERNS.learnRecipe)
         if learned then
-            local name = learned:match("%[(.-)%]") or learned
+            local name = ns.LinkName(learned) or ns.SpellEnglish(learned)
             if not db.spells[name] then
                 db.spells[name] = { level = Level(), t = time() }
             end
@@ -1601,7 +1676,7 @@ end
 local function OnSpellLearned(spellID)
     spellID = Num(Safe(spellID))
     if not spellID then return end
-    local name = Str(Call("C_Spell.GetSpellName", spellID))
+    local name = ns.SpellEnglish(Str(Call("C_Spell.GetSpellName", spellID)))
     if name and not db.spells[name] then                      -- #95
         db.spells[name] = { level = Level(), t = time() }
     end
@@ -2320,6 +2395,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             print(PREFIX, "Your saved data is from a newer version of Journey Tracker. Please update the addon.")
         end
         Fill(db, DEFAULTS)
+        ns.RekeySpells(db.spells, true)                       -- #95 by English name (0.6.18)
         if db.firstSeen == 0 then db.firstSeen = time() end   -- #4
         RegisterEvents()
         InstallHooks()

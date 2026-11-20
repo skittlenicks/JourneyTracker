@@ -67,7 +67,8 @@ local function ItemInfo(item)
     if not name then
         name, _, quality, iLevel, _, _, _, _, equipLoc, _, sellPrice, classID, subclassID, bindType = Call("GetItemInfo", item)
     end
-    return { name = Str(name), quality = Num(quality), iLevel = Num(iLevel), equipLoc = Str(equipLoc),
+    local id = type(item) == "number" and item or (type(item) == "string" and tonumber(item:match("item:(%d+)")))
+    return { name = ns.ItemEnglish(id, Str(name)), quality = Num(quality), iLevel = Num(iLevel), equipLoc = Str(equipLoc),
              sellPrice = Num(sellPrice), classID = Num(classID), subclassID = Num(subclassID), bindType = Num(bindType) }
 end
 
@@ -260,7 +261,7 @@ local function OnSystemMessage(msg)
     else
         local item = msg:match(AUCTION_WON)
         if item then
-            ahEvent = { kind = "won", name = item:match("%[(.-)%]") or item, t = GetTime() }
+            ahEvent = { kind = "won", name = ns.LinkName(item) or item, t = GetTime() }
             PairAuction()
         end
     end
@@ -381,7 +382,8 @@ local function OnLoot(link, count)
     count = count or 1
     local of = SuffixOf(link, name)
     if of and of ~= "" then Track.count("W-392", of, count) end -- W-392 suffixes looted (top: W-393)
-    if HasAny(name, LOCKBOXES) then Track.count("W-380", name, count) end -- W-380 lockboxes
+    local english = ns.LinkName(link) or name                -- (the suffix above is read in the client's language)
+    if HasAny(english, LOCKBOXES) then Track.count("W-380", english, count) end -- W-380 lockboxes
 end
 
 -- A treasure chest: loot from an object (not a herb, a vein or fishing)

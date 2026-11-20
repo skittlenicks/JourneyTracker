@@ -175,7 +175,7 @@ local function MarkActive() activityAt, wander = GetTime(), 0 end
 local function ReadSickness()
     local fn = C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName
     if not fn then return end
-    local ok, aura = pcall(fn, "player", "Resurrection Sickness", "HARMFUL")
+    local ok, aura = pcall(fn, "player", ns.SpellLocal("Resurrection Sickness"), "HARMFUL")
     aura = ok and Safe(aura)
     local expires = type(aura) == "table" and Num(Safe(aura.expirationTime))
     if expires and expires > 0 then sickUntil = expires end
@@ -242,7 +242,7 @@ local function ReadyInBags(match)
         local slots = Num(Call("C_Container.GetContainerNumSlots", bag)) or Num(Call("GetContainerNumSlots", bag)) or 0
         for slot = 1, slots do
             local id, link = ns.BagItem(bag, slot)
-            if id and match(id, link and link:match("%[(.-)%]") or "") then
+            if id and match(id, ns.ItemEnglish(id, link and link:match("%[(.-)%]")) or "") then
                 local start = Num(Call("C_Container.GetItemCooldown", id)) or Num(Call("GetItemCooldown", id))
                 if start == 0 then return true end
             end

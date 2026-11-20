@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.18
+
+- **Every language, for spells and items too:** Journey Tracker looked for spells and items by their English names, so on clients in other languages, such as German, Spanish, French and Russian, most of the class pages stayed empty. That includes spells cast, time in each form, stance, seal and aspect, and potions, bandages and Soul Shards. It now finds them by their IDs and keeps them under their English names, whatever your game's language. Spells you've already cast are moved over the first time you log in with 0.6.18, so nothing is lost. Creatures and places counted by name are still English only.
+
+### On the website
+
+- **Journeys from other languages:** journeys you've already uploaded from a client in another language now show their spells in English, and the rankings count them. So does any upload from an older version.
+
 ## 0.6.17
 
 These fixes come from reading the journeys players have uploaded since launch. Your saved journey is corrected the first time you log in with 0.6.17, and the website corrects journeys you've already uploaded.

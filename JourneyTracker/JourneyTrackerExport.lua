@@ -160,6 +160,9 @@ local function BuildSummary(db, milestone)
             level = ns.Level(),
             played = math.floor(played),
             ruleset = wrapped["W-020"],
+            -- The client's language (0.6.18): names here are English where
+            -- the addon knows them, and the website translates the rest.
+            locale = ns.Str(ns.Call("GetLocale")),
         },
         levels = { snapshots = Copy(db.dings or {}), stats = Copy(db.levels or {}) },
         stats = stats,

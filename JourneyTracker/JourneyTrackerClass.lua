@@ -13,8 +13,10 @@
 --
 -- Only your own class is switched on; its data lives in db.class[CLASS] and
 -- the cross-class stats in db.class.ALL. Spells and items are matched by
--- name rather than by Classic database IDs, so anything Forever doesn't have
--- simply never counts (/jt class lists which tracked spells the game knows).
+-- their English names, whatever the client's language (ns.SpellEnglish and
+-- ns.ItemEnglish turn the game's names into English by ID, from
+-- JourneyTrackerNames.lua), so anything Forever doesn't have simply never
+-- counts (/jt class lists which tracked spells the game knows).
 -- As in the main file, every game value goes through Safe()/Call() first.
 
 local ADDON_NAME, ns = ...
@@ -361,13 +363,15 @@ local ALL_DEFAULTS = {
 -- Small helpers
 ---------------------------------------------------------------------------
 
+-- A spell's English name (ns.SpellEnglish), whatever the client's language.
 local function SpellName(id)
-    return Str(Call("C_Spell.GetSpellName", id)) or Str(Call("GetSpellInfo", id))
+    return ns.SpellEnglish(Str(Call("C_Spell.GetSpellName", id)) or Str(Call("GetSpellInfo", id)))
 end
 
 -- True if the game can find a spell by this name (known now, or at least
 -- present in the client).
 local function KnownSpell(name)
+    name = ns.SpellLocal(name)
     local info = Call("C_Spell.GetSpellInfo", name)
     if type(info) == "table" then return true end
     return Str(Call("GetSpellInfo", name)) ~= nil
@@ -387,7 +391,7 @@ end
 local function HasAura(name, mine)
     local fn = C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName
     if not fn then return nil end
-    local ok, aura = pcall(fn, "player", name, mine and "HELPFUL|PLAYER" or "HELPFUL")
+    local ok, aura = pcall(fn, "player", ns.SpellLocal(name), mine and "HELPFUL|PLAYER" or "HELPFUL")
     if not ok or IsSecret(aura) then return nil end
     return aura ~= nil
 end
@@ -537,7 +541,7 @@ local function FormName()
     if not index or index == 0 then return def.formNone end
     local _, b, _, d = Call("GetShapeshiftFormInfo", index)
     if Num(d) then return SpellName(d) end -- icon, active, castable, spellID
-    return Str(b)                          -- older clients: icon, name, ...
+    return ns.SpellEnglish(Str(b))         -- older clients: icon, name, ...
 end
 
 -- WAR-01/02, PAL-03, PRI-05, SHA-04, DRU-01/02
@@ -610,9 +614,9 @@ local function OnAutoRepeat()
     if not wandTimer then return end
     local wanding
     if C_Spell and C_Spell.IsAutoRepeatSpell then
-        wanding = Call("C_Spell.IsAutoRepeatSpell", "Shoot") == true
+        wanding = Call("C_Spell.IsAutoRepeatSpell", ns.SpellLocal("Shoot")) == true
     else
-        wanding = Call("IsAutoRepeatSpell", "Shoot") and true or false
+        wanding = Call("IsAutoRepeatSpell", ns.SpellLocal("Shoot")) and true or false
     end
     wandTimer:Set(wanding and "Wanding" or nil)
 end
@@ -721,7 +725,7 @@ local function ScanBags()
             local id, count, link = SlotItem(bag, slot)
             if id and count then
                 counts[id] = (counts[id] or 0) + count
-                if link and not names[id] then names[id] = link:match("%[(.-)%]") end
+                if link and not names[id] then names[id] = ns.ItemEnglish(id, link:match("%[(.-)%]")) end
             end
         end
     end
@@ -910,7 +914,7 @@ local function SetBaseline(counts, names)
     for _, name in pairs(names) do Mark(name) end
     for slot = 16, 18 do
         local link = Str(Call("GetInventoryItemLink", "player", slot))
-        Mark(link and link:match("%[(.-)%]"))
+        Mark(ns.LinkName(link))
     end
 end
 
@@ -1230,7 +1234,7 @@ local function OnAura(unit, info)
         local fine, name, helpful, source = pcall(function()
             return Safe(aura.name), Safe(aura.isHelpful), Safe(aura.sourceUnit)
         end)
-        name, source = fine and Str(name), fine and Str(source)
+        name, source = fine and ns.SpellEnglish(Str(name)), fine and Str(source)
         if name and helpful and source and Call("UnitIsPlayer", source) == true
             and Call("UnitIsUnit", source, "player") ~= true then
             Inc(all.buffs.bySpell, name)
@@ -1398,6 +1402,31 @@ local function CleanFood()
     end
 end
 
+-- Counts a client in another language saved before 0.6.18, under the
+-- spells' names there, joined to their English names (ns.RekeySpells). Run
+-- at every login: it only moves names it can translate.
+local function ToEnglish(store)
+    local R = ns.RekeySpells
+    for _, key in ipairs({ "casts", "ranks", "targets", "interrupts", "combo", "healing", "judgements" }) do
+        R(store[key])
+    end
+    for _, group in pairs(type(store.time) == "table" and store.time or {}) do R(group) end
+    for _, s in pairs(type(store.swaps) == "table" and store.swaps or {}) do
+        local pairsSeen = type(s) == "table" and type(s.pairs) == "table" and s.pairs
+        if pairsSeen then                                     -- "From > To"
+            local moved = {}
+            for key, n in pairs(pairsSeen) do
+                local from, to = key:match("^(.-) > (.+)$")
+                local english = from and (ns.SpellEnglish(from) .. " > " .. ns.SpellEnglish(to)) or key
+                moved[english] = (moved[english] or 0) + (tonumber(n) or 0)
+            end
+            s.pairs = moved
+        end
+    end
+    if type(store.shards) == "table" then R(store.shards.used) end
+    if type(store.buffs) == "table" then R(store.buffs.bySpell) end
+end
+
 local activated = false
 local function Activate()
     if activated or not db then return end
@@ -1408,6 +1437,7 @@ local function Activate()
     all = db.class.ALL or {}
     db.class.ALL = all
     ns.Fill(all, ALL_DEFAULTS)
+    pcall(ToEnglish, all)
     CleanFood()                                               -- ALL-05 old non-food entries
     if C_Timer and C_Timer.After then C_Timer.After(20, function() pcall(CleanFood) end) end -- (more names known by then)
     -- ALL-12: trainers saved by full GUID are kept by NPC ID from now on.
@@ -1422,6 +1452,7 @@ local function Activate()
         db.class[classToken] = data
         ns.Fill(data, CLASS_DEFAULTS)
         if def.store then ns.Fill(data, def.store) end
+        pcall(ToEnglish, data)
         BuildLookups()
         StartClassDrivers()
     end

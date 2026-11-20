@@ -81,7 +81,7 @@ local function HasAny(text, words)
     return false
 end
 
-local function NameOf(link) return link and link:match("%[(.-)%]") end
+local function NameOf(link) return ns.LinkName(link) end   -- (in English where it's listed)
 
 local function ItemClass(item)
     local _, _, _, _, _, classID, subClassID = Call("C_Item.GetItemInfoInstant", item)
@@ -336,9 +336,10 @@ end
 local gadget
 local function TryGadget(item)
     if not item then return end
-    local name = type(item) == "string" and (NameOf(item) or item) or Str(Call("GetItemInfo", item))
+    local name = type(item) == "string" and (NameOf(item) or item)
+        or ns.ItemEnglish(Num(item), Str(Call("GetItemInfo", item)))
     if not HasAny(name, GADGETS) then return end
-    gadget = { name = name, spell = Str(Call("GetItemSpell", item)), t = GetTime() }
+    gadget = { name = name, spell = ns.SpellEnglish(Str(Call("GetItemSpell", item))), t = GetTime() }
 end
 
 -- An auction sale of gathered goods (W-437), as its money is taken.

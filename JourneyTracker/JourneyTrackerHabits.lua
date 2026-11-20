@@ -49,7 +49,7 @@ local function OnLoot(link, count, quality)
     if quality == 2 then
         -- The main tracker counts this loot by quality just after.
         local L = ns.GetDB().loot
-        Track.firstEver("W-466", { name = link:match("%[(.-)%]") }, ((L.byQuality or {})[2] or 0) > 0) -- W-466 first green
+        Track.firstEver("W-466", { name = ns.LinkName(link) }, ((L.byQuality or {})[2] or 0) > 0) -- W-466 first green
     end
 end
 

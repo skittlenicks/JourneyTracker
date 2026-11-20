@@ -49,6 +49,11 @@ loads the rankings. An export can't bring its own: `decode.js` drops any
   code, so the website's upload function (`site/api/upload.js`) uses it as
   is. If the rules change, change the page's own copy too
   (`decodeExport` and `checkExport` in `site/recap.template.html`).
+- `english.js`: puts the spell and item names in an export from a client in
+  another language into English, as the addon saves them since 0.6.18.
+  `decode.js` runs it on every export. Its `names.json` (each language's
+  names) is made by `tools/names/build.js`; run that again after a Forever
+  patch or when the addon starts matching a new name.
 - `import.js`: reads the file and does the Supabase work.
 
 ## Tests

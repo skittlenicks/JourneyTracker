@@ -609,7 +609,7 @@ local function OnQuestTurnedIn(questID)
 end
 
 local function OnLoot(link, count)
-    local name = link and link:match("%[(.-)%]")
+    local name = ns.LinkName(link)
     if not name then return end
     for _, e in ipairs(ICONIC_LOOT) do
         if (e.exact and IsIn(name, e.exact)) or (e.pattern and name:find(e.pattern)) then

@@ -55,7 +55,8 @@ function Stage-Function([string]$name, [string[]]$extra) {
     if (Test-Path $func) { Remove-Item -Recurse -Force $func }
     New-Item -ItemType Directory -Force $func | Out-Null
     Copy-Item (Join-Path $PSScriptRoot "api\$name.js") (Join-Path $func "index.js")
-    $shared = @((Join-Path $root "tools\import\decode.js"), (Join-Path $PSScriptRoot "api\ranks.js"),
+    $shared = @((Join-Path $root "tools\import\decode.js"), (Join-Path $root "tools\import\english.js"),
+        (Join-Path $root "tools\import\names.json"), (Join-Path $PSScriptRoot "api\ranks.js"),
         (Join-Path $PSScriptRoot "api\character.js"), (Join-Path $PSScriptRoot "model.js"),
         (Join-Path $PSScriptRoot "rankings.js"))
     foreach ($file in $shared + $extra) { Copy-Item $file $func -Recurse }

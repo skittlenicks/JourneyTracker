@@ -62,7 +62,7 @@ local function LootParts(msg, pattern, order, count)
     return parts[skip + 1], parts[skip + 2], parts[skip + 3]
 end
 
-local function ItemName(link) return link and (link:match("%[(.-)%]") or link) end
+local function ItemName(link) return link and (ns.LinkName(link) or link) end
 
 local function OnRollChoice(rollID, rollType)
     rollID, rollType = Num(Safe(rollID)), Num(Safe(rollType))
