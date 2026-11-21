@@ -342,15 +342,11 @@ local function TryGadget(item)
     gadget = { name = name, spell = ns.SpellEnglish(Str(Call("GetItemSpell", item))), t = GetTime() }
 end
 
--- An auction sale of gathered goods (W-437), as its money is taken.
-local function OnTakeMoney(index)
-    index = Num(Safe(index))
-    if not index then return end
-    local money = Num(select(5, Call("GetInboxHeaderInfo", index)))
-    if not money or money <= 0 then return end
-    local kind, item = Call("GetInboxInvoiceInfo", index)
-    if Str(kind) == "seller" and Str(item) and Gathered(Str(item)) then
-        Track.count("W-437", "auction house", money)
+-- An auction sale of gathered goods (W-437), as its money lands (the main
+-- tracker counts each mail once, however often its money is asked for).
+local function OnMailMoney(take)
+    if take.kind == "seller" and take.item and Gathered(take.item) then
+        Track.count("W-437", "auction house", take.money)
     end
 end
 
@@ -773,9 +769,8 @@ On("PLAYER_TARGET_CHANGED", function()
     if Track.enabled("holiday") and FAIRE_NPCS[Str(Call("UnitName", "target")) or ""] then FaireVisit() end
 end)
 ns.OnLoad(Protect(MigrateRep))
+ns.OnMailMoney(Protect(OnMailMoney))
 ns.OnLoad(function()
-    ns.Hook("TakeInboxMoney", Protect(OnTakeMoney))
-    ns.Hook("AutoLootMailItem", Protect(OnTakeMoney))
     ns.Hook("UseInventoryItem", Protect(function(slot)
         TryGadget(Str(Call("GetInventoryItemLink", "player", Num(Safe(slot)) or 0)))
     end))

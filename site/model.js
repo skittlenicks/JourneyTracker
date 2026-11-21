@@ -35,7 +35,10 @@ var JourneyModel = (function () {
   //    addon 0.6.15) ranked.
   // 13: pets' deaths out; enemy players killed, duels and battlegrounds from
   //     the game's own pane where the addon couldn't count them (addon 0.6.17).
-  var MODEL = 13;
+  // 14: auction sales held to the mail they came in (counted twice up to
+  //     addon 0.6.18); trades, respecs, bank slots and profession training
+  //     have their own lines (addon 0.6.19).
+  var MODEL = 14;
   // /played seconds after reaching a milestone past which a journey
   // exported at that level is late (the addon's LATE_AFTER).
   var LATE_AFTER = 2 * 3600;
@@ -610,15 +613,41 @@ var JourneyModel = (function () {
       var rest = number(whole) - sum(rows.map(function (r) { return r[1]; }));
       return rest > 0 ? rows.concat([["Other", rest]]) : rows;
     }
-    // The addon's mail income includes auction sales, which have their own row.
-    J.earned = withOther([["Quest rewards", J.questGold], ["Selling to vendors", best(money.vendor, 921)],
-                          ["Looting", best(money.loot, 333)], ["Auction house sales", best(money.auctionIncome, 919)],
-                          ["Mail", Math.max(0, number(money.mail) - number(money.auctionIncome))]], best(money.earned, 328));
-    J.spent = withOther([["Vendor purchases", money.vendorSpent], ["Auction house", money.auctionSpent],
-                         ["Class training", money.training], ["Repairs", money.repairs], ["Flights", best(money.flights, 1146)]],
-                        money.spent);
-    J.earnedTotal = sum(J.earned.map(function (r) { return r[1]; }));
-    J.spentTotal = sum(J.spent.map(function (r) { return r[1]; }));
+    // The addon's mail income includes auction sales, which have their own
+    // row. Up to addon 0.6.18 a mail asked for twice counted its sale twice,
+    // so sales are held to the mail they came in.
+    var mailGold = number(money.mail), saleGold = Math.min(number(money.auctionIncome), mailGold);
+    // Respecs, bank slots and trades had no line of their own up to 0.6.18
+    // (their gold was "Other"); the wrapped stats counted them.
+    function line(key, id) { return money[key] !== undefined ? number(money[key]) : number(own(wr, id)); }
+    // With the game's lifetime figures where they're higher (life), or only
+    // the addon's own counts, all from when tracking began.
+    function goldRows(life) {
+      var pick = life ? best : function (tracked) { return number(tracked); };
+      var earned = withOther([["Quest rewards", life ? J.questGold : quests.money], ["Selling to vendors", pick(money.vendor, 921)],
+                              ["Looting", pick(money.loot, 333)], ["Auction house sales", pick(saleGold, 919)],
+                              ["Mail", mailGold - saleGold], ["Trades", line("tradeIncome", "W-298")]], pick(money.earned, 328));
+      var spent = withOther([["Vendor purchases", money.vendorSpent], ["Auction house", money.auctionSpent],
+                             ["Class training", money.training], ["Profession training", money.professionTraining],
+                             ["Respecs", line("respecs", "W-376")], ["Repairs", money.repairs], ["Flights", pick(money.flights, 1146)],
+                             ["Trades", line("tradeSpent", "W-297")], ["Bank slots", line("bank", "W-366.gold")]], money.spent);
+      return { earned: earned, spent: spent, earnedTotal: sum(earned.map(function (r) { return r[1]; })),
+               spentTotal: sum(spent.map(function (r) { return r[1]; })) };
+    }
+    var life = goldRows(true);
+    J.earned = life.earned;
+    J.spent = life.spent;
+    J.earnedTotal = life.earnedTotal;
+    J.spentTotal = life.spentTotal;
+    // The page shows tracking that began after level 1 by its own counts:
+    // the game's lifetime figures beside what was spent since would compare
+    // different stretches of the journey. (The rankings keep the best of
+    // the two.) allTime: the game's own lifetime total, for beside it.
+    if (J.firstLevel > 1) {
+      J.gold = goldRows(false);
+      J.gold.since = J.firstLevel;
+      J.gold.allTime = pane[328] || 0;
+    }
     J.peakGold = best(money.peak, 334) > 0 ? { copper: best(money.peak, 334) } : null;
     J.auctionsSold = number(money.auctionsSold);
     J.firstMountLevel = number(named(st.firstMount).level) || null;

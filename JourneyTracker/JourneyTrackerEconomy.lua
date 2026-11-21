@@ -293,21 +293,21 @@ end
 
 local pendingMail, inboxCount
 
--- Money taken from a mail: an auction sale's refunded deposit and the
--- house's cut, or gold from another player.
+-- Money asked for from a mail: its invoice's records (W-370, W-371).
 local function OnTakeMoney(index)
     index = Num(Safe(index))
-    if not index then return end
-    local _, _, _, subject, money = Call("GetInboxHeaderInfo", index)
-    money = Num(money)
-    if not money or money <= 0 then return end
-    local kind, _, _, _, _, deposit, cut = Call("GetInboxInvoiceInfo", index)
-    ReadInvoice(index)
-    if Str(kind) == "seller" then
-        Track.count("W-369", "refunded", Num(deposit) or 0)   -- W-369 deposits back, the house's cut
-        Track.count("W-369", "cuts", Num(cut) or 0)
-    elseif not Str(kind) and not IsAuctionMail(Str(subject)) then
-        Track.count("W-374", "received", money)               -- W-374 gold received by mail
+    if index then ReadInvoice(index) end
+end
+
+-- Money from a mail as it lands (the main tracker counts each mail once,
+-- however often its money is asked for): an auction sale's refunded deposit
+-- and the house's cut, or gold from another player.
+local function OnMailMoney(take)
+    if take.kind == "seller" then
+        Track.count("W-369", "refunded", take.deposit or 0)   -- W-369 deposits back, the house's cut
+        Track.count("W-369", "cuts", take.cut or 0)
+    elseif not take.kind and not IsAuctionMail(take.subject) then
+        Track.count("W-374", "received", take.money)          -- W-374 gold received by mail
     end
 end
 
@@ -837,6 +837,7 @@ ns.OnItemChange(Protect(function(c)
     OnItemChange(c)
 end))
 ns.OnMoneyChange(Protect(OnMoney))
+ns.OnMailMoney(Protect(OnMailMoney))
 ns.OnLootItem(Protect(OnLoot))
 -- (By the main tracker's gathering spells too: Forever's herb gathering is
 -- "Herbalism", and every herb was a treasure chest before 0.6.14.)

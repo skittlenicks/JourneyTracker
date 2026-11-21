@@ -944,26 +944,40 @@ end
 
 local function PageGold(B, db)
     local M = db.money
+    -- Tracking that began after level 1 shows its own counts, all from the
+    -- same start: the game's lifetime figures (where they're higher) beside
+    -- what was spent since would compare different stretches of the journey.
+    -- Those figures then show in the game's statistics below.
+    local first = db.sessions.list[1] or db.sessions.current
+    local from = first and tonumber(first.startLevel)
+    local late = from and from > 1
+    local function Pick(ours, id) return late and ours or Best(ours, Stat(id)) end
+    local since = late and (" since level " .. from) or ""
     B:Title("Gold")
     B:Row("On hand", Money(ns.Num(ns.Call("GetMoney"))))
     B:Row("Most ever held", Money(Best(M.peak, Stat(334))))                  -- #85
-    B:Row("Total earned", Money(Best(M.earned, Stat(328))))                  -- #77
-    B:Row("Total spent", Money(M.spent))
+    B:Row(late and "Earned" .. since or "Total earned", Money(Pick(M.earned, 328))) -- #77
+    B:Row(late and "Spent" .. since or "Total spent", Money(M.spent))
     B:Heading("Earned From")
-    B:Row("Quest rewards", Money(Best(db.quests.money, Stat(326))))          -- #57
-    B:Row("Looting", Money(Best(M.loot, Stat(333))))                         -- #78
-    B:Row("Selling to vendors", Money(Best(M.vendor, Stat(921))))            -- #79
-    B:Row("Auction house sales", Money(Best(M.auctionIncome, Stat(919))))    -- #83
+    B:Row("Quest rewards", Money(Pick(db.quests.money, 326)))                -- #57
+    B:Row("Looting", Money(Pick(M.loot, 333)))                               -- #78
+    B:Row("Selling to vendors", Money(Pick(M.vendor, 921)))                  -- #79
+    B:Row("Auction house sales", Money(Pick(M.auctionIncome, 919)))          -- #83
     B:Row("Other mail", Money(math.max(M.mail - M.auctionIncome, 0)))
+    B:Row("Trades", Money(M.tradeIncome))                                    -- #77
     B:Row("Auctions sold", M.auctionsSold)
     B:Heading("Spent On")
     B:Row("Class training", Money(M.training))                               -- #80
+    B:Row("Profession training", Money(M.professionTraining))                -- #77
+    B:Row("Respecs", Money(M.respecs))
     B:Row("Repairs", Money(M.repairs))                                       -- #81
-    B:Row("Flights", Money(Best(M.flights, Stat(1146))))                     -- #82
+    B:Row("Flights", Money(Pick(M.flights, 1146)))                           -- #82
     B:Row("Auction house", Money(M.auctionSpent))                            -- #83
     B:Row("Vendor purchases", Money(M.vendorSpent))
-    Block(B, "gold", { [334] = true, [328] = true, [326] = true, [333] = true, [921] = true,
-                       [919] = true, [1146] = true })
+    B:Row("Trades", Money(M.tradeSpent))                                     -- #77
+    B:Row("Bank slots", Money(M.bank))
+    Block(B, "gold", late and { [334] = true } or { [334] = true, [328] = true, [326] = true, [333] = true,
+                                                    [921] = true, [919] = true, [1146] = true })
     B:Heading("First Mount")                                                 -- #84
     if db.firstMount then
         B:Row("Level", db.firstMount.level)

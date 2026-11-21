@@ -38,7 +38,7 @@ local db -- JourneyTrackerDB, set on ADDON_LOADED
 -- friends). Each callback runs protected: an error in one of them can't
 -- stop this file recording the kill, death or loot. The first errors are
 -- kept for /journey status.
-local hooks = { kill = {}, fight = {}, death = {}, fall = {}, loot = {}, money = {}, gather = {}, auction = {} }
+local hooks = { kill = {}, fight = {}, death = {}, fall = {}, loot = {}, money = {}, gather = {}, auction = {}, mail = {} }
 local hookErrors = {}
 local function Run(kind, fn, ...)
     local ok, err = pcall(fn, ...)
@@ -355,7 +355,8 @@ local DEFAULTS = {
     dungeons = { entered = {}, runs = {} }, -- #73-75; .current = run in progress
     money = { earned = 0, spent = 0, loot = 0, vendor = 0, vendorSpent = 0,
               training = 0, repairs = 0, flights = 0, auctionSpent = 0,
-              mail = 0, auctionIncome = 0, auctionsSold = 0, peak = 0 },
+              mail = 0, auctionIncome = 0, auctionsSold = 0, peak = 0,
+              professionTraining = 0, respecs = 0, bank = 0, tradeIncome = 0, tradeSpent = 0 },
     loot = { items = 0, byQuality = {} },
     gear = {},              -- #89 [level] = { [slot] = itemLink }
     worn = {},              -- #104 [item] = { link, slot, played, levels, first, last }
@@ -1304,7 +1305,44 @@ end
 -- Which window is open, so a money change can be attributed.
 local ctx = { merchant = false, trainer = false, auction = false, mail = false,
               loot = false, lootUntil = 0, repairUntil = 0, flightUntil = 0,
+              trade = false, tradeUntil = 0, respecUntil = 0, bankUntil = 0,
               tradeskill = false } -- the open trainer teaches a profession, not your class
+
+-- #83 money taken from mail is read as it's asked for (TakeInboxMoney,
+-- AutoLootMailItem; see OnTakeMail), while the inbox still describes the
+-- mail, and counted when it lands (OnMoney). Counting the asking counted
+-- auction sales twice (0.6.18 and older): Open All can ask for one mail's
+-- money again before the inbox catches up, and each mail pays out once.
+do
+    local asked = {}      -- oldest first: { key, money, t, ... }
+    local KEEP = 60       -- seconds an ask waits for its money
+    function ns.MailAsked(take)
+        take.t = GetTime()
+        for i, a in ipairs(asked) do
+            if a.key == take.key then asked[i] = take; return end -- the same mail again
+        end
+        asked[#asked + 1] = take
+    end
+    -- The asks that money landing now pays for: one for exactly that much,
+    -- or else the oldest few adding up to it (two mails in one change).
+    function ns.MailLanded(amount, now)
+        for i = #asked, 1, -1 do
+            if now - asked[i].t > KEEP then table.remove(asked, i) end
+        end
+        for i, a in ipairs(asked) do
+            if a.money == amount then return { table.remove(asked, i) } end
+        end
+        local sum, n = 0, 0
+        for i, a in ipairs(asked) do
+            sum, n = sum + a.money, i
+            if sum >= amount then break end
+        end
+        if n < 2 or sum ~= amount then return nil end
+        local paid = {}
+        for i = 1, n do paid[i] = table.remove(asked, 1) end
+        return paid
+    end
+end
 
 local function OnMoney()
     local now = Num(Call("GetMoney"))
@@ -1316,19 +1354,28 @@ local function OnMoney()
     if not last then return end
     local d = now - last
     local t = GetTime()
+    local paid = d > 0 and ns.MailLanded(d, t)                -- money from mail asked for (#83)
     -- For the other files: the change, where it happened and the new total.
-    local where = (ctx.loot or t < ctx.lootUntil) and "loot" or (t < ctx.repairUntil and "repair")
+    local where = paid and "mail" or (ctx.loot or t < ctx.lootUntil) and "loot" or (t < ctx.repairUntil and "repair")
         or (t < ctx.flightUntil and "flight") or (ctx.trainer and "trainer") or (ctx.auction and "auction")
         or (ctx.mail and "mail") or (ctx.merchant and "merchant") or nil
     Fire("money", d, where, now)
     if d > 0 then
         M.earned = M.earned + d                               -- #77 total earned
-        if ctx.loot or t < ctx.lootUntil then
+        if paid then
+            M.mail = M.mail + d                               -- #83 all mail income
+            for _, take in ipairs(paid) do
+                if take.sale then M.auctionIncome = M.auctionIncome + take.money end -- #83 auction sales
+                Fire("mail", take)
+            end
+        elseif ctx.loot or t < ctx.lootUntil then
             M.loot = M.loot + d                               -- #78 gold from looting
         elseif ctx.merchant then
             M.vendor = M.vendor + d                           -- #79 vendor sales
         elseif ctx.mail then
             M.mail = M.mail + d                               -- #83 all mail income (see OnTakeMail)
+        elseif ctx.trade or t < ctx.tradeUntil then
+            M.tradeIncome = M.tradeIncome + d                 -- #77 gold from trades
         else
             ctx.unclaimed, ctx.unclaimedAt = d, t             -- loot, if "You loot..." follows (CHAT_MSG_MONEY)
         end
@@ -1342,29 +1389,43 @@ local function OnMoney()
             M.flights = M.flights + d                         -- #82 flights
         elseif ctx.trainer and not ctx.tradeskill then
             M.training = M.training + d                       -- #80 class training
+        elseif ctx.trainer then
+            M.professionTraining = M.professionTraining + d   -- #77 profession trainers
         elseif ctx.auction then
             M.auctionSpent = M.auctionSpent + d               -- #83 bids, buyouts, deposits
         elseif ctx.merchant then
             M.vendorSpent = M.vendorSpent + d
+        elseif t < ctx.respecUntil then
+            M.respecs = M.respecs + d                         -- #77 talent respecs
+        elseif t < ctx.bankUntil then
+            M.bank = M.bank + d                               -- #77 bank slots
+        elseif ctx.trade or t < ctx.tradeUntil then
+            M.tradeSpent = M.tradeSpent + d                   -- #77 gold given in trades
         end
     end
 end
 
--- #83 money from auction sales. Runs as a mail's money is taken, while the
--- inbox entry should still describe the mail: an auction sale carries a
--- "seller" invoice (or the "Auction successful" subject).
+-- #83 money taken from mail, read as it's asked for, while the inbox entry
+-- still describes the mail, and counted when it lands (ns.MailAsked above):
+-- an auction sale carries a "seller" invoice (or the "Auction successful"
+-- subject). The other files get it as it lands (ns.OnMailMoney). The other
+-- player on an invoice is never read.
 local AUCTION_SOLD_SUBJECT = PatternFrom(AUCTION_SOLD_MAIL_SUBJECT, "Auction successful: %s")
 local function OnTakeMail(index)
     index = Num(Safe(index))
     if not index then return end
-    local _, _, _, subject, money = Call("GetInboxHeaderInfo", index)
+    local _, _, _, subject, money, _, daysLeft = Call("GetInboxHeaderInfo", index)
     money = Num(money)
     if not money or money <= 0 then return end
     subject = Str(subject)
-    local invoice = Str(Call("GetInboxInvoiceInfo", index))
-    if invoice == "seller" or (subject and subject:match(AUCTION_SOLD_SUBJECT)) then
-        db.money.auctionIncome = db.money.auctionIncome + money
-    end
+    local kind, item, _, bid, _, deposit, cut = Call("GetInboxInvoiceInfo", index)
+    kind = Str(kind)
+    ns.MailAsked({
+        key = table.concat({ index, subject or "", money, tostring(Num(daysLeft) or "") }, "|"),
+        money = money, subject = subject, kind = kind, item = Str(item),
+        bid = Num(bid), deposit = Num(deposit), cut = Num(cut),
+        sale = kind == "seller" or (subject ~= nil and subject:match(AUCTION_SOLD_SUBJECT) ~= nil),
+    })
 end
 
 ---------------------------------------------------------------------------
@@ -2130,6 +2191,9 @@ handlers.AUCTION_HOUSE_SHOW = function() ctx.auction = true end
 handlers.AUCTION_HOUSE_CLOSED = function() ctx.auction = false end
 handlers.MAIL_SHOW = function() ctx.mail = true end
 handlers.MAIL_CLOSED = function() ctx.mail = false end
+-- A trade's gold can land just after its window closes.
+handlers.TRADE_SHOW = function() ctx.trade = true end
+handlers.TRADE_CLOSED = function() ctx.trade, ctx.tradeUntil = false, GetTime() + 2 end
 
 -- Modern clients may report those windows through the interaction manager
 -- instead; this keeps the same flags in sync either way.
@@ -2352,9 +2416,12 @@ local function InstallHooks()
         lastJump, jumpHeld = GetTime(), true
     end)
     Hook("AscendStop", function() jumpHeld = false end)
-    -- #83 auction sale proceeds, read as mail money is taken
+    -- #83 auction sale proceeds, read as mail money is asked for
     Hook("TakeInboxMoney", OnTakeMail)
     Hook("AutoLootMailItem", OnTakeMail)
+    -- #77 respecs and bank slots: their price is taken within 3 seconds
+    Hook("ConfirmTalentWipe", function() ctx.respecUntil = GetTime() + 3 end)
+    ns.HookEither("C_Bank.PurchaseBankTab", "PurchaseSlot", function() ctx.bankUntil = GetTime() + 3 end)
 end
 
 local ticker
@@ -2396,6 +2463,20 @@ frame:SetScript("OnEvent", function(self, event, ...)
         end
         Fill(db, DEFAULTS)
         ns.RekeySpells(db.spells, true)                       -- #95 by English name (0.6.18)
+        -- #83 auction sales are part of the mail's money. Up to 0.6.18 a
+        -- mail asked for twice counted its sale twice, so they're held to it.
+        local M = db.money
+        if M.auctionIncome > M.mail then M.auctionIncome = M.mail end
+        -- #77 up to 0.6.18 respecs, bank slots and trades had no line of
+        -- their own (their gold was "other"); the wrapped stats counted them.
+        if not M.split then
+            local W = type(db.wrapped) == "table" and db.wrapped or {}
+            M.respecs = M.respecs + (Num(W["W-376"]) or 0)
+            M.bank = M.bank + (Num(W["W-366.gold"]) or 0)
+            M.tradeSpent = M.tradeSpent + (Num(W["W-297"]) or 0)
+            M.tradeIncome = M.tradeIncome + (Num(W["W-298"]) or 0)
+            M.split = true
+        end
         if db.firstSeen == 0 then db.firstSeen = time() end   -- #4
         RegisterEvents()
         InstallHooks()
@@ -2585,6 +2666,9 @@ function ns.OnFall(fn) table.insert(hooks.fall, fn) end
 function ns.OnLootItem(fn) table.insert(hooks.loot, fn) end
 function ns.OnMoneyChange(fn) table.insert(hooks.money, fn) end
 function ns.OnAuctionNotice(fn) table.insert(hooks.auction, fn) end -- (kind, count): "sold", "expired", "cancelled"
+-- (take): money from one mail as it lands, each mail once: { money, subject,
+-- kind (its invoice: "seller", "buyer" or nil), item, bid, deposit, cut, sale }
+function ns.OnMailMoney(fn) table.insert(hooks.mail, fn) end
 function ns.MobInfo(name) return name and mobInfo[name] end
 -- (A message's name may have a surname and a realm; UnitName gave a first name.)
 function ns.PlayerInfo(name)

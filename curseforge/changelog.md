@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.19
+
+- **Auction sales counted once:** taking an auction's gold from the mailbox could count the sale twice, so "Auction house sales" came out too high, often more than all the gold you'd taken from mail. Each mail now counts once, when its gold actually arrives. Sales you've already saved are capped at your mail income the first time you log in with 0.6.19.
+- **Where your gold went:** trades, talent respecs, bank slots and profession trainers now have their own lines on the Gold page. They used to land in "other". Respecs, bank slots and trades you've already made are moved over the first time you log in.
+- **Earned and spent from the same start:** if Journey Tracker started tracking after level 1, the Gold page now shows what you've earned and spent since then, "since level 36" for example. It used to put the game's lifetime total beside spending since tracking began, so you could appear to have spent more than you earned. The game's lifetime figures are still shown, under the game's own statistics further down the page.
+
+### On the website
+
+- **The same gold fixes:** your journey's Gold section shows auction sales held to your mail income, trades, respecs and bank slots as their own lines, and "since level N" when tracking started late. This covers journeys you've already uploaded too.
+
 ## 0.6.18
 
 - **Every language, for spells and items too:** Journey Tracker looked for spells and items by their English names, so on clients in other languages, such as German, Spanish, French and Russian, most of the class pages stayed empty. That includes spells cast, time in each form, stance, seal and aspect, and potions, bandages and Soul Shards. It now finds them by their IDs and keeps them under their English names, whatever your game's language. Spells you've already cast are moved over the first time you log in with 0.6.18, so nothing is lost. Creatures and places counted by name are still English only.

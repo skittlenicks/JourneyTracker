@@ -2399,20 +2399,25 @@ kbd {
   });
 
   // Gold
-  var earned = S.earnedTotal !== undefined ? S.earnedTotal : sum(S.earned.map(function (r) { return r[1]; }));
-  var spent = S.spentTotal !== undefined ? S.spentTotal : sum(S.spent.map(function (r) { return r[1]; }));
+  // A journey tracked from after level 1 by its own counts, all from when
+  // tracking began (S.gold); otherwise with the game's figures where higher.
+  var G = S.gold || S, since = G.since ? "Since level " + G.since + ", you" : "You";
+  var earned = G.earnedTotal !== undefined ? G.earnedTotal : sum(G.earned.map(function (r) { return r[1]; }));
+  var spent = G.spentTotal !== undefined ? G.spentTotal : sum(G.spent.map(function (r) { return r[1]; }));
   draw("chapter-gold", function () {
     hide("chapter-gold", !earned && !spent);
-    $("gold-title").textContent = !earned ? "You spent " + coins(spent) + "." :
-      earned >= spent ? "You earned " + coins(earned) + " and kept " + coins(earned - spent) + " of it." :
-      "You earned " + coins(earned) + " and spent " + coins(spent) + ".";
-    bars("earned", S.earned, money);
-    bars("spent", S.spent, money);
-    hideBlock("earned", !S.earned.length);
-    hideBlock("spent", !S.spent.length);
+    $("gold-title").textContent = !earned ? since + " spent " + coins(spent) + "." :
+      earned >= spent ? since + " earned " + coins(earned) + " and kept " + coins(earned - spent) + " of it." :
+      since + " earned " + coins(earned) + " and spent " + coins(spent) + ".";
+    bars("earned", G.earned, money);
+    bars("spent", G.spent, money);
+    hideBlock("earned", !G.earned.length);
+    hideBlock("spent", !G.spent.length);
     stats("gold-stats", [
       ["Earned", money(earned)],
       ["Spent", money(spent)],
+      // The game's lifetime count, where it's more: it began before tracking.
+      G.allTime > earned && ["Earned in all", money(G.allTime) + " <small>(the game's count, from level 1)</small>"],
       S.peakGold && ["Most gold at once", money(S.peakGold.copper) + (S.peakGold.level ? " <small>(level " + S.peakGold.level + ")</small>" : "")],
       // At what /played: as the addon saw it, or the levels' times added up
       // for a journey tracked from the start (a partly tracked one's would
