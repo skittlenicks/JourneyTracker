@@ -52,6 +52,7 @@ const SHARED_WAIT = 20 * 1000;     // ms to wait for the shared population
 const PAGE = 1000;                 // rows per request, Supabase's cap
 const MAKE_PER_LOAD = 25;          // profiles worked out per load
 const MAKE_AT_ONCE = 5;            // exports read at once to work them out
+const MAKE_FOR = 4000;             // ms a population may spend on them (big exports are slow)
 const MILESTONES = [10, 20, 30, 40, 50, 60];   // the ones journeys are ranked at
 
 // The keys profiles are ranked on, in the rankings' order: a packed
@@ -136,9 +137,11 @@ function whoOf(characterId) {
 // Profiles and summaries for listed uploads that need them, written back
 // with their export, a few exports read at a time. The rows get what the
 // listing has of a profile (since, model, failed), the profile itself
-// (ranked) and the summary.
-async function makeProfiles(rows) {
+// (ranked) and the summary. Given a time (`until`), no more are begun after
+// it; the rest wait for another load.
+async function makeProfiles(rows, until) {
   for (let i = 0; i < rows.length; i += MAKE_AT_ONCE) {
+    if (until && Date.now() >= until) break;
     const batch = rows.slice(i, i + MAKE_AT_ONCE);
     const full = await (await supabase(`uploads?select=id,payload&id=in.(${batch.map((r) => r.id).join(',')})`)).json();
     await Promise.all(full.map(async ({ id, payload }) => {
@@ -197,7 +200,8 @@ async function readPopulation(milestone) {
   // till then an older profile's `since` counts as unknown. An upload whose
   // profile failed stands for nobody.
   const todo = listed.filter((r) => !usableListed(r)).sort((a, b) => Number(a.model != null) - Number(b.model != null));
-  if (todo.length) await makeProfiles(todo.slice(0, MAKE_PER_LOAD));
+  const until = Date.now() + MAKE_FOR;
+  if (todo.length) await makeProfiles(todo.slice(0, MAKE_PER_LOAD), until);
   const by = new Map();
   for (const r of listed) {
     if (r.failed) continue;
@@ -210,7 +214,7 @@ async function readPopulation(milestone) {
   // what's left of this load's few, so they cost less to read next time.
   const spare = MAKE_PER_LOAD - Math.min(todo.length, MAKE_PER_LOAD);
   const loose = rows.filter((r) => r.ranked === undefined && r.keys == null && usableListed(r)).slice(0, spare);
-  if (loose.length) await makeProfiles(loose);
+  if (loose.length) await makeProfiles(loose, until);
   const unread = rows.filter((r) => r.ranked === undefined);
   for (let i = 0; i < unread.length; i += 200) {
     const chunk = unread.slice(i, i + 200);
