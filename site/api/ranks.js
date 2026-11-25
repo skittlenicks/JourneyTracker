@@ -183,15 +183,21 @@ function closest(a, b) {
 
 // At a milestone, each character's closest upload that has a profile, read
 // from Supabase: [{ character_id, ranked }], ranked with its values by name
-// (unpack). Their uploads are listed first, a few bytes each, and only the
-// chosen ones' profiles are read.
+// (unpack). Every upload there is read with its whole profile. Picking a
+// profile's fields out one by one costs Postgres an unpacking of the export
+// for each, so a listing of those took 7 s for the level 10s (Nov 2026)
+// against 2 s for the profiles whole, and characters rarely have more than
+// one upload in a milestone.
 async function readPopulation(milestone) {
   const [lo, hi] = levelsOf(milestone), listed = [];
   for (let from = 0; ; from += PAGE) {
-    const page = await (await supabase('uploads?select=id,character_id,level,exported_at,since:payload->ranked->since' +
-      ',model:payload->ranked->model,failed:payload->ranked->failed,keys:payload->ranked->keys' +
+    const page = await (await supabase('uploads?select=id,character_id,level,exported_at,ranked:payload->ranked' +
       `&addon_version=not.in.(${TEST_VERSIONS.join(',')})&level=gte.${lo}&level=lte.${hi}` +
       `&order=id&offset=${from}&limit=${PAGE}`)).json();
+    for (const r of page) {
+      const p = r.ranked || {};
+      Object.assign(r, { since: p.since, model: p.model, failed: p.failed, keys: p.keys });
+    }
     listed.push(...page);
     if (page.length < PAGE) break;
   }
@@ -210,19 +216,13 @@ async function readPopulation(milestone) {
     if (!best || closest(r, best) < 0) by.set(r.character_id, r);
   }
   const rows = [...by.values()];
-  // Chosen profiles saved before profiles were packed are packed now, with
-  // what's left of this load's few, so they cost less to read next time.
-  const spare = MAKE_PER_LOAD - Math.min(todo.length, MAKE_PER_LOAD);
-  const loose = rows.filter((r) => r.ranked === undefined && r.keys == null && usableListed(r)).slice(0, spare);
+  // Profiles saved before profiles were packed are packed now, the chosen
+  // ones first, with what's left of this load's few, so they cost less to
+  // read next time.
+  const spare = MAKE_PER_LOAD - Math.min(todo.length, MAKE_PER_LOAD), chosen = new Set(rows);
+  const loose = listed.filter((r) => !r.failed && r.keys == null && usableListed(r))
+    .sort((a, b) => Number(!chosen.has(a)) - Number(!chosen.has(b))).slice(0, spare);
   if (loose.length) await makeProfiles(loose, until);
-  const unread = rows.filter((r) => r.ranked === undefined);
-  for (let i = 0; i < unread.length; i += 200) {
-    const chunk = unread.slice(i, i + 200);
-    const got = await (await supabase('uploads?select=id,ranked:payload->ranked' +
-      `&id=in.(${chunk.map((r) => r.id).join(',')})`)).json();
-    const ranked = new Map(got.map((g) => [g.id, g.ranked]));
-    chunk.forEach((r) => { r.ranked = ranked.get(r.id) || null; });
-  }
   // An older profile still ranks until it's worked out again.
   return rows.map((r) => ({ character_id: r.character_id, ranked: unpack(r.ranked) }))
     .filter((r) => r.ranked && r.ranked.values && Array.isArray(r.ranked.trades));
