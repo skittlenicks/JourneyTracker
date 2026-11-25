@@ -3,9 +3,11 @@ param(
     [switch]$Preview
 )
 # Puts the website online with Vercel (project "journeytracker"): builds it
-# (build.ps1 -Site), stages it and its three functions as Vercel's prebuilt
+# (build.ps1 -Site), stages it and its four functions as Vercel's prebuilt
 # output and uploads it with the Vercel CLI:
 #   /api/upload          saves a pasted export to Supabase (api\upload.js)
+#   /api/population      a milestone's profiles, for the others to rank
+#                        journeys against through Vercel's CDN (api\population.js)
 #   /j/<id>              a character's page, its latest journey (api\share.js)
 #   /j/<id>/<level>      its journey at a level
 #   /j/<id>/vs/<id>      two characters side by side
@@ -65,6 +67,7 @@ function Stage-Function([string]$name, [string[]]$extra) {
     return $func
 }
 Stage-Function "upload" @() | Out-Null
+Stage-Function "population" @() | Out-Null
 Stage-Function "share" @((Join-Path $dist "site\index.html")) | Out-Null
 $card = Stage-Function "card" @((Join-Path $PSScriptRoot "api\preview.js"), (Join-Path $PSScriptRoot "fonts"),
     (Join-Path $PSScriptRoot "node_modules"))
